@@ -132,15 +132,15 @@ const App: React.FC = () => {
       if (prev.tags.some(t => t.id === tagId)) return prev;
       
       const cleanData = tagData.trim();
-      // O nome agora é PRIORITARIAMENTE o texto lido da tag
+      // Mostra o texto gravado como nome principal, se existir
       const displayName = cleanData.length > 0 ? cleanData : `Tripulante #${prev.tags.length + 1}`;
       
       const newTag: ScannedTag = { 
-        id: tagId, 
+        id: tagId, // Número de série
         timestamp: new Date().toLocaleTimeString('pt-BR'), 
-        data: cleanData || "Sem texto no chip", 
-        name: displayName, 
-        role: cleanData.length > 0 ? 'DADOS NFC' : 'ID PADRÃO' 
+        data: cleanData || "Sem texto no chip", // Dados brutos
+        name: displayName, // Nome de exibição (Texto gravado)
+        role: cleanData.length > 0 ? 'IDENTIFICADO VIA CHIP' : 'ID HARDWARE' 
       };
       return { ...prev, tags: [newTag, ...prev.tags] };
     });
