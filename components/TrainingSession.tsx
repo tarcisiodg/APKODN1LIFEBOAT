@@ -27,6 +27,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [isConfirmingFinish, setIsConfirmingFinish] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
+  const [lastScannedText, setLastScannedText] = useState<string | null>(null);
   
   const nfcReaderRef = useRef<any>(null);
 
@@ -61,25 +62,44 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         const textDecoder = new TextDecoder();
         let dataStr = "";
         
-        // Tenta ler dados dos registros se existirem
+        // Processamento NDEF aprimorado para extrair texto real
         if (message.records) {
           for (const record of message.records) {
             try {
-              dataStr += textDecoder.decode(record.data);
-            } catch (e) { console.debug("Erro ao decodificar registro"); }
+              if (record.recordType === "text") {
+                // Em registros de texto NDEF, os primeiros bytes costumam ser metadados de idioma
+                // Tentamos decodificar o conteúdo ignorando metadados se possível, ou pegando o texto bruto
+                const text = textDecoder.decode(record.data);
+                // Regex simples para limpar prefixos de idioma comuns (ex: 'enHello' -> 'Hello')
+                const cleanText = text.replace(/^[a-z]{2,3}/i, '');
+                dataStr += cleanText;
+              } else {
+                dataStr += textDecoder.decode(record.data);
+              }
+            } catch (e) { 
+              console.debug("Erro ao decodificar registro"); 
+            }
           }
         }
         
         const tagId = serialNumber || `ID_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+        const finalData = dataStr.trim() || "Tag ODN1 Sem Texto";
+        
         setLastScannedId(tagId);
-        onScanTag(tagId, dataStr || "Tag ODN1");
+        setLastScannedText(finalData);
+        onScanTag(tagId, finalData);
         
         // Feedback visual temporário para a última tag lida
-        setTimeout(() => setLastScannedId(null), 3000);
+        setTimeout(() => {
+          setLastScannedId(null);
+          setLastScannedText(null);
+        }, 4000);
       });
 
       reader.addEventListener("readingerror", () => {
         console.error("Erro na leitura da tag. Tente novamente.");
+        setNfcError("Erro ao ler tag física. Tente aproximar novamente.");
+        setTimeout(() => setNfcError(null), 3000);
       });
 
     } catch (error: any) {
@@ -93,13 +113,11 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     }
   };
 
-  // Tenta iniciar automaticamente, mas alguns navegadores exigem clique
   useEffect(() => {
     if (session.isAdminView) return;
     startNFC();
     
     return () => {
-      // Limpeza se necessário (o NDEFReader não tem um .stop() oficial em todas as specs, mas limpamos referências)
       nfcReaderRef.current = null;
     };
   }, [session.isAdminView]);
@@ -138,7 +156,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       ["Total de Tripulantes", session.tags.length.toString()],
       [""],
       ["LISTA DE TRIPULANTES"],
-      ["Nome", "Tag ID", "Horário"]
+      ["Nome/Dados NFC", "Tag ID", "Horário"]
     ];
 
     session.tags.forEach(tag => {
@@ -170,6 +188,21 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         </div>
       )}
 
+      {/* Alerta de Leitura Ativa */}
+      {lastScannedText && (
+        <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10 duration-500">
+           <div className={`p-4 rounded-2xl shadow-2xl border flex items-center gap-4 ${session.isRealScenario ? 'bg-red-900 border-red-500 text-white' : 'bg-blue-900 border-blue-500 text-white'}`}>
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center animate-bounce">
+                <i className="fa-solid fa-id-card"></i>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mb-0.5">Informação Capturada:</p>
+                <p className="text-sm font-bold truncate uppercase">{lastScannedText}</p>
+              </div>
+           </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="flex items-center gap-4">
           <button 
@@ -198,7 +231,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           </div>
           <div className="w-px h-8 bg-white/10"></div>
           <div className="text-center">
-            <div className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">Tags</div>
+            <div className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">Pessoas</div>
             <div className="text-xl font-mono font-bold">{session.tags.length}</div>
           </div>
         </div>
@@ -220,10 +253,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
             </div>
             <div>
               <h4 className="font-black text-xs text-slate-900 uppercase tracking-widest">
-                {nfcState === 'active' ? 'Sensor Ativo' : nfcState === 'starting' ? 'Ativando...' : nfcState === 'error' ? 'Sensor Desativado' : 'Leitor NFC'}
+                {nfcState === 'active' ? 'Sensor de Identificação' : nfcState === 'starting' ? 'Ativando...' : nfcState === 'error' ? 'Sensor Desativado' : 'Leitor NFC'}
               </h4>
               <p className="text-[10px] text-slate-500 font-bold uppercase leading-tight mt-0.5">
-                {nfcError || (nfcState === 'active' ? 'Aproxime as tags da traseira do aparelho' : 'O sensor precisa ser ativado para leitura')}
+                {nfcError || (nfcState === 'active' ? 'Aproxime os cartões para ler as informações' : 'O sensor precisa ser ativado para leitura')}
               </p>
             </div>
           </div>
@@ -250,7 +283,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       <div className="flex-1 space-y-3 overflow-y-auto pr-2 pb-10">
         <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] mb-2 flex justify-between">
           <span>LISTA DE EMBARQUE</span>
-          {session.isAdminView && <span className="text-blue-600">MODO REMOTO</span>}
+          <span className="text-slate-300">ORDEM CRONOLÓGICA</span>
         </h3>
         
         {session.tags.length === 0 ? (
@@ -271,23 +304,31 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                     : 'bg-white border-slate-100'
                 }`}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-1">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
                     lastScannedId === tag.id ? 'bg-white/20 text-white' : (session.isRealScenario ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-blue-600')
                   }`}>
                     <i className="fa-solid fa-user-check text-base"></i>
                   </div>
-                  <div>
-                    <h4 className={`font-black text-xs uppercase tracking-tight ${lastScannedId === tag.id ? 'text-white' : 'text-slate-900'}`}>
+                  <div className="flex-1 overflow-hidden">
+                    <h4 className={`font-black text-xs uppercase tracking-tight truncate ${lastScannedId === tag.id ? 'text-white' : 'text-slate-900'}`}>
                       {tag.name}
                     </h4>
-                    <p className={`text-[8px] font-bold font-mono uppercase tracking-widest ${lastScannedId === tag.id ? 'text-white/70' : 'text-slate-400'}`}>
-                      ID: {tag.id}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className={`text-[8px] font-bold font-mono uppercase tracking-widest px-1.5 py-0.5 rounded ${lastScannedId === tag.id ? 'bg-white/10 text-white/70' : 'bg-slate-50 text-slate-400'}`}>
+                        {tag.id}
+                      </p>
+                      {tag.data && tag.data !== "Tag ODN1" && (
+                         <span className={`text-[7px] font-black uppercase tracking-tighter ${lastScannedId === tag.id ? 'text-white/60' : 'text-blue-400'}`}>
+                           <i className="fa-solid fa-microchip mr-1"></i> NFC DATA OK
+                         </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className={`text-[9px] font-black uppercase ${lastScannedId === tag.id ? 'text-white/90' : 'text-slate-400'}`}>
-                  {tag.timestamp}
+                <div className={`text-[9px] font-black uppercase flex flex-col items-end gap-1 ${lastScannedId === tag.id ? 'text-white/90' : 'text-slate-400'}`}>
+                  <span>{tag.timestamp}</span>
+                  {lastScannedId === tag.id && <span className="text-[7px] bg-white text-blue-600 px-1 rounded animate-pulse">NOVO</span>}
                 </div>
               </div>
             ))}

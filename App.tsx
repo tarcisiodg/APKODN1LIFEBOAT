@@ -160,15 +160,22 @@ const App: React.FC = () => {
 
     setActiveSession(prev => {
       if (!prev || prev.isPaused || prev.isAdminView) return prev;
-      // Evita duplicatas se o ID já estiver na lista
+      
+      // Se a tag já foi escaneada, não adiciona novamente
       if (prev.tags.some(t => t.id === tagId)) return prev;
+
+      // Limpa os dados da tag (remove espaços extras e caracteres de controle se houver)
+      const cleanData = tagData.trim();
+      
+      // Determina o nome de exibição: usa o texto do cartão ou fallback genérico
+      const displayName = cleanData.length > 0 ? cleanData : `Tripulante #${prev.tags.length + 1}`;
 
       const newTag: ScannedTag = { 
         id: tagId, 
         timestamp: new Date().toLocaleTimeString('pt-BR'), 
-        data: tagData || "Tag de Identificação", 
-        name: `Tripulante ${prev.tags.length + 1}`, 
-        role: 'Crew ODN1' 
+        data: cleanData || "Sem informações adicionais no chip.", 
+        name: displayName, 
+        role: cleanData.length > 0 ? 'Identificado via NFC' : 'Identificação Padrão' 
       };
       
       return { 
