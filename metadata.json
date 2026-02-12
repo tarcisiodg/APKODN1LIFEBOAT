@@ -1,0 +1,7 @@
+{
+  "name": "Lifesafe ODN1(NS-41)",
+  "description": "Plataforma de monitoramento de embarque e treinamento em baleeiras para a unidade ODN1 NS-41, com tecnologia NFC.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
