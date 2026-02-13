@@ -176,13 +176,22 @@ const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => isOccupied && onViewLifeboat(lb)}
                   className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${isOccupied ? 'bg-blue-50 border-blue-100 ring-1 ring-blue-200 cursor-pointer hover:shadow-md' : 'bg-white border-slate-100'}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isOccupied ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-400'}`}>
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isOccupied ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-400'}`}>
                       <i className="fa-solid fa-ship text-[10px]"></i>
                     </div>
-                    <span className={`text-[11px] uppercase tracking-tight font-normal ${isOccupied ? 'text-blue-700' : 'text-slate-600'}`}>{lb}</span>
+                    <div className="flex flex-col min-w-0">
+                      <span className={`text-[11px] uppercase tracking-tight font-black truncate ${isOccupied ? 'text-blue-700' : 'text-slate-600'}`}>
+                        {lb}
+                      </span>
+                      {isOccupied && (
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                          Líder: {status.leaderName || 'Não Definido'}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0 ml-2">
                     <span className={`text-xs font-mono font-normal ${isOccupied ? 'text-blue-600' : 'text-slate-400'}`}>{status?.count || 0}</span>
                     <span className="text-[7px] uppercase ml-1 opacity-30 font-normal">Pessoas</span>
                   </div>
