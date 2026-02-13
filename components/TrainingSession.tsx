@@ -69,7 +69,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         const tagId = serialNumber || "";
         if (!tagId) return;
 
-        // VALIDAÇÃO: Verifica se a tag pertence à tripulação desta baleeira
         const matchedBerth = session.expectedCrew?.find(b => 
           (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
           (b.tagId2 && b.tagId2.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
@@ -80,10 +79,9 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           if (navigator.vibrate) navigator.vibrate([500]);
           setInvalidScanId(tagId);
           setTimeout(() => setInvalidScanId(null), 3000);
-          return; // BLOQUEIA A LEITURA
+          return; 
         }
 
-        // Se for válida, processa o texto (se houver) e adiciona
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         let dataStr = "";
         if (message.records) {
@@ -134,8 +132,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-32">
-      {/* Toast de Sucesso */}
+    <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pb-32">
+      {/* Toast Notificações */}
       {lastScannedText && (
         <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10">
            <div className="p-4 rounded-3xl shadow-2xl border bg-slate-900 border-blue-500 text-white flex items-center gap-4">
@@ -148,7 +146,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         </div>
       )}
 
-      {/* Toast de Erro (Tag Não Vinculada) */}
       {invalidScanId && (
         <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10">
            <div className="p-4 rounded-3xl shadow-2xl border bg-rose-600 border-rose-400 text-white flex items-center gap-4">
@@ -162,46 +159,77 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <button onClick={onMinimize} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-200 text-slate-600 shadow-sm transition-all active:scale-95"><i className="fa-solid fa-chevron-left"></i></button>
-          <div>
-            <h2 className="text-2xl font-black text-slate-900 uppercase leading-none">{session.lifeboat}</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{session.trainingType}</p>
+      {/* Cabeçalho Estilo Print */}
+      <div className="flex justify-between items-start mb-10">
+        <div className="flex items-start gap-5">
+          <button 
+            onClick={onMinimize} 
+            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[#f1f5f9] text-slate-400 shadow-sm transition-all active:scale-90"
+          >
+            <i className="fa-solid fa-chevron-left"></i>
+          </button>
+          <div className="mt-1">
+            <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight leading-none">{session.lifeboat}</h2>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] mt-2 opacity-70">{session.trainingType}</p>
           </div>
         </div>
-        <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-col items-center">
-             <span className="text-[8px] font-black opacity-40 uppercase">Cronômetro</span>
-             <span className="text-lg font-mono font-bold leading-none mt-1">{formatTime(session.seconds)}</span>
+        
+        <div className="bg-[#111827] text-white p-3 px-6 rounded-[24px] shadow-2xl flex flex-col items-center min-w-[140px]">
+             <span className="text-[8px] font-black opacity-50 uppercase tracking-[0.25em]">CRONÔMETRO</span>
+             <span className="text-2xl font-mono font-black mt-1 tracking-tighter tabular-nums">{formatTime(session.seconds)}</span>
         </div>
       </div>
 
-      <div className="flex bg-slate-100 p-1 rounded-2xl mb-6">
-        <button onClick={() => setViewTab('present')} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewTab === 'present' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Presentes ({session.tags.length})</button>
-        <button onClick={() => setViewTab('pending')} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Faltantes ({pendingCrew.length})</button>
+      {/* Tabs conforme o Print */}
+      <div className="flex gap-4 mb-8">
+        <button 
+          onClick={() => setViewTab('present')} 
+          className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+            viewTab === 'present' 
+            ? 'bg-white border-blue-600 text-blue-600 shadow-xl shadow-blue-600/5' 
+            : 'bg-[#f1f5f9] border-transparent text-slate-400'
+          }`}
+        >
+          PRESENTES ({session.tags.length})
+        </button>
+        <button 
+          onClick={() => setViewTab('pending')} 
+          className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+            viewTab === 'pending' 
+            ? 'bg-white border-blue-600 text-blue-600 shadow-xl shadow-blue-600/5' 
+            : 'bg-[#f1f5f9] border-transparent text-slate-400'
+          }`}
+        >
+          FALTANTES ({pendingCrew.length})
+        </button>
       </div>
 
+      {/* Lista de Tripulantes conforme o Print */}
       <div className="flex-1 space-y-3 overflow-y-auto pb-10">
         {viewTab === 'present' ? (
           session.tags.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-100 rounded-[32px] p-16 text-center">
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Aguardando Aproximação...</p>
+            <div className="bg-white border-2 border-dashed border-slate-100 rounded-[40px] p-20 text-center">
+              <p className="text-slate-300 text-[10px] font-black uppercase tracking-widest">Aguardando Aproximação...</p>
             </div>
           ) : (
-            <div className="grid gap-3">
+            <div className="grid gap-4">
               {session.tags.map((tag) => (
-                <div key={tag.id} className="p-4 rounded-[28px] border bg-white border-slate-100 shadow-sm flex items-center justify-between animate-in slide-in-from-left-2 duration-300">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">{tag.leito || 'N/A'}</div>
+                <div key={tag.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md animate-in slide-in-from-left-2 duration-300">
+                  <div className="flex items-center gap-5 flex-1 min-w-0">
+                    <div className="w-14 h-11 bg-[#111827] text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
+                      {tag.leito || 'N/A'}
+                    </div>
                     <div className="min-w-0">
-                      <h4 className="text-xs font-black uppercase truncate text-slate-900">{tag.name}</h4>
-                      <p className="text-[8px] font-mono text-slate-400 uppercase">TAG: {tag.id}</p>
+                      <h4 className="text-sm font-black uppercase truncate text-slate-900 tracking-tight">{tag.name}</h4>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">TAG: {tag.id}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-black uppercase text-slate-400">{tag.timestamp}</span>
+                  <div className="flex items-center gap-6 pr-2">
+                    <span className="text-[10px] font-black text-slate-400 tabular-nums">{tag.timestamp}</span>
                     {!session.isAdminView && (
-                      <button onClick={() => setTagToDelete(tag)} className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center active:scale-90 transition-all"><i className="fa-solid fa-trash text-[10px]"></i></button>
+                      <button onClick={() => setTagToDelete(tag)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-400 flex items-center justify-center active:scale-90 transition-all"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
                     )}
                   </div>
                 </div>
@@ -209,34 +237,59 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
             </div>
           )
         ) : (
-          pendingCrew.map((berth) => (
-            <div key={berth.id} className="p-4 rounded-[28px] border bg-white border-slate-100 shadow-sm flex items-center justify-between opacity-50 grayscale">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center text-[10px] font-mono font-bold border-2 border-dashed border-slate-200">{berth.id}</div>
-                <div>
-                  <h4 className="text-xs font-black uppercase text-slate-400">{berth.crewName}</h4>
-                  <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Não embarcado</p>
+          pendingCrew.length === 0 ? (
+             <div className="bg-emerald-50 border-2 border-dashed border-emerald-100 rounded-[40px] p-20 text-center">
+                <i className="fa-solid fa-check-double text-emerald-400 text-3xl mb-4"></i>
+                <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Todos a Bordo</p>
+             </div>
+          ) : (
+            <div className="grid gap-4">
+              {pendingCrew.map((berth) => (
+                <div key={berth.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between opacity-50 grayscale transition-all">
+                  <div className="flex items-center gap-5 flex-1 min-w-0">
+                    <div className="w-14 h-11 bg-slate-300 text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
+                      {berth.id}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-black uppercase truncate text-slate-400 tracking-tight">{berth.crewName}</h4>
+                      <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest mt-1">NÃO EMBARCADO</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))
+          )
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-slate-50/90 backdrop-blur-md border-t border-slate-200 flex gap-4 justify-center z-50">
-        <button onClick={onMinimize} className="flex-1 max-w-xs py-4 bg-white border border-slate-200 text-slate-700 font-black rounded-2xl text-[10px] uppercase shadow-sm active:scale-95 transition-all">Minimizar</button>
-        <button onClick={() => setIsConfirmingFinish(true)} className="flex-1 max-w-xs py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl shadow-blue-600/20 active:scale-95 transition-all">Finalizar</button>
+      {/* Botões de Ação */}
+      <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/60 backdrop-blur-xl border-t border-slate-100 flex gap-4 justify-center z-50">
+        <button 
+          onClick={onMinimize} 
+          className="flex-1 max-w-sm py-5 bg-[#f1f5f9] border border-slate-200 text-slate-600 font-black rounded-[20px] text-[10px] uppercase shadow-sm active:scale-95 transition-all tracking-widest"
+        >
+          MINIMIZAR
+        </button>
+        {!session.isAdminView && (
+          <button 
+            onClick={() => setIsConfirmingFinish(true)} 
+            className="flex-1 max-w-sm py-5 bg-[#2563eb] text-white font-black rounded-[20px] text-[10px] uppercase shadow-2xl shadow-blue-600/30 active:scale-95 transition-all tracking-widest"
+          >
+            FINALIZAR
+          </button>
+        )}
       </div>
 
+      {/* Modais */}
       {isConfirmingFinish && (
         <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[48px] max-w-sm w-full p-12 shadow-2xl animate-in zoom-in duration-300">
             <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">Concluir Sessão?</h3>
             <div className="grid gap-3">
-              <button onClick={handleFinish} disabled={isFinishing} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2">
+              <button onClick={handleFinish} disabled={isFinishing} className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2">
                 {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Salvando...</> : 'Sim, Concluir'}
               </button>
-              <button onClick={() => setIsConfirmingFinish(false)} disabled={isFinishing} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">Cancelar</button>
+              <button onClick={() => setIsConfirmingFinish(false)} disabled={isFinishing} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[10px] uppercase">Cancelar</button>
             </div>
           </div>
         </div>
@@ -244,15 +297,16 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
       {tagToDelete && (
         <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl text-center">
+          <div className="bg-white rounded-[48px] max-w-sm w-full p-10 shadow-2xl text-center">
             <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">Remover Registro?</h3>
             <div className="grid gap-3">
-              <button onClick={() => { onRemoveTag(tagToDelete.id); setTagToDelete(null); }} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl">Remover</button>
-              <button onClick={() => setTagToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase tracking-widest">Cancelar</button>
+              <button onClick={() => { onRemoveTag(tagToDelete.id); setTagToDelete(null); }} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl">Remover</button>
+              <button onClick={() => setTagToDelete(null)} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[10px] uppercase">Cancelar</button>
             </div>
           </div>
         </div>
       )}
+      
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
