@@ -245,14 +245,14 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           ) : (
             <div className="grid gap-4">
               {pendingCrew.map((berth) => (
-                <div key={berth.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between opacity-50 grayscale transition-all">
+                <div key={berth.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between opacity-80 grayscale transition-all">
                   <div className="flex items-center gap-5 flex-1 min-w-0">
-                    <div className="w-14 h-11 bg-slate-300 text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
+                    <div className="w-14 h-11 bg-slate-400 text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
                       {berth.id}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-black uppercase truncate text-slate-400 tracking-tight">{berth.crewName}</h4>
-                      <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest mt-1">NÃO EMBARCADO</p>
+                      <h4 className="text-sm font-black uppercase truncate text-slate-600 tracking-tight">{berth.crewName}</h4>
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">NÃO EMBARCADO</p>
                     </div>
                   </div>
                 </div>
