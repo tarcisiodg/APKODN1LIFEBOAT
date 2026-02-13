@@ -122,7 +122,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
           </button>
           <div>
             <h2 className="text-xl font-black text-slate-900 uppercase leading-none">Gestão de POB</h2>
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Vinculação Multi-Tag (3 Tags por Leito)</p>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">CONFIGURAÇÕES</p>
           </div>
         </div>
 

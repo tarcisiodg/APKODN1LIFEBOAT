@@ -91,10 +91,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95"><i className="fa-solid fa-chevron-left"></i></button>
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">Gestão de Usuários</h2>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Gestão de Usuários</h2>
             {isLoading && <i className="fa-solid fa-cloud-arrow-down animate-bounce text-blue-500 text-xs"></i>}
           </div>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Base Sincronizada em Nuvem</p>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest opacity-60">CONFIGURAÇÕES DE USUÁRIOS</p>
         </div>
       </div>
 

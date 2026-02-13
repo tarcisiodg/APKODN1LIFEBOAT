@@ -8,8 +8,7 @@ interface DashboardProps {
   onResumeTraining: () => void;
   onViewLifeboat: (lb: LifeboatType) => void;
   onOpenUserManagement: () => void;
-  onOpenNfcEnrollment: () => void;
-  onOpenBerthManagement: () => void; // Nova prop
+  onOpenBerthManagement: () => void;
   user: User | null;
   fleetStatus: Record<LifeboatType, LifeboatStatus>;
   historyCount: number;
@@ -26,7 +25,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   onResumeTraining,
   onViewLifeboat,
   onOpenUserManagement,
-  onOpenNfcEnrollment,
   onOpenBerthManagement,
   user, 
   fleetStatus, 
@@ -77,15 +75,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         {user.isAdmin && (
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <button onClick={onOpenBerthManagement} className="flex-1 min-w-[120px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-lg transition-all active:scale-95 group">
+            <button onClick={onOpenBerthManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-lg transition-all active:scale-95 group">
               <i className="fa-solid fa-bed"></i>
               <span className="text-[10px] uppercase tracking-widest font-bold">POB/Leitos</span>
             </button>
-            <button onClick={onOpenNfcEnrollment} className="flex-1 min-w-[120px] flex items-center justify-center gap-3 px-5 py-3 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 group">
-              <i className="fa-solid fa-nfc-symbol"></i>
-              <span className="text-[10px] uppercase tracking-widest font-bold">Tags</span>
-            </button>
-            <button onClick={onOpenUserManagement} className="flex-1 min-w-[120px] flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
+            <button onClick={onOpenUserManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
               <i className="fa-solid fa-users-gear text-slate-400 group-hover:text-blue-600 transition-colors"></i>
               <span className="text-[10px] text-slate-700 uppercase tracking-widest font-bold">Gestão</span>
               {pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}
@@ -162,7 +156,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex items-center justify-between px-1 mb-1">
             <h3 className="text-[9px] text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2.5 font-normal">
               <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse"></span> 
-              Monitoramento Individual
+              Monitoramento em Tempo Real
             </h3>
             <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">6 Unidades</span>
           </div>
