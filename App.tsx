@@ -93,9 +93,6 @@ const App: React.FC = () => {
           const mergedStatus = { ...INITIAL_STATUS, ...updatedStatusFromCloud };
           const localActiveSession = activeSessionRef.current;
           
-          // Se sou o operador (não admin view) e a nuvem diz que a baleeira não está ativa,
-          // mas eu tenho uma sessão local, ignoramos nos primeiros segundos de inicialização
-          // para evitar que o lag da rede limpe a sessão local recém-restaurada.
           if (localActiveSession && !localActiveSession.isAdminView && !isInitializingRef.current) {
             const remoteStatus = mergedStatus[localActiveSession.lifeboat];
             if (!remoteStatus?.isActive && localActiveSession.lifeboat) {
@@ -105,7 +102,6 @@ const App: React.FC = () => {
             }
           }
 
-          // Se sou Admin assistindo, atualizamos os dados lidos em tempo real
           if (localActiveSession?.isAdminView) {
             const remoteData = mergedStatus[localActiveSession.lifeboat];
             if (remoteData) {
@@ -121,7 +117,6 @@ const App: React.FC = () => {
         });
       });
 
-      // Sinaliza fim da inicialização após um breve delay para estabilizar o estado cloud
       setTimeout(() => {
         isInitializingRef.current = false;
         setIsSyncing(false);
@@ -132,7 +127,6 @@ const App: React.FC = () => {
     return () => { if (unsubscribeFleet) unsubscribeFleet(); };
   }, []);
 
-  // Persistência frequente da sessão ativa (inclusive o timer)
   useEffect(() => {
     if (activeSession) {
       localStorage.setItem('lifesafe_active_session', JSON.stringify(activeSession));
@@ -141,14 +135,12 @@ const App: React.FC = () => {
     }
   }, [activeSession]);
 
-  // Persistência da página atual
   useEffect(() => {
     if (currentPage !== AppState.LOGIN) {
       localStorage.setItem('lifesafe_current_page', currentPage);
     }
   }, [currentPage]);
 
-  // Persistência da configuração temporária
   useEffect(() => {
     if (tempConfig) {
       localStorage.setItem('lifesafe_temp_config', JSON.stringify(tempConfig));
@@ -157,10 +149,8 @@ const App: React.FC = () => {
     }
   }, [tempConfig]);
 
-  // Sincronismo da sessão com a Nuvem (Operador -> Nuvem)
   useEffect(() => {
     const syncToCloud = async () => {
-      // Admin view não escreve na nuvem, apenas lê
       if (!activeSession || activeSession.isAdminView || isInitializingRef.current) return;
       
       const currentStatusUpdate = {
@@ -184,11 +174,9 @@ const App: React.FC = () => {
       } catch (e) { console.error("Sync to cloud error:", e); }
     };
 
-    // Sincroniza em mudanças críticas
     syncToCloud();
   }, [activeSession?.tags.length, activeSession?.isPaused, activeSession?.seconds]);
 
-  // Detector de NFC disponível
   useEffect(() => { setIsNfcAvailable('NDEFReader' in window); }, []);
 
   const processNewScan = useCallback((tagId: string, tagData: string) => {
@@ -211,7 +199,17 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Timer do Treinamento
+  // Nova função para remover tag da sessão
+  const removeTag = useCallback((tagId: string) => {
+    setActiveSession(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        tags: prev.tags.filter(t => t.id !== tagId)
+      };
+    });
+  }, []);
+
   useEffect(() => {
     let timerInterval: number | undefined;
     if (activeSession && !activeSession.isPaused && !activeSession.isAdminView) {
@@ -243,7 +241,6 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     setIsSyncing(true);
-    // Se sair com sessão ativa, salvamos um log de segurança
     if (activeSession && !activeSession.isAdminView) {
       try {
         await saveToHistory({ 
@@ -323,7 +320,7 @@ const App: React.FC = () => {
         {currentPage === AppState.HISTORY && <History records={history} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.USER_MANAGEMENT && <UserManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.NFC_ENROLLMENT && <NfcEnrollment onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
-        {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onTogglePause={(p) => setActiveSession(prev => prev ? { ...prev, isPaused: p } : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} />}
+        {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onRemoveTag={removeTag} onTogglePause={(p) => setActiveSession(prev => prev ? { ...prev, isPaused: p } : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} />}
       </main>
 
       {user && currentPage !== AppState.LOGIN && currentPage !== AppState.TRAINING && (

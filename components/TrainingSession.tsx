@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ActiveSession, TrainingRecord } from '../types';
+import { ActiveSession, TrainingRecord, ScannedTag } from '../types';
 // Import the Gemini service for summary generation
 import { generateTrainingSummary } from '../services/geminiService';
 
@@ -9,6 +9,7 @@ interface TrainingSessionProps {
   onFinish: () => void;
   onMinimize: () => void;
   onScanTag: (id: string, data: string) => void;
+  onRemoveTag: (id: string) => void; // Nova prop para remoção
   onTogglePause: (paused: boolean) => void;
   onSaveRecord: (record: Omit<TrainingRecord, 'id' | 'operator'>) => void;
   operatorName: string;
@@ -19,6 +20,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   onFinish, 
   onMinimize, 
   onScanTag,
+  onRemoveTag,
   onTogglePause,
   onSaveRecord,
   operatorName
@@ -30,6 +32,9 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [isFinished, setIsFinished] = useState(false);
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
   const [lastScannedText, setLastScannedText] = useState<string | null>(null);
+  
+  // Estados para exclusão de tag
+  const [tagToDelete, setTagToDelete] = useState<ScannedTag | null>(null);
   
   const nfcReaderRef = useRef<any>(null);
 
@@ -110,14 +115,12 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     return () => { nfcReaderRef.current = null; };
   }, [session.isAdminView]);
 
-  // Fix: Replaced 'seconds' with 'session.seconds' to fix the compilation error
   const handleFinish = async () => {
     setIsConfirmingFinish(false);
     setIsFinishing(true);
     
     const durationStr = formatTime(session.seconds);
     
-    // Using Gemini to generate a professional summary based on the actual session data
     const summary = await generateTrainingSummary(
       session.lifeboat, 
       session.tags.length, 
@@ -136,6 +139,13 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     });
     setIsFinished(true);
     setIsFinishing(false);
+  };
+
+  const confirmDelete = () => {
+    if (tagToDelete) {
+      onRemoveTag(tagToDelete.id);
+      setTagToDelete(null);
+    }
   };
 
   const exportToExcel = () => {
@@ -250,12 +260,27 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className="text-right flex flex-col items-end flex-shrink-0 ml-4">
-                  <span className={`text-[10px] font-black uppercase tabular-nums ${lastScannedId === tag.id ? 'text-white/80' : 'text-slate-400'}`}>
-                    {tag.timestamp}
-                  </span>
-                  {lastScannedId === tag.id && (
-                    <span className="text-[7px] font-black bg-white text-blue-600 px-1.5 py-0.5 rounded-full mt-1.5 animate-pulse">LIDO AGORA</span>
+                
+                <div className="text-right flex items-center gap-4 ml-4">
+                  <div className="flex flex-col items-end flex-shrink-0">
+                    <span className={`text-[10px] font-black uppercase tabular-nums ${lastScannedId === tag.id ? 'text-white/80' : 'text-slate-400'}`}>
+                      {tag.timestamp}
+                    </span>
+                    {lastScannedId === tag.id && (
+                      <span className="text-[7px] font-black bg-white text-blue-600 px-1.5 py-0.5 rounded-full mt-1.5 animate-pulse">LIDO AGORA</span>
+                    )}
+                  </div>
+                  
+                  {/* Botão de Exclusão (Apenas para o Operador) */}
+                  {!session.isAdminView && (
+                    <button 
+                      onClick={() => setTagToDelete(tag)}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                        lastScannedId === tag.id ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-50 text-slate-300 hover:text-rose-600 hover:bg-rose-50'
+                      }`}
+                    >
+                      <i className="fa-solid fa-trash-can text-xs"></i>
+                    </button>
                   )}
                 </div>
               </div>
@@ -268,6 +293,37 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         <button onClick={onMinimize} className="flex-1 max-w-xs py-4 bg-white border border-slate-200 text-slate-700 font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all">MINIMIZAR</button>
         <button onClick={() => setIsConfirmingFinish(true)} className={`flex-1 max-w-xs py-4 font-black rounded-2xl text-[10px] uppercase tracking-widest text-white shadow-lg shadow-blue-600/20 active:scale-95 transition-all ${session.isRealScenario ? 'bg-red-700' : 'bg-blue-600'}`}>FINALIZAR</button>
       </div>
+
+      {/* Modal de Confirmação de Exclusão de Tag */}
+      {tagToDelete && (
+        <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-200 text-center">
+            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <i className="fa-solid fa-user-minus text-2xl"></i>
+            </div>
+            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Remover Tripulante?</h3>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-2">Você está prestes a remover o registro:</p>
+            <div className="bg-slate-50 p-4 rounded-2xl mb-8 border border-slate-100">
+               <p className="text-sm font-black text-slate-800 uppercase truncate">{tagToDelete.name}</p>
+               <p className="text-[9px] font-mono text-slate-400 mt-1 uppercase">S/N: {tagToDelete.id}</p>
+            </div>
+            <div className="grid gap-3">
+              <button 
+                onClick={confirmDelete}
+                className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-rose-600/20"
+              >
+                REMOVER REGISTRO
+              </button>
+              <button 
+                onClick={() => setTagToDelete(null)}
+                className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase"
+              >
+                CANCELAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isConfirmingFinish && (
         <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
