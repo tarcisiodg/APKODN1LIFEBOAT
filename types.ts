@@ -20,6 +20,7 @@ export interface LifeboatStatus {
   count: number;
   isActive: boolean;
   startTime?: number;
+  accumulatedSeconds?: number;
   operatorName?: string; 
   leaderName?: string;
   trainingType?: string;
@@ -36,6 +37,8 @@ export interface ActiveSession {
   isRealScenario: boolean;
   tags: ScannedTag[];
   seconds: number;
+  startTime: number; // Milissegundos de quando o timer (re)começou
+  accumulatedSeconds: number; // Segundos acumulados de períodos de atividade anteriores
   isPaused: boolean;
   isAdminView?: boolean;
 }

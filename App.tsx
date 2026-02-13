@@ -54,7 +54,6 @@ const App: React.FC = () => {
     const initData = async () => {
       setIsSyncing(true);
 
-      // 1. Recuperar dados do LocalStorage IMEDIATAMENTE
       const savedUser = localStorage.getItem('lifesafe_user');
       const savedSession = localStorage.getItem('lifesafe_active_session');
       const savedPage = localStorage.getItem('lifesafe_current_page');
@@ -66,6 +65,11 @@ const App: React.FC = () => {
         
         if (savedSession) {
           const parsedSession = JSON.parse(savedSession);
+          // Ao restaurar, recalculamos imediatamente os segundos se não estiver pausado
+          if (!parsedSession.isPaused && parsedSession.startTime) {
+            const elapsed = Math.floor((Date.now() - parsedSession.startTime) / 1000);
+            parsedSession.seconds = parsedSession.accumulatedSeconds + elapsed;
+          }
           setActiveSession(parsedSession);
           activeSessionRef.current = parsedSession;
         }
@@ -81,13 +85,11 @@ const App: React.FC = () => {
         }
       }
 
-      // 2. Carregar Histórico e Fleet da Nuvem
       try {
         const cloudHistory = await cloudService.getHistory();
         setHistory(cloudHistory);
       } catch (e) { console.error("History Load Error:", e); }
 
-      // 3. Subscrever para mudanças na frota
       unsubscribeFleet = cloudService.subscribeToFleet((updatedStatusFromCloud) => {
         setFleetStatus(currentLocalStatus => {
           const mergedStatus = { ...INITIAL_STATUS, ...updatedStatusFromCloud };
@@ -105,10 +107,20 @@ const App: React.FC = () => {
           if (localActiveSession?.isAdminView) {
             const remoteData = mergedStatus[localActiveSession.lifeboat];
             if (remoteData) {
+              let currentSeconds = remoteData.seconds || 0;
+              // Se o Admin está vendo e a sessão remota está ativa (não pausada), 
+              // calculamos o tempo real para o admin também ver o relógio correndo.
+              if (!remoteData.isPaused && remoteData.startTime) {
+                const elapsed = Math.floor((Date.now() - remoteData.startTime) / 1000);
+                currentSeconds = (remoteData.accumulatedSeconds || 0) + elapsed;
+              }
+
               setActiveSession(prev => prev ? {
                 ...prev,
                 tags: remoteData.tags || [],
-                seconds: remoteData.seconds || 0,
+                seconds: currentSeconds,
+                startTime: remoteData.startTime || prev.startTime,
+                accumulatedSeconds: remoteData.accumulatedSeconds || 0,
                 isPaused: remoteData.isPaused || false
               } : null);
             }
@@ -160,6 +172,8 @@ const App: React.FC = () => {
           count: activeSession.tags.length,
           tags: activeSession.tags,
           seconds: activeSession.seconds,
+          startTime: activeSession.startTime,
+          accumulatedSeconds: activeSession.accumulatedSeconds,
           isPaused: activeSession.isPaused,
           isActive: true,
           isRealScenario: activeSession.isRealScenario,
@@ -199,7 +213,6 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Nova função para remover tag da sessão
   const removeTag = useCallback((tagId: string) => {
     setActiveSession(prev => {
       if (!prev) return null;
@@ -210,15 +223,20 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // Timer Robusto baseado em Timestamp
   useEffect(() => {
     let timerInterval: number | undefined;
     if (activeSession && !activeSession.isPaused && !activeSession.isAdminView) {
       timerInterval = window.setInterval(() => {
-        setActiveSession(prev => prev ? { ...prev, seconds: prev.seconds + 1 } : null);
+        setActiveSession(prev => {
+          if (!prev || prev.isPaused) return prev;
+          const elapsed = Math.floor((Date.now() - prev.startTime) / 1000);
+          return { ...prev, seconds: prev.accumulatedSeconds + elapsed };
+        });
       }, 1000);
     }
     return () => clearInterval(timerInterval);
-  }, [activeSession?.isPaused, !!activeSession && !activeSession?.isAdminView]);
+  }, [activeSession?.isPaused, activeSession?.startTime, activeSession?.accumulatedSeconds]);
 
   const handleLogin = (userData: User) => {
     setUser(userData);
@@ -306,7 +324,7 @@ const App: React.FC = () => {
           <Dashboard 
             onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} 
             onResumeTraining={() => setCurrentPage(AppState.TRAINING)}
-            onViewLifeboat={(lb) => { if(user?.isAdmin) { const status = fleetStatus[lb]; if(status?.isActive) { setActiveSession({ lifeboat: lb, leaderName: status.leaderName || 'Líder', trainingType: status.trainingType as any || 'Fogo/Abandono', isRealScenario: status.isRealScenario || false, tags: status.tags || [], seconds: status.seconds || 0, isPaused: status.isPaused || false, isAdminView: true }); setCurrentPage(AppState.TRAINING); } } }} 
+            onViewLifeboat={(lb) => { if(user?.isAdmin) { const status = fleetStatus[lb]; if(status?.isActive) { setActiveSession({ lifeboat: lb, leaderName: status.leaderName || 'Líder', trainingType: status.trainingType as any || 'Fogo/Abandono', isRealScenario: status.isRealScenario || false, tags: status.tags || [], seconds: status.seconds || 0, startTime: status.startTime || Date.now(), accumulatedSeconds: status.accumulatedSeconds || 0, isPaused: status.isPaused || false, isAdminView: true }); setCurrentPage(AppState.TRAINING); } } }} 
             onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} 
             onOpenNfcEnrollment={() => setCurrentPage(AppState.NFC_ENROLLMENT)} 
             user={user} 
@@ -316,11 +334,29 @@ const App: React.FC = () => {
           />
         )}
         {currentPage === AppState.TRAINING_CONFIG && <TrainingConfig onSubmit={(type, isReal) => { setTempConfig({trainingType: type, isRealScenario: isReal}); setCurrentPage(AppState.SELECTION); }} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
-        {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={(lb) => { const ns: ActiveSession = { lifeboat: lb, leaderName: user?.name || 'Operador', trainingType: tempConfig?.trainingType || 'Fogo/Abandono', isRealScenario: tempConfig?.isRealScenario || false, tags: [], seconds: 0, isPaused: false }; setActiveSession(ns); setCurrentPage(AppState.TRAINING); }} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
+        {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={(lb) => { const ns: ActiveSession = { lifeboat: lb, leaderName: user?.name || 'Operador', trainingType: tempConfig?.trainingType || 'Fogo/Abandono', isRealScenario: tempConfig?.isRealScenario || false, tags: [], seconds: 0, startTime: Date.now(), accumulatedSeconds: 0, isPaused: false }; setActiveSession(ns); setCurrentPage(AppState.TRAINING); }} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
         {currentPage === AppState.HISTORY && <History records={history} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.USER_MANAGEMENT && <UserManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.NFC_ENROLLMENT && <NfcEnrollment onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
-        {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onRemoveTag={removeTag} onTogglePause={(p) => setActiveSession(prev => prev ? { ...prev, isPaused: p } : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} />}
+        {currentPage === AppState.TRAINING && activeSession && (
+          <TrainingSession 
+            session={activeSession} 
+            onFinish={finishSession} 
+            onMinimize={() => setCurrentPage(AppState.DASHBOARD)} 
+            onScanTag={processNewScan} 
+            onRemoveTag={removeTag} 
+            onTogglePause={(p) => setActiveSession(prev => {
+              if(!prev) return null;
+              if(p) { // Pausando: congela os segundos atuais no acumulado
+                return { ...prev, isPaused: true, accumulatedSeconds: prev.seconds };
+              } else { // Retomando: define novo ponto de partida no tempo real
+                return { ...prev, isPaused: false, startTime: Date.now() };
+              }
+            })} 
+            onSaveRecord={saveToHistory} 
+            operatorName={user?.name || 'Operador'} 
+          />
+        )}
       </main>
 
       {user && currentPage !== AppState.LOGIN && currentPage !== AppState.TRAINING && (

@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ActiveSession, TrainingRecord, ScannedTag } from '../types';
-// Import the Gemini service for summary generation
 import { generateTrainingSummary } from '../services/geminiService';
 
 interface TrainingSessionProps {
@@ -9,7 +8,7 @@ interface TrainingSessionProps {
   onFinish: () => void;
   onMinimize: () => void;
   onScanTag: (id: string, data: string) => void;
-  onRemoveTag: (id: string) => void; // Nova prop para remoção
+  onRemoveTag: (id: string) => void;
   onTogglePause: (paused: boolean) => void;
   onSaveRecord: (record: Omit<TrainingRecord, 'id' | 'operator'>) => void;
   operatorName: string;
@@ -32,8 +31,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [isFinished, setIsFinished] = useState(false);
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
   const [lastScannedText, setLastScannedText] = useState<string | null>(null);
-  
-  // Estados para exclusão de tag
   const [tagToDelete, setTagToDelete] = useState<ScannedTag | null>(null);
   
   const nfcReaderRef = useRef<any>(null);
@@ -56,7 +53,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     setNfcError(null);
 
     try {
-      // @ts-ignore
       const reader = new (window as any).NDEFReader();
       nfcReaderRef.current = reader;
       
@@ -67,7 +63,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         
         let dataStr = "";
-        
         if (message.records) {
           for (const record of message.records) {
             if (record.recordType === "text") {
@@ -78,9 +73,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                 const textDecoder = new TextDecoder();
                 const decodedText = textDecoder.decode(new Uint8Array(record.data.buffer).slice(1 + langCodeLength));
                 dataStr += decodedText;
-              } catch (e) {
-                console.error("Erro NDEF:", e);
-              }
+              } catch (e) { console.error("Erro NDEF:", e); }
             }
           }
         }
@@ -90,7 +83,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         
         setLastScannedId(tagId);
         setLastScannedText(finalData || "Sem texto gravado");
-        
         onScanTag(tagId, finalData);
         
         setTimeout(() => {
@@ -103,7 +95,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         setNfcError("Erro ao ler. Tente aproximar novamente.");
         setTimeout(() => setNfcError(null), 3000);
       });
-
     } catch (error: any) {
       setNfcState('error');
       setNfcError('Sensor NFC não pôde ser ativado.');
@@ -118,15 +109,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const handleFinish = async () => {
     setIsConfirmingFinish(false);
     setIsFinishing(true);
-    
     const durationStr = formatTime(session.seconds);
-    
-    const summary = await generateTrainingSummary(
-      session.lifeboat, 
-      session.tags.length, 
-      durationStr
-    );
-
+    const summary = await generateTrainingSummary(session.lifeboat, session.tags.length, durationStr);
     onSaveRecord({
       date: new Date().toLocaleString('pt-BR'),
       lifeboat: session.lifeboat,
@@ -167,7 +151,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-32">
-      {/* Alerta de Leitura Ativa */}
       {lastScannedText && (
         <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10 duration-500">
            <div className="p-4 rounded-3xl shadow-2xl border bg-slate-900 border-blue-500 text-white flex items-center gap-4">
@@ -191,9 +174,20 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sessão: {session.trainingType}</p>
           </div>
         </div>
-        <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-col items-center">
-          <span className="text-[8px] font-black opacity-40 uppercase tracking-widest">Tempo</span>
-          <span className="text-lg font-mono font-bold leading-none mt-1">{formatTime(session.seconds)}</span>
+        
+        <div className="flex items-center gap-2">
+           {!session.isAdminView && (
+             <button 
+                onClick={() => onTogglePause(!session.isPaused)}
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white transition-all active:scale-90 ${session.isPaused ? 'bg-emerald-600 shadow-emerald-600/20 shadow-lg' : 'bg-amber-500 shadow-amber-500/20 shadow-lg'}`}
+             >
+                <i className={`fa-solid ${session.isPaused ? 'fa-play' : 'fa-pause'}`}></i>
+             </button>
+           )}
+           <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-col items-center min-w-[100px]">
+             <span className="text-[8px] font-black opacity-40 uppercase tracking-widest">Tempo</span>
+             <span className={`text-lg font-mono font-bold leading-none mt-1 ${session.isPaused ? 'text-amber-400' : 'text-white'}`}>{formatTime(session.seconds)}</span>
+           </div>
         </div>
       </div>
 
@@ -250,13 +244,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                        }`}>
                          S/N: {tag.id}
                        </span>
-                       {tag.data && tag.data !== "Sem texto no chip" && (
-                         <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded flex items-center gap-1 ${
-                            lastScannedId === tag.id ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-500'
-                         }`}>
-                           <i className="fa-solid fa-check-circle text-[6px]"></i> TEXTO LIDO
-                         </span>
-                       )}
                     </div>
                   </div>
                 </div>
@@ -266,12 +253,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                     <span className={`text-[10px] font-black uppercase tabular-nums ${lastScannedId === tag.id ? 'text-white/80' : 'text-slate-400'}`}>
                       {tag.timestamp}
                     </span>
-                    {lastScannedId === tag.id && (
-                      <span className="text-[7px] font-black bg-white text-blue-600 px-1.5 py-0.5 rounded-full mt-1.5 animate-pulse">LIDO AGORA</span>
-                    )}
                   </div>
-                  
-                  {/* Botão de Exclusão (Apenas para o Operador) */}
                   {!session.isAdminView && (
                     <button 
                       onClick={() => setTagToDelete(tag)}
@@ -294,7 +276,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         <button onClick={() => setIsConfirmingFinish(true)} className={`flex-1 max-w-xs py-4 font-black rounded-2xl text-[10px] uppercase tracking-widest text-white shadow-lg shadow-blue-600/20 active:scale-95 transition-all ${session.isRealScenario ? 'bg-red-700' : 'bg-blue-600'}`}>FINALIZAR</button>
       </div>
 
-      {/* Modal de Confirmação de Exclusão de Tag */}
       {tagToDelete && (
         <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-200 text-center">
@@ -308,18 +289,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                <p className="text-[9px] font-mono text-slate-400 mt-1 uppercase">S/N: {tagToDelete.id}</p>
             </div>
             <div className="grid gap-3">
-              <button 
-                onClick={confirmDelete}
-                className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-rose-600/20"
-              >
-                REMOVER REGISTRO
-              </button>
-              <button 
-                onClick={() => setTagToDelete(null)}
-                className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase"
-              >
-                CANCELAR
-              </button>
+              <button onClick={confirmDelete} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-rose-600/20">REMOVER REGISTRO</button>
+              <button onClick={() => setTagToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">CANCELAR</button>
             </div>
           </div>
         </div>

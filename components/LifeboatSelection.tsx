@@ -17,7 +17,6 @@ const LifeboatSelection: React.FC<LifeboatSelectionProps> = ({ onSelect, onBack,
   const [confirmingLb, setConfirmingLb] = useState<LifeboatType | null>(null);
 
   const handleInitialClick = (lb: LifeboatType) => {
-    // Acesso seguro: se o status não existir, assume que não está ativa
     if (fleetStatus[lb]?.isActive) return; 
     setConfirmingLb(lb);
   };
@@ -50,7 +49,6 @@ const LifeboatSelection: React.FC<LifeboatSelectionProps> = ({ onSelect, onBack,
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {LIFEBOATS.map((lb) => {
-          // Fallback seguro caso o status não exista no objeto fleetStatus
           const status = fleetStatus[lb] || { count: 0, isActive: false };
           const isBusy = status.isActive;
 
@@ -92,7 +90,6 @@ const LifeboatSelection: React.FC<LifeboatSelectionProps> = ({ onSelect, onBack,
         })}
       </div>
 
-      {/* Modal de Confirmação */}
       {confirmingLb && (
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
