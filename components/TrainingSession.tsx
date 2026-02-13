@@ -232,11 +232,11 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors ${
                     lastScannedId === tag.id ? 'bg-white/20 text-white' : 'bg-slate-50 text-blue-600'
                   }`}>
-                    <i className={`fa-solid ${tag.name && tag.name !== 'Tripulante' ? 'fa-id-card' : 'fa-user-check'} text-lg`}></i>
+                    <i className={`fa-solid ${tag.name && isNaN(Number(tag.name)) ? 'fa-id-card' : 'fa-user-check'} text-lg`}></i>
                   </div>
                   <div className="min-w-0">
                     <h4 className={`text-sm font-black uppercase tracking-tight truncate leading-tight ${lastScannedId === tag.id ? 'text-white' : 'text-slate-900'}`}>
-                      {tag.name || "Tripulante Indefinido"}
+                      {tag.name || "ID S/N"}
                     </h4>
                     <div className="flex items-center gap-2 mt-1">
                        <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded tracking-tighter ${

@@ -200,7 +200,8 @@ const App: React.FC = () => {
       if (prev.tags.some(t => t.id === tagId)) return prev;
       
       const cleanData = tagData.trim();
-      const displayName = cleanData.length > 0 ? cleanData : `Tripulante #${prev.tags.length + 1}`;
+      // Ajuste: Removendo o prefixo "Tripulante #" e deixando somente o número sequencial
+      const displayName = cleanData.length > 0 ? cleanData : (prev.tags.length + 1).toString();
       
       const newTag: ScannedTag = { 
         id: tagId, 
