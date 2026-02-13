@@ -33,7 +33,9 @@ const App: React.FC = () => {
   const [tempConfig, setTempConfig] = useState<{trainingType: 'Gás' | 'Fogo/Abandono', isRealScenario: boolean} | null>(null);
 
   const activeSessionRef = useRef<ActiveSession | null>(null);
+  const isInitializingRef = useRef<boolean>(true);
 
+  // Sincroniza o Ref com o State para uso em callbacks de tempo real (evita stale closures)
   useEffect(() => {
     activeSessionRef.current = activeSession;
   }, [activeSession]);
@@ -45,28 +47,65 @@ const App: React.FC = () => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Efeito de inicialização robusta
   useEffect(() => {
     let unsubscribeFleet: () => void;
+    
     const initData = async () => {
       setIsSyncing(true);
+
+      // 1. Recuperar dados do LocalStorage IMEDIATAMENTE
       const savedUser = localStorage.getItem('lifesafe_user');
-      if (savedUser) setUser(JSON.parse(savedUser));
+      const savedSession = localStorage.getItem('lifesafe_active_session');
+      const savedPage = localStorage.getItem('lifesafe_current_page');
+      const savedTempConfig = localStorage.getItem('lifesafe_temp_config');
+
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        
+        if (savedSession) {
+          const parsedSession = JSON.parse(savedSession);
+          setActiveSession(parsedSession);
+          activeSessionRef.current = parsedSession;
+        }
+
+        if (savedTempConfig) {
+          setTempConfig(JSON.parse(savedTempConfig));
+        }
+
+        if (savedPage) {
+          setCurrentPage(savedPage as AppState);
+        } else {
+          setCurrentPage(AppState.DASHBOARD);
+        }
+      }
+
+      // 2. Carregar Histórico e Fleet da Nuvem
       try {
         const cloudHistory = await cloudService.getHistory();
         setHistory(cloudHistory);
-      } catch (e) { console.error("Firebase History Error:", e); }
+      } catch (e) { console.error("History Load Error:", e); }
+
+      // 3. Subscrever para mudanças na frota
       unsubscribeFleet = cloudService.subscribeToFleet((updatedStatusFromCloud) => {
         setFleetStatus(currentLocalStatus => {
           const mergedStatus = { ...INITIAL_STATUS, ...updatedStatusFromCloud };
           const localActiveSession = activeSessionRef.current;
-          if (localActiveSession && !localActiveSession.isAdminView) {
+          
+          // Se sou o operador (não admin view) e a nuvem diz que a baleeira não está ativa,
+          // mas eu tenho uma sessão local, ignoramos nos primeiros segundos de inicialização
+          // para evitar que o lag da rede limpe a sessão local recém-restaurada.
+          if (localActiveSession && !localActiveSession.isAdminView && !isInitializingRef.current) {
             const remoteStatus = mergedStatus[localActiveSession.lifeboat];
             if (!remoteStatus?.isActive && localActiveSession.lifeboat) {
               setActiveSession(null);
               setCurrentPage(AppState.DASHBOARD);
-              alert(`O exercício na ${localActiveSession.lifeboat} foi encerrado.`);
+              alert(`O exercício na ${localActiveSession.lifeboat} foi encerrado remotamente.`);
             }
           }
+
+          // Se sou Admin assistindo, atualizamos os dados lidos em tempo real
           if (localActiveSession?.isAdminView) {
             const remoteData = mergedStatus[localActiveSession.lifeboat];
             if (remoteData) {
@@ -81,20 +120,49 @@ const App: React.FC = () => {
           return mergedStatus;
         });
       });
-      const savedSession = localStorage.getItem('lifesafe_active_session');
-      if (savedSession) setActiveSession(JSON.parse(savedSession));
-      const savedPage = localStorage.getItem('lifesafe_current_page');
-      if (savedPage && savedUser) setCurrentPage(savedPage as AppState);
-      else if (savedUser) setCurrentPage(AppState.DASHBOARD);
-      setIsSyncing(false);
+
+      // Sinaliza fim da inicialização após um breve delay para estabilizar o estado cloud
+      setTimeout(() => {
+        isInitializingRef.current = false;
+        setIsSyncing(false);
+      }, 1500);
     };
+
     initData();
     return () => { if (unsubscribeFleet) unsubscribeFleet(); };
   }, []);
 
+  // Persistência frequente da sessão ativa (inclusive o timer)
+  useEffect(() => {
+    if (activeSession) {
+      localStorage.setItem('lifesafe_active_session', JSON.stringify(activeSession));
+    } else {
+      localStorage.removeItem('lifesafe_active_session');
+    }
+  }, [activeSession]);
+
+  // Persistência da página atual
+  useEffect(() => {
+    if (currentPage !== AppState.LOGIN) {
+      localStorage.setItem('lifesafe_current_page', currentPage);
+    }
+  }, [currentPage]);
+
+  // Persistência da configuração temporária
+  useEffect(() => {
+    if (tempConfig) {
+      localStorage.setItem('lifesafe_temp_config', JSON.stringify(tempConfig));
+    } else {
+      localStorage.removeItem('lifesafe_temp_config');
+    }
+  }, [tempConfig]);
+
+  // Sincronismo da sessão com a Nuvem (Operador -> Nuvem)
   useEffect(() => {
     const syncToCloud = async () => {
-      if (!activeSession || activeSession.isAdminView) return;
+      // Admin view não escreve na nuvem, apenas lê
+      if (!activeSession || activeSession.isAdminView || isInitializingRef.current) return;
+      
       const currentStatusUpdate = {
         ...fleetStatus,
         [activeSession.lifeboat]: {
@@ -110,20 +178,17 @@ const App: React.FC = () => {
           operatorName: user?.name || 'Sistema'
         }
       };
-      try { await cloudService.updateFleetStatus(currentStatusUpdate); } catch (e) { console.error("Sync Error:", e); }
+      
+      try { 
+        await cloudService.updateFleetStatus(currentStatusUpdate); 
+      } catch (e) { console.error("Sync to cloud error:", e); }
     };
+
+    // Sincroniza em mudanças críticas
     syncToCloud();
   }, [activeSession?.tags.length, activeSession?.isPaused, activeSession?.seconds]);
 
-  useEffect(() => {
-    if (activeSession) localStorage.setItem('lifesafe_active_session', JSON.stringify(activeSession));
-    else localStorage.removeItem('lifesafe_active_session');
-  }, [activeSession]);
-
-  useEffect(() => {
-    if (currentPage !== AppState.LOGIN) localStorage.setItem('lifesafe_current_page', currentPage);
-  }, [currentPage]);
-
+  // Detector de NFC disponível
   useEffect(() => { setIsNfcAvailable('NDEFReader' in window); }, []);
 
   const processNewScan = useCallback((tagId: string, tagData: string) => {
@@ -146,6 +211,7 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // Timer do Treinamento
   useEffect(() => {
     let timerInterval: number | undefined;
     if (activeSession && !activeSession.isPaused && !activeSession.isAdminView) {
@@ -164,7 +230,12 @@ const App: React.FC = () => {
 
   const saveToHistory = async (recordData: Omit<TrainingRecord, 'id' | 'operator'>) => {
     setIsSyncing(true);
-    const newRecord: TrainingRecord = { ...recordData, id: crypto.randomUUID(), operator: user?.name || 'Sistema', tags: activeSession?.tags || recordData.tags || [] };
+    const newRecord: TrainingRecord = { 
+      ...recordData, 
+      id: crypto.randomUUID(), 
+      operator: user?.name || 'Sistema', 
+      tags: activeSession?.tags || recordData.tags || [] 
+    };
     await cloudService.saveTrainingRecord(newRecord);
     setHistory(await cloudService.getHistory());
     setIsSyncing(false);
@@ -172,26 +243,45 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     setIsSyncing(true);
+    // Se sair com sessão ativa, salvamos um log de segurança
     if (activeSession && !activeSession.isAdminView) {
       try {
-        await saveToHistory({ date: new Date().toLocaleString('pt-BR'), lifeboat: activeSession.lifeboat, leaderName: activeSession.leaderName, trainingType: activeSession.trainingType, isRealScenario: activeSession.isRealScenario, crewCount: activeSession.tags.length, duration: formatDuration(activeSession.seconds), summary: "Logout forçado.", tags: activeSession.tags });
+        await saveToHistory({ 
+          date: new Date().toLocaleString('pt-BR'), 
+          lifeboat: activeSession.lifeboat, 
+          leaderName: activeSession.leaderName, 
+          trainingType: activeSession.trainingType, 
+          isRealScenario: activeSession.isRealScenario, 
+          crewCount: activeSession.tags.length, 
+          duration: formatDuration(activeSession.seconds), 
+          summary: "Logout com sessão ativa (Interrompido).", 
+          tags: activeSession.tags 
+        });
         const finalFleet = { ...fleetStatus };
         finalFleet[activeSession.lifeboat] = { count: 0, isActive: false };
         await cloudService.updateFleetStatus(finalFleet);
       } catch (e) { console.error(e); }
     }
-    setUser(null); setActiveSession(null); setFleetStatus(INITIAL_STATUS); setIsConfirmingLogout(false);
-    localStorage.clear(); setCurrentPage(AppState.LOGIN); setIsSyncing(false);
+    
+    setUser(null); 
+    setActiveSession(null); 
+    setTempConfig(null);
+    setFleetStatus(INITIAL_STATUS); 
+    setIsConfirmingLogout(false);
+    localStorage.clear(); 
+    setCurrentPage(AppState.LOGIN); 
+    setIsSyncing(false);
   };
 
   const finishSession = async () => {
-    if (activeSession) {
+    if (activeSession && !activeSession.isAdminView) {
       const finalFleet = { ...fleetStatus };
       finalFleet[activeSession.lifeboat] = { count: 0, isActive: false, tags: [], seconds: 0 };
       setFleetStatus(finalFleet);
       await cloudService.updateFleetStatus(finalFleet);
     }
-    setActiveSession(null); setTempConfig(null);
+    setActiveSession(null); 
+    setTempConfig(null);
     setCurrentPage(AppState.DASHBOARD);
   };
 
