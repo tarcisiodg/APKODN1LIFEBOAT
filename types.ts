@@ -19,7 +19,9 @@ export interface ScannedTag {
 
 export interface Berth {
   id: string; // Número do Leito
-  tagId: string; // ID Físico da Tag (Serial Number)
+  tagId1: string; // ID Físico da Tag 1
+  tagId2: string; // ID Físico da Tag 2
+  tagId3: string; // ID Físico da Tag 3
   crewName: string;
   lifeboat: LifeboatType;
   secondaryLifeboat?: LifeboatType;

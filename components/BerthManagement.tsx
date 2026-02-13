@@ -33,12 +33,12 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
   };
 
   const downloadTemplate = () => {
-    const header = "LEITO;ID TAG;NOME;BALEEIRA;BALEEIRA SECUNDÁRIA\n";
-    const example = "101-A;04:A1:B2:C3:D4:E5:F6;JOÃO SILVA;Lifeboat 1;Lifeboat 2\n101-B;04:AA:BB:CC:DD:EE:FF;MARIA SOUZA;Lifeboat 1;\n";
+    const header = "LEITO;ID TAG1;ID TAG2;ID TAG3;NOME;BALEEIRA;BALEEIRA SECUNDÁRIA\n";
+    const example = "101-A;04:A1:B2;04:C3:D4;04:E5:F6;JOÃO SILVA;Lifeboat 1;Lifeboat 2\n101-B;04:AA:BB;;;MARIA SOUZA;Lifeboat 1;\n";
     const blob = new Blob(["\uFEFF" + header + example], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "MODELO_POB_LIFESAFE.csv";
+    link.download = "MODELO_POB_7COLUNAS.csv";
     link.click();
   };
 
@@ -48,7 +48,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
       await cloudService.clearBerths();
       await loadBerths();
       setIsConfirmingClear(false);
-      alert("Toda a base de POB foi excluída.");
+      alert("Base de POB limpa.");
     } catch (e) { alert("Erro ao excluir."); }
     finally { setIsLoading(false); }
   };
@@ -68,12 +68,14 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
         if (!line) continue;
         
         const parts = line.includes(';') ? line.split(';') : line.split(',');
-        if (parts.length >= 4) {
-          const id = parts[0].trim();
-          const tagId = parts[1].trim();
-          const crewName = parts[2].trim();
-          const lbInput = parts[3].trim();
-          const secondaryLbInput = parts[4] ? parts[4].trim() : null;
+        if (parts.length >= 6) {
+          const id = parts[0]?.trim() || '';
+          const tagId1 = parts[1]?.trim() || '';
+          const tagId2 = parts[2]?.trim() || '';
+          const tagId3 = parts[3]?.trim() || '';
+          const crewName = parts[4]?.trim() || '';
+          const lbInput = parts[5]?.trim() || '';
+          const secondaryLbInput = parts[6] ? parts[6].trim() : null;
           
           const lifeboat = LIFEBOATS.find(l => l.toLowerCase().includes(lbInput.toLowerCase())) || 'Lifeboat 1';
           const secondaryLifeboat = secondaryLbInput 
@@ -82,7 +84,9 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
           
           newBerths.push({ 
             id, 
-            tagId,
+            tagId1,
+            tagId2,
+            tagId3,
             crewName, 
             lifeboat,
             secondaryLifeboat: secondaryLifeboat as LifeboatType | undefined
@@ -103,20 +107,22 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
 
   const filteredBerths = berths.filter(b => 
     b.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    b.tagId.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    b.crewName.toLowerCase().includes(searchTerm.toLowerCase())
+    b.crewName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.tagId1.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.tagId2.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b.tagId3.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-6xl mx-auto w-full pb-40 animate-in fade-in duration-500">
+    <div className="flex-1 flex flex-col p-6 max-w-7xl mx-auto w-full pb-40 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm active:scale-95">
+          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm active:scale-95 transition-all">
             <i className="fa-solid fa-chevron-left"></i>
           </button>
           <div>
             <h2 className="text-xl font-black text-slate-900 uppercase leading-none">Gestão de POB</h2>
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Vinculação de TAGS e Leitos</p>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Vinculação Multi-Tag (3 Tags por Leito)</p>
           </div>
         </div>
 
@@ -125,11 +131,11 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
              <i className="fa-solid fa-download"></i> Modelo
            </button>
            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".csv" className="hidden" />
-           <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none bg-emerald-600 text-white px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg active:scale-95 flex items-center justify-center gap-2">
-             <i className="fa-solid fa-file-import"></i> Importar
+           <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none bg-blue-600 text-white px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg active:scale-95 flex items-center justify-center gap-2">
+             <i className="fa-solid fa-file-import"></i> Importar CSV
            </button>
            <button onClick={() => setIsConfirmingClear(true)} disabled={berths.length === 0} className={`flex-1 md:flex-none px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border ${berths.length > 0 ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-slate-50 text-slate-300'}`}>
-             <i className="fa-solid fa-trash-can"></i> Excluir
+             <i className="fa-solid fa-trash-can"></i> Limpar Tudo
            </button>
         </div>
       </div>
@@ -137,39 +143,43 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
       <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl overflow-hidden flex flex-col flex-1">
         <div className="p-4 border-b border-slate-50 bg-slate-50/50 flex items-center gap-3">
           <i className="fa-solid fa-magnifying-glass text-slate-400"></i>
-          <input type="text" placeholder="Filtrar por nome, leito ou ID da Tag..." className="bg-transparent border-none outline-none text-xs font-bold w-full" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input type="text" placeholder="Busca rápida por Leito, Nome ou ID de Tag..." className="bg-transparent border-none outline-none text-xs font-bold w-full" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-x-auto overflow-y-auto">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <i className="fa-solid fa-rotate animate-spin text-blue-500 text-3xl"></i>
-              <p className="text-[10px] font-black text-slate-400 uppercase">Processando...</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Base...</p>
             </div>
           ) : filteredBerths.length === 0 ? (
             <div className="text-center py-20 opacity-40">
-              <i className="fa-solid fa-id-card text-5xl text-slate-200 mb-4"></i>
-              <p className="text-[10px] font-black text-slate-400 uppercase">Nenhum vínculo encontrado.</p>
+              <i className="fa-solid fa-database text-5xl text-slate-200 mb-4"></i>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum registro encontrado</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead className="sticky top-0 bg-white z-10 border-b border-slate-100">
                 <tr>
-                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase">Leito</th>
-                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase">ID da Tag</th>
-                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase">Tripulante</th>
-                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase">Primária</th>
-                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase">Secundária</th>
+                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Leito</th>
+                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Tag 1</th>
+                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Tag 2</th>
+                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Tag 3</th>
+                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Tripulante</th>
+                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Primária</th>
+                  <th className="p-5 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Secundária</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredBerths.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-5"><span className="bg-slate-900 text-white px-2 py-1 rounded text-[10px] font-mono font-bold">{b.id}</span></td>
-                    <td className="p-5 font-mono text-[10px] text-blue-600 font-bold">{b.tagId}</td>
-                    <td className="p-5 text-xs font-black text-slate-800 uppercase">{b.crewName}</td>
-                    <td className="p-5"><span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded uppercase">{b.lifeboat}</span></td>
-                    <td className="p-5">{b.secondaryLifeboat ? <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded uppercase">{b.secondaryLifeboat}</span> : <span className="text-[8px] text-slate-300 italic">N/A</span>}</td>
+                    <td className="p-5"><span className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold">{b.id}</span></td>
+                    <td className="p-5 font-mono text-[9px] text-blue-600 font-bold truncate max-w-[120px]">{b.tagId1 || '-'}</td>
+                    <td className="p-5 font-mono text-[9px] text-indigo-600 font-bold truncate max-w-[120px]">{b.tagId2 || '-'}</td>
+                    <td className="p-5 font-mono text-[9px] text-slate-400 font-bold truncate max-w-[120px]">{b.tagId3 || '-'}</td>
+                    <td className="p-5 text-xs font-black text-slate-800 uppercase tracking-tight">{b.crewName}</td>
+                    <td className="p-5 text-center"><span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full uppercase">{b.lifeboat}</span></td>
+                    <td className="p-5 text-center">{b.secondaryLifeboat ? <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">{b.secondaryLifeboat}</span> : <span className="text-[8px] text-slate-300 italic">---</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -180,11 +190,11 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
 
       {isConfirmingClear && (
         <div className="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl text-center">
-            <h3 className="text-xl font-black text-slate-900 mb-4 uppercase">Limpar POB?</h3>
-            <p className="text-slate-500 text-[10px] font-bold uppercase mb-8">Esta ação removerá todos os {berths.length} registros.</p>
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl text-center animate-in zoom-in duration-300">
+            <h3 className="text-xl font-black text-slate-900 mb-4 uppercase">Resetar POB?</h3>
+            <p className="text-slate-500 text-[10px] font-bold uppercase mb-8 leading-relaxed">Você está prestes a apagar todos os {berths.length} tripulantes registrados.</p>
             <div className="grid gap-3">
-              <button onClick={handleClearAll} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase">Confirmar Exclusão</button>
+              <button onClick={handleClearAll} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl">Confirmar Reset</button>
               <button onClick={() => setIsConfirmingClear(false)} className="w-full py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase">Cancelar</button>
             </div>
           </div>

@@ -44,9 +44,15 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
   const pendingCrew = useMemo(() => {
     if (!session.expectedCrew) return [];
-    return session.expectedCrew.filter(berth => 
-      !session.tags.some(tag => tag.id.trim().toLowerCase() === berth.tagId.trim().toLowerCase())
-    );
+    return session.expectedCrew.filter(berth => {
+      // Um leito é considerado presente se QUALQUER uma de suas tags cadastradas estiver na lista de scans
+      const isAnyTagScanned = session.tags.some(tag => 
+        (berth.tagId1 && tag.id.trim().toLowerCase() === berth.tagId1.trim().toLowerCase()) ||
+        (berth.tagId2 && tag.id.trim().toLowerCase() === berth.tagId2.trim().toLowerCase()) ||
+        (berth.tagId3 && tag.id.trim().toLowerCase() === berth.tagId3.trim().toLowerCase())
+      );
+      return !isAnyTagScanned;
+    });
   }, [session.expectedCrew, session.tags]);
 
   const startNFC = async () => {
@@ -94,7 +100,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       const durationStr = formatTime(session.seconds);
       const summary = await generateTrainingSummary(session.lifeboat, session.tags.length, durationStr);
       
-      // Salva o registro e aguarda a conclusão do upload para o Firebase
       await onSaveRecord({ 
         date: new Date().toLocaleString('pt-BR'), 
         lifeboat: session.lifeboat, 
@@ -106,11 +111,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         summary: summary 
       });
 
-      // Retorna automaticamente para o Dashboard após o salvamento
       onFinish();
     } catch (e) {
       console.error("Erro ao finalizar sessão:", e);
-      alert("Erro ao salvar os dados. Verifique sua conexão.");
+      alert("Erro ao salvar os dados.");
     } finally {
       setIsFinishing(false);
       setIsConfirmingFinish(false);
@@ -184,7 +188,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                 <div className="w-10 h-10 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center text-[10px] font-mono font-bold border-2 border-dashed border-slate-200">{berth.id}</div>
                 <div>
                   <h4 className="text-xs font-black uppercase text-slate-400">{berth.crewName}</h4>
-                  <p className="text-[8px] font-bold text-slate-300 uppercase">Pendente</p>
+                  <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Não embarcado</p>
                 </div>
               </div>
             </div>

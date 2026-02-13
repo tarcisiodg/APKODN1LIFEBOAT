@@ -152,8 +152,12 @@ const App: React.FC = () => {
       if (!prev || prev.isPaused || prev.isAdminView) return prev;
       if (prev.tags.some(t => t.id === tagId)) return prev;
 
-      // Lógica de Reconhecimento pelo POB
-      const matchedBerth = prev.expectedCrew?.find(b => b.tagId.trim().toLowerCase() === tagId.trim().toLowerCase());
+      // Lógica de Reconhecimento pelo POB Multi-Tag
+      const matchedBerth = prev.expectedCrew?.find(b => 
+        (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
+        (b.tagId2 && b.tagId2.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
+        (b.tagId3 && b.tagId3.trim().toLowerCase() === tagId.trim().toLowerCase())
+      );
       
       let displayName = tagData.trim();
       let displayRole = 'IDENTIFICADO';
