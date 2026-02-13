@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ActiveSession, TrainingRecord, ScannedTag } from '../types';
 import { generateTrainingSummary } from '../services/geminiService';
 
@@ -32,6 +32,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
   const [lastScannedText, setLastScannedText] = useState<string | null>(null);
   const [tagToDelete, setTagToDelete] = useState<ScannedTag | null>(null);
+  const [viewTab, setViewTab] = useState<'present' | 'pending'>('present');
   
   const nfcReaderRef = useRef<any>(null);
 
@@ -42,26 +43,27 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const pendingCrew = useMemo(() => {
+    if (!session.expectedCrew) return [];
+    return session.expectedCrew.filter(berth => 
+      !session.tags.some(tag => tag.id.trim().toLowerCase() === berth.tagId.trim().toLowerCase())
+    );
+  }, [session.expectedCrew, session.tags]);
+
   const startNFC = async () => {
     if (!('NDEFReader' in window)) {
       setNfcState('unsupported');
-      setNfcError('Seu dispositivo não suporta leitura NFC.');
+      setNfcError('NFC não suportado.');
       return;
     }
-
     setNfcState('starting');
-    setNfcError(null);
-
     try {
       const reader = new (window as any).NDEFReader();
       nfcReaderRef.current = reader;
-      
       await reader.scan();
       setNfcState('active');
-
       reader.addEventListener("reading", ({ message, serialNumber }: any) => {
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        
         let dataStr = "";
         if (message.records) {
           for (const record of message.records) {
@@ -71,254 +73,158 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                 const statusByte = dataView.getUint8(0);
                 const langCodeLength = statusByte & 0x3F;
                 const textDecoder = new TextDecoder();
-                const decodedText = textDecoder.decode(new Uint8Array(record.data.buffer).slice(1 + langCodeLength));
-                dataStr += decodedText;
-              } catch (e) { console.error("Erro NDEF:", e); }
+                dataStr += textDecoder.decode(new Uint8Array(record.data.buffer).slice(1 + langCodeLength));
+              } catch (e) {}
             }
           }
         }
-        
-        const tagId = serialNumber || `ID_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-        const finalData = dataStr.trim();
-        
+        const tagId = serialNumber || `FAKE_${Math.random()}`;
         setLastScannedId(tagId);
-        setLastScannedText(finalData || "Sem texto gravado");
-        onScanTag(tagId, finalData);
-        
-        setTimeout(() => {
-          setLastScannedId(null);
-          setLastScannedText(null);
-        }, 4000);
+        setLastScannedText(dataStr.trim() || tagId);
+        onScanTag(tagId, dataStr.trim());
+        setTimeout(() => { setLastScannedId(null); setLastScannedText(null); }, 4000);
       });
-
-      reader.addEventListener("readingerror", () => {
-        setNfcError("Erro ao ler. Tente aproximar novamente.");
-        setTimeout(() => setNfcError(null), 3000);
-      });
-    } catch (error: any) {
-      setNfcState('error');
-      setNfcError('Sensor NFC não pôde ser ativado.');
-    }
+    } catch (error: any) { setNfcState('error'); }
   };
 
-  useEffect(() => {
-    if (!session.isAdminView) startNFC();
-    return () => { nfcReaderRef.current = null; };
-  }, [session.isAdminView]);
+  useEffect(() => { if (!session.isAdminView) startNFC(); }, [session.isAdminView]);
 
   const handleFinish = async () => {
     setIsConfirmingFinish(false);
     setIsFinishing(true);
     const durationStr = formatTime(session.seconds);
     const summary = await generateTrainingSummary(session.lifeboat, session.tags.length, durationStr);
-    onSaveRecord({
-      date: new Date().toLocaleString('pt-BR'),
-      lifeboat: session.lifeboat,
-      leaderName: session.leaderName,
-      trainingType: session.trainingType,
-      isRealScenario: session.isRealScenario,
-      crewCount: session.tags.length,
-      duration: durationStr,
-      summary: summary
-    });
+    onSaveRecord({ date: new Date().toLocaleString('pt-BR'), lifeboat: session.lifeboat, leaderName: session.leaderName, trainingType: session.trainingType, isRealScenario: session.isRealScenario, crewCount: session.tags.length, duration: durationStr, summary: summary });
     setIsFinished(true);
     setIsFinishing(false);
   };
 
-  const confirmDelete = () => {
-    if (tagToDelete) {
-      onRemoveTag(tagToDelete.id);
-      setTagToDelete(null);
-    }
-  };
-
   const exportToExcel = () => {
     const rows = [
-      ["Relatório Lifesafe ODN1"],
-      ["Unidade", session.lifeboat],
-      ["Data", new Date().toLocaleDateString()],
-      [""],
-      ["NOME/TEXTO GRAVADO", "NÚMERO DE SÉRIE (ID)", "HORÁRIO"]
+      ["Relatório Lifesafe ODN1"], ["Unidade", session.lifeboat], ["Data", new Date().toLocaleDateString()], [""],
+      ["LEITO", "NOME", "ID TAG", "HORÁRIO"]
     ];
-    session.tags.forEach(tag => rows.push([tag.name || "Sem Nome", tag.id, tag.timestamp]));
+    session.tags.forEach(tag => rows.push([tag.leito || "N/A", tag.name || "N/A", tag.id, tag.timestamp]));
     const csvContent = "\uFEFF" + rows.map(e => e.map(cell => `"${cell}"`).join(";")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `LISTA_EMBARQUE_${session.lifeboat}.csv`;
+    link.download = `EMBARQUE_${session.lifeboat}.csv`;
     link.click();
   };
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-32">
       {lastScannedText && (
-        <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10 duration-500">
+        <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10">
            <div className="p-4 rounded-3xl shadow-2xl border bg-slate-900 border-blue-500 text-white flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center animate-bounce">
-                <i className="fa-solid fa-id-card text-xl"></i>
-              </div>
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center animate-bounce"><i className="fa-solid fa-id-card"></i></div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-400 mb-1">DADOS LIDOS COM SUCESSO:</p>
+                <p className="text-[9px] font-black uppercase text-blue-400">Scan detectado:</p>
                 <h4 className="text-sm font-black uppercase truncate">{lastScannedText}</h4>
-                <p className="text-[8px] font-mono text-white/40 uppercase">S/N: {lastScannedId}</p>
               </div>
            </div>
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
           <button onClick={onMinimize} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-200 text-slate-600 shadow-sm"><i className="fa-solid fa-chevron-left"></i></button>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">{session.lifeboat}</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sessão: {session.trainingType}</p>
+            <h2 className="text-2xl font-black text-slate-900 uppercase leading-none">{session.lifeboat}</h2>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{session.trainingType}</p>
           </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-           {!session.isAdminView && (
-             <button 
-                onClick={() => onTogglePause(!session.isPaused)}
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white transition-all active:scale-90 ${session.isPaused ? 'bg-emerald-600 shadow-emerald-600/20 shadow-lg' : 'bg-amber-500 shadow-amber-500/20 shadow-lg'}`}
-             >
-                <i className={`fa-solid ${session.isPaused ? 'fa-play' : 'fa-pause'}`}></i>
-             </button>
-           )}
-           <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-col items-center min-w-[100px]">
-             <span className="text-[8px] font-black opacity-40 uppercase tracking-widest">Tempo</span>
-             <span className={`text-lg font-mono font-bold leading-none mt-1 ${session.isPaused ? 'text-amber-400' : 'text-white'}`}>{formatTime(session.seconds)}</span>
-           </div>
+        <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-col items-center">
+             <span className="text-[8px] font-black opacity-40 uppercase">Cronômetro</span>
+             <span className="text-lg font-mono font-bold leading-none mt-1">{formatTime(session.seconds)}</span>
         </div>
       </div>
 
-      {!session.isAdminView && (
-        <div className={`p-6 rounded-[32px] border-2 transition-all duration-500 mb-8 flex items-center gap-5 ${nfcState === 'active' ? 'bg-blue-50 border-blue-200 shadow-xl shadow-blue-600/5' : 'bg-slate-50 border-slate-200'}`}>
-           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${nfcState === 'active' ? 'bg-blue-600 text-white animate-pulse' : 'bg-slate-200 text-slate-400'}`}>
-              <i className="fa-solid fa-tower-broadcast text-2xl"></i>
-           </div>
-           <div className="flex-1">
-              <h4 className="font-black text-xs uppercase tracking-widest text-slate-900">Leitor NFC Ativo</h4>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight mt-0.5">Aproxime a tag para ler o texto gravado e o número de série.</p>
-           </div>
-           {nfcState !== 'active' && (
-             <button onClick={startNFC} className="bg-slate-900 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">Ativar</button>
-           )}
-        </div>
-      )}
+      <div className="flex bg-slate-100 p-1 rounded-2xl mb-6">
+        <button onClick={() => setViewTab('present')} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewTab === 'present' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Presentes ({session.tags.length})</button>
+        <button onClick={() => setViewTab('pending')} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Faltantes ({pendingCrew.length})</button>
+      </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto pb-10">
-        <div className="flex justify-between items-center px-2 mb-2">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Lista de Identificação</h3>
-          <span className="text-[9px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full uppercase">{session.tags.length} Presentes</span>
-        </div>
-
-        {session.tags.length === 0 ? (
-          <div className="bg-white border-2 border-dashed border-slate-100 rounded-[32px] p-16 text-center">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mx-auto mb-4">
-              <i className="fa-solid fa-id-badge text-3xl"></i>
+        {viewTab === 'present' ? (
+          session.tags.length === 0 ? (
+            <div className="bg-white border-2 border-dashed border-slate-100 rounded-[32px] p-16 text-center">
+              <p className="text-slate-400 text-[10px] font-black uppercase">Aguardando Aproximação...</p>
             </div>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Aguardando Aproximação...</p>
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            {session.tags.map((tag) => (
-              <div 
-                key={tag.id} 
-                className={`p-5 rounded-[28px] border transition-all duration-500 flex items-center justify-between group ${
-                  lastScannedId === tag.id ? 'bg-blue-600 border-blue-600 text-white scale-[1.03] shadow-2xl shadow-blue-600/20' : 'bg-white border-slate-100 shadow-sm'
-                }`}
-              >
-                <div className="flex items-center gap-5 flex-1 min-w-0">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors ${
-                    lastScannedId === tag.id ? 'bg-white/20 text-white' : 'bg-slate-50 text-blue-600'
-                  }`}>
-                    <i className={`fa-solid ${tag.name && isNaN(Number(tag.name)) ? 'fa-id-card' : 'fa-user-check'} text-lg`}></i>
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className={`text-sm font-black uppercase tracking-tight truncate leading-tight ${lastScannedId === tag.id ? 'text-white' : 'text-slate-900'}`}>
-                      {tag.name || "ID S/N"}
-                    </h4>
-                    <div className="flex items-center gap-2 mt-1">
-                       <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded tracking-tighter ${
-                         lastScannedId === tag.id ? 'bg-white/10 text-white/70' : 'bg-slate-100 text-slate-400'
-                       }`}>
-                         S/N: {tag.id}
-                       </span>
+          ) : (
+            <div className="grid gap-3">
+              {session.tags.map((tag) => (
+                <div key={tag.id} className="p-4 rounded-[28px] border bg-white border-slate-100 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">{tag.leito || 'N/A'}</div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-black uppercase truncate text-slate-900">{tag.name}</h4>
+                      <p className="text-[8px] font-mono text-slate-400 uppercase">TAG: {tag.id}</p>
                     </div>
                   </div>
-                </div>
-                
-                <div className="text-right flex items-center gap-4 ml-4">
-                  <div className="flex flex-col items-end flex-shrink-0">
-                    <span className={`text-[10px] font-black uppercase tabular-nums ${lastScannedId === tag.id ? 'text-white/80' : 'text-slate-400'}`}>
-                      {tag.timestamp}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[9px] font-black uppercase text-slate-400">{tag.timestamp}</span>
+                    {!session.isAdminView && (
+                      <button onClick={() => setTagToDelete(tag)} className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center"><i className="fa-solid fa-trash text-[10px]"></i></button>
+                    )}
                   </div>
-                  {!session.isAdminView && (
-                    <button 
-                      onClick={() => setTagToDelete(tag)}
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                        lastScannedId === tag.id ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-50 text-slate-300 hover:text-rose-600 hover:bg-rose-50'
-                      }`}
-                    >
-                      <i className="fa-solid fa-trash-can text-xs"></i>
-                    </button>
-                  )}
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+          pendingCrew.map((berth) => (
+            <div key={berth.id} className="p-4 rounded-[28px] border bg-white border-slate-100 shadow-sm flex items-center justify-between opacity-60">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center text-[10px] font-mono font-bold border-2 border-dashed border-slate-200">{berth.id}</div>
+                <div>
+                  <h4 className="text-xs font-black uppercase text-slate-400">{berth.crewName}</h4>
+                  <p className="text-[8px] font-bold text-slate-300 uppercase">Pendente</p>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))
         )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-slate-50/90 backdrop-blur-md border-t border-slate-200 flex gap-4 justify-center z-50">
-        <button onClick={onMinimize} className="flex-1 max-w-xs py-4 bg-white border border-slate-200 text-slate-700 font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all">MINIMIZAR</button>
-        <button onClick={() => setIsConfirmingFinish(true)} className={`flex-1 max-w-xs py-4 font-black rounded-2xl text-[10px] uppercase tracking-widest text-white shadow-lg shadow-blue-600/20 active:scale-95 transition-all ${session.isRealScenario ? 'bg-red-700' : 'bg-blue-600'}`}>FINALIZAR</button>
+        <button onClick={onMinimize} className="flex-1 max-w-xs py-4 bg-white border border-slate-200 text-slate-700 font-black rounded-2xl text-[10px] uppercase">Minimizar</button>
+        <button onClick={() => setIsConfirmingFinish(true)} className="flex-1 max-w-xs py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-lg">Finalizar</button>
       </div>
 
-      {tagToDelete && (
-        <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-200 text-center">
-            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <i className="fa-solid fa-user-minus text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Remover Tripulante?</h3>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-2">Você está prestes a remover o registro:</p>
-            <div className="bg-slate-50 p-4 rounded-2xl mb-8 border border-slate-100">
-               <p className="text-sm font-black text-slate-800 uppercase truncate">{tagToDelete.name}</p>
-               <p className="text-[9px] font-mono text-slate-400 mt-1 uppercase">S/N: {tagToDelete.id}</p>
-            </div>
-            <div className="grid gap-3">
-              <button onClick={confirmDelete} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-rose-600/20">REMOVER REGISTRO</button>
-              <button onClick={() => setTagToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">CANCELAR</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isConfirmingFinish && (
-        <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl animate-in zoom-in duration-200 text-center">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6"><i className="fa-solid fa-circle-check text-3xl"></i></div>
-            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Concluir Sessão?</h3>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-10">O relatório final será gerado com todos os dados capturados.</p>
+        <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl">
+            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase">Concluir Sessão?</h3>
             <div className="grid gap-3">
-              <button onClick={handleFinish} className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-blue-600/20">SIM, FINALIZAR</button>
-              <button onClick={() => setIsConfirmingFinish(false)} className="w-full py-5 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">CANCELAR</button>
+              <button onClick={handleFinish} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl">Sim, Concluir</button>
+              <button onClick={() => setIsConfirmingFinish(false)} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">Cancelar</button>
             </div>
           </div>
         </div>
       )}
 
       {isFinished && (
-        <div className="fixed inset-0 z-[102] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-md w-full p-10 shadow-2xl animate-in zoom-in duration-300 flex flex-col items-center">
-            <div className="w-20 h-20 bg-emerald-600 text-white rounded-[28px] flex items-center justify-center mb-8 shadow-xl shadow-emerald-600/20 animate-bounce"><i className="fa-solid fa-check text-4xl"></i></div>
-            <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">REGISTRO CONCLUÍDO</h2>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mb-10">ODN1 NS-41 MUSTER SYSTEM</p>
+        <div className="fixed inset-0 z-[102] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-[40px] max-md w-full p-10 shadow-2xl flex flex-col items-center">
+            <h2 className="text-2xl font-black text-slate-900 mb-10 uppercase">SESSÃO ENCERRADA</h2>
             <div className="w-full space-y-3">
-              <button onClick={exportToExcel} className="w-full py-5 bg-slate-900 text-white font-black rounded-[24px] text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl"><i className="fa-solid fa-file-excel"></i> BAIXAR RELATÓRIO CSV</button>
-              <button onClick={onFinish} className="w-full py-5 bg-slate-100 text-slate-900 font-black rounded-[24px] text-[10px] uppercase tracking-widest">VOLTAR AO DASHBOARD</button>
+              <button onClick={exportToExcel} className="w-full py-5 bg-slate-900 text-white font-black rounded-[24px] text-[10px] uppercase flex items-center justify-center gap-3"><i className="fa-solid fa-file-csv"></i> Baixar Relatório</button>
+              <button onClick={onFinish} className="w-full py-5 bg-slate-100 text-slate-900 font-black rounded-[24px] text-[10px] uppercase">Dashboard</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tagToDelete && (
+        <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl text-center">
+            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase">Remover Registro?</h3>
+            <div className="grid gap-3">
+              {/* Fix: use the correct prop onRemoveTag instead of undefined removeTag */}
+              <button onClick={() => { onRemoveTag(tagToDelete.id); setTagToDelete(null); }} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl">Remover</button>
+              <button onClick={() => setTagToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">Cancelar</button>
             </div>
           </div>
         </div>

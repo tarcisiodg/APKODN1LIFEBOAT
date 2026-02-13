@@ -5,10 +5,11 @@ import { cloudService } from '../services/cloudService';
 
 interface DashboardProps {
   onStartTraining: () => void;
-  onResumeTraining: () => void; // Nova prop para retomar
+  onResumeTraining: () => void;
   onViewLifeboat: (lb: LifeboatType) => void;
   onOpenUserManagement: () => void;
   onOpenNfcEnrollment: () => void;
+  onOpenBerthManagement: () => void; // Nova prop
   user: User | null;
   fleetStatus: Record<LifeboatType, LifeboatStatus>;
   historyCount: number;
@@ -26,6 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onViewLifeboat,
   onOpenUserManagement,
   onOpenNfcEnrollment,
+  onOpenBerthManagement,
   user, 
   fleetStatus, 
   activeSession
@@ -74,12 +76,16 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {user.isAdmin && (
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button onClick={onOpenNfcEnrollment} className="flex-1 flex items-center justify-center gap-3 px-5 py-3 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 group">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <button onClick={onOpenBerthManagement} className="flex-1 min-w-[120px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-lg transition-all active:scale-95 group">
+              <i className="fa-solid fa-bed"></i>
+              <span className="text-[10px] uppercase tracking-widest font-bold">POB/Leitos</span>
+            </button>
+            <button onClick={onOpenNfcEnrollment} className="flex-1 min-w-[120px] flex items-center justify-center gap-3 px-5 py-3 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 group">
               <i className="fa-solid fa-nfc-symbol"></i>
               <span className="text-[10px] uppercase tracking-widest font-bold">Tags</span>
             </button>
-            <button onClick={onOpenUserManagement} className="flex-1 flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
+            <button onClick={onOpenUserManagement} className="flex-1 min-w-[120px] flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
               <i className="fa-solid fa-users-gear text-slate-400 group-hover:text-blue-600 transition-colors"></i>
               <span className="text-[10px] text-slate-700 uppercase tracking-widest font-bold">Gestão</span>
               {pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}

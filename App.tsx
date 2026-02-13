@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { AppState, LifeboatType, User, LifeboatStatus, TrainingRecord, ActiveSession, ScannedTag } from './types';
+import { AppState, LifeboatType, User, LifeboatStatus, TrainingRecord, ActiveSession, ScannedTag, Berth } from './types';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import LifeboatSelection from './components/LifeboatSelection';
@@ -9,6 +9,7 @@ import History from './components/History';
 import TrainingConfig from './components/TrainingConfig';
 import UserManagement from './components/UserManagement';
 import NfcEnrollment from './components/NfcEnrollment';
+import BerthManagement from './components/BerthManagement';
 import { cloudService } from './services/cloudService';
 
 const INITIAL_STATUS: Record<LifeboatType, LifeboatStatus> = {
@@ -35,7 +36,6 @@ const App: React.FC = () => {
   const activeSessionRef = useRef<ActiveSession | null>(null);
   const isInitializingRef = useRef<boolean>(true);
 
-  // Sincroniza o Ref com o State para uso em callbacks de tempo real (evita stale closures)
   useEffect(() => {
     activeSessionRef.current = activeSession;
   }, [activeSession]);
@@ -47,13 +47,10 @@ const App: React.FC = () => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Efeito de inicialização robusta
   useEffect(() => {
     let unsubscribeFleet: () => void;
-    
     const initData = async () => {
       setIsSyncing(true);
-
       const savedUser = localStorage.getItem('lifesafe_user');
       const savedSession = localStorage.getItem('lifesafe_active_session');
       const savedPage = localStorage.getItem('lifesafe_current_page');
@@ -62,10 +59,8 @@ const App: React.FC = () => {
       if (savedUser) {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
-        
         if (savedSession) {
           const parsedSession = JSON.parse(savedSession);
-          // Ao restaurar, recalculamos imediatamente os segundos se não estiver pausado
           if (!parsedSession.isPaused && parsedSession.startTime) {
             const elapsed = Math.floor((Date.now() - parsedSession.startTime) / 1000);
             parsedSession.seconds = parsedSession.accumulatedSeconds + elapsed;
@@ -73,98 +68,60 @@ const App: React.FC = () => {
           setActiveSession(parsedSession);
           activeSessionRef.current = parsedSession;
         }
-
-        if (savedTempConfig) {
-          setTempConfig(JSON.parse(savedTempConfig));
-        }
-
-        if (savedPage) {
-          setCurrentPage(savedPage as AppState);
-        } else {
-          setCurrentPage(AppState.DASHBOARD);
-        }
+        if (savedTempConfig) setTempConfig(JSON.parse(savedTempConfig));
+        if (savedPage) setCurrentPage(savedPage as AppState);
+        else setCurrentPage(AppState.DASHBOARD);
       }
 
       try {
         const cloudHistory = await cloudService.getHistory();
         setHistory(cloudHistory);
-      } catch (e) { console.error("History Load Error:", e); }
+      } catch (e) { console.error(e); }
 
       unsubscribeFleet = cloudService.subscribeToFleet((updatedStatusFromCloud) => {
         setFleetStatus(currentLocalStatus => {
           const mergedStatus = { ...INITIAL_STATUS, ...updatedStatusFromCloud };
           const localActiveSession = activeSessionRef.current;
-          
           if (localActiveSession && !localActiveSession.isAdminView && !isInitializingRef.current) {
             const remoteStatus = mergedStatus[localActiveSession.lifeboat];
-            if (!remoteStatus?.isActive && localActiveSession.lifeboat) {
+            if (!remoteStatus?.isActive) {
               setActiveSession(null);
               setCurrentPage(AppState.DASHBOARD);
-              alert(`O exercício na ${localActiveSession.lifeboat} foi encerrado remotamente.`);
+              alert(`O exercício na ${localActiveSession.lifeboat} foi encerrado.`);
             }
           }
-
           if (localActiveSession?.isAdminView) {
             const remoteData = mergedStatus[localActiveSession.lifeboat];
             if (remoteData) {
               let currentSeconds = remoteData.seconds || 0;
-              // Se o Admin está vendo e a sessão remota está ativa (não pausada), 
-              // calculamos o tempo real para o admin também ver o relógio correndo.
               if (!remoteData.isPaused && remoteData.startTime) {
                 const elapsed = Math.floor((Date.now() - remoteData.startTime) / 1000);
                 currentSeconds = (remoteData.accumulatedSeconds || 0) + elapsed;
               }
-
-              setActiveSession(prev => prev ? {
-                ...prev,
-                tags: remoteData.tags || [],
-                seconds: currentSeconds,
-                startTime: remoteData.startTime || prev.startTime,
-                accumulatedSeconds: remoteData.accumulatedSeconds || 0,
-                isPaused: remoteData.isPaused || false
-              } : null);
+              setActiveSession(prev => prev ? { ...prev, tags: remoteData.tags || [], seconds: currentSeconds, isPaused: remoteData.isPaused || false } : null);
             }
           }
           return mergedStatus;
         });
       });
-
-      setTimeout(() => {
-        isInitializingRef.current = false;
-        setIsSyncing(false);
-      }, 1500);
+      setTimeout(() => { isInitializingRef.current = false; setIsSyncing(false); }, 1500);
     };
-
     initData();
     return () => { if (unsubscribeFleet) unsubscribeFleet(); };
   }, []);
 
   useEffect(() => {
-    if (activeSession) {
-      localStorage.setItem('lifesafe_active_session', JSON.stringify(activeSession));
-    } else {
-      localStorage.removeItem('lifesafe_active_session');
-    }
+    if (activeSession) localStorage.setItem('lifesafe_active_session', JSON.stringify(activeSession));
+    else localStorage.removeItem('lifesafe_active_session');
   }, [activeSession]);
 
   useEffect(() => {
-    if (currentPage !== AppState.LOGIN) {
-      localStorage.setItem('lifesafe_current_page', currentPage);
-    }
+    if (currentPage !== AppState.LOGIN) localStorage.setItem('lifesafe_current_page', currentPage);
   }, [currentPage]);
-
-  useEffect(() => {
-    if (tempConfig) {
-      localStorage.setItem('lifesafe_temp_config', JSON.stringify(tempConfig));
-    } else {
-      localStorage.removeItem('lifesafe_temp_config');
-    }
-  }, [tempConfig]);
 
   useEffect(() => {
     const syncToCloud = async () => {
       if (!activeSession || activeSession.isAdminView || isInitializingRef.current) return;
-      
       const currentStatusUpdate = {
         ...fleetStatus,
         [activeSession.lifeboat]: {
@@ -182,12 +139,8 @@ const App: React.FC = () => {
           operatorName: user?.name || 'Sistema'
         }
       };
-      
-      try { 
-        await cloudService.updateFleetStatus(currentStatusUpdate); 
-      } catch (e) { console.error("Sync to cloud error:", e); }
+      try { await cloudService.updateFleetStatus(currentStatusUpdate); } catch (e) { console.error(e); }
     };
-
     syncToCloud();
   }, [activeSession?.tags.length, activeSession?.isPaused, activeSession?.seconds]);
 
@@ -198,33 +151,39 @@ const App: React.FC = () => {
     setActiveSession(prev => {
       if (!prev || prev.isPaused || prev.isAdminView) return prev;
       if (prev.tags.some(t => t.id === tagId)) return prev;
+
+      // Lógica de Reconhecimento pelo POB
+      const matchedBerth = prev.expectedCrew?.find(b => b.tagId.trim().toLowerCase() === tagId.trim().toLowerCase());
       
-      const cleanData = tagData.trim();
-      // Ajuste: Removendo o prefixo "Tripulante #" e deixando somente o número sequencial
-      const displayName = cleanData.length > 0 ? cleanData : (prev.tags.length + 1).toString();
-      
+      let displayName = tagData.trim();
+      let displayRole = 'IDENTIFICADO';
+      let leito = '';
+
+      if (matchedBerth) {
+        displayName = matchedBerth.crewName;
+        displayRole = 'EMBARCADO';
+        leito = matchedBerth.id;
+      } else if (!displayName) {
+        displayName = `TAG: ${tagId.slice(-4)}`;
+      }
+
       const newTag: ScannedTag = { 
         id: tagId, 
         timestamp: new Date().toLocaleTimeString('pt-BR'), 
-        data: cleanData || "Sem texto no chip", 
+        data: tagData || tagId, 
         name: displayName, 
-        role: cleanData.length > 0 ? 'IDENTIFICADO VIA CHIP' : 'ID HARDWARE' 
+        role: displayRole,
+        leito: leito
       };
+
       return { ...prev, tags: [newTag, ...prev.tags] };
     });
   }, []);
 
   const removeTag = useCallback((tagId: string) => {
-    setActiveSession(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        tags: prev.tags.filter(t => t.id !== tagId)
-      };
-    });
+    setActiveSession(prev => prev ? { ...prev, tags: prev.tags.filter(t => t.id !== tagId) } : null);
   }, []);
 
-  // Timer Robusto baseado em Timestamp
   useEffect(() => {
     let timerInterval: number | undefined;
     if (activeSession && !activeSession.isPaused && !activeSession.isAdminView) {
@@ -237,7 +196,26 @@ const App: React.FC = () => {
       }, 1000);
     }
     return () => clearInterval(timerInterval);
-  }, [activeSession?.isPaused, activeSession?.startTime, activeSession?.accumulatedSeconds]);
+  }, [activeSession?.isPaused, activeSession?.startTime]);
+
+  const startTrainingSession = async (lb: LifeboatType) => {
+    setIsSyncing(true);
+    const allBerths = await cloudService.getBerths();
+    const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb);
+    
+    const ns: ActiveSession = { 
+      lifeboat: lb, 
+      leaderName: user?.name || 'Operador', 
+      trainingType: tempConfig?.trainingType || 'Fogo/Abandono', 
+      isRealScenario: tempConfig?.isRealScenario || false, 
+      tags: [], seconds: 0, startTime: Date.now(), 
+      accumulatedSeconds: 0, isPaused: false,
+      expectedCrew: expectedCrew
+    };
+    setActiveSession(ns);
+    setCurrentPage(AppState.TRAINING);
+    setIsSyncing(false);
+  };
 
   const handleLogin = (userData: User) => {
     setUser(userData);
@@ -248,9 +226,7 @@ const App: React.FC = () => {
   const saveToHistory = async (recordData: Omit<TrainingRecord, 'id' | 'operator'>) => {
     setIsSyncing(true);
     const newRecord: TrainingRecord = { 
-      ...recordData, 
-      id: crypto.randomUUID(), 
-      operator: user?.name || 'Sistema', 
+      ...recordData, id: crypto.randomUUID(), operator: user?.name || 'Sistema', 
       tags: activeSession?.tags || recordData.tags || [] 
     };
     await cloudService.saveTrainingRecord(newRecord);
@@ -263,30 +239,17 @@ const App: React.FC = () => {
     if (activeSession && !activeSession.isAdminView) {
       try {
         await saveToHistory({ 
-          date: new Date().toLocaleString('pt-BR'), 
-          lifeboat: activeSession.lifeboat, 
-          leaderName: activeSession.leaderName, 
-          trainingType: activeSession.trainingType, 
-          isRealScenario: activeSession.isRealScenario, 
-          crewCount: activeSession.tags.length, 
-          duration: formatDuration(activeSession.seconds), 
-          summary: "Logout com sessão ativa (Interrompido).", 
-          tags: activeSession.tags 
+          date: new Date().toLocaleString('pt-BR'), lifeboat: activeSession.lifeboat, 
+          leaderName: activeSession.leaderName, trainingType: activeSession.trainingType, 
+          isRealScenario: activeSession.isRealScenario, crewCount: activeSession.tags.length, 
+          duration: formatDuration(activeSession.seconds), summary: "Logout interrompido", tags: activeSession.tags 
         });
         const finalFleet = { ...fleetStatus };
         finalFleet[activeSession.lifeboat] = { count: 0, isActive: false };
         await cloudService.updateFleetStatus(finalFleet);
       } catch (e) { console.error(e); }
     }
-    
-    setUser(null); 
-    setActiveSession(null); 
-    setTempConfig(null);
-    setFleetStatus(INITIAL_STATUS); 
-    setIsConfirmingLogout(false);
-    localStorage.clear(); 
-    setCurrentPage(AppState.LOGIN); 
-    setIsSyncing(false);
+    setUser(null); setActiveSession(null); setTempConfig(null); setFleetStatus(INITIAL_STATUS); localStorage.clear(); setCurrentPage(AppState.LOGIN); setIsSyncing(false);
   };
 
   const finishSession = async () => {
@@ -296,9 +259,7 @@ const App: React.FC = () => {
       setFleetStatus(finalFleet);
       await cloudService.updateFleetStatus(finalFleet);
     }
-    setActiveSession(null); 
-    setTempConfig(null);
-    setCurrentPage(AppState.DASHBOARD);
+    setActiveSession(null); setTempConfig(null); setCurrentPage(AppState.DASHBOARD);
   };
 
   return (
@@ -321,60 +282,22 @@ const App: React.FC = () => {
       )}
 
       <main className={`flex-1 flex flex-col ${currentPage !== AppState.TRAINING ? 'pb-32' : ''}`}>
-        {currentPage === AppState.DASHBOARD && (
-          <Dashboard 
-            onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} 
-            onResumeTraining={() => setCurrentPage(AppState.TRAINING)}
-            onViewLifeboat={(lb) => { if(user?.isAdmin) { const status = fleetStatus[lb]; if(status?.isActive) { setActiveSession({ lifeboat: lb, leaderName: status.leaderName || 'Líder', trainingType: status.trainingType as any || 'Fogo/Abandono', isRealScenario: status.isRealScenario || false, tags: status.tags || [], seconds: status.seconds || 0, startTime: status.startTime || Date.now(), accumulatedSeconds: status.accumulatedSeconds || 0, isPaused: status.isPaused || false, isAdminView: true }); setCurrentPage(AppState.TRAINING); } } }} 
-            onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} 
-            onOpenNfcEnrollment={() => setCurrentPage(AppState.NFC_ENROLLMENT)} 
-            user={user} 
-            fleetStatus={fleetStatus} 
-            historyCount={history.length} 
-            activeSession={activeSession} 
-          />
-        )}
+        {currentPage === AppState.DASHBOARD && <Dashboard onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} onResumeTraining={() => setCurrentPage(AppState.TRAINING)} onViewLifeboat={(lb) => { if(user?.isAdmin) { const s = fleetStatus[lb]; if(s?.isActive) { setActiveSession({ lifeboat: lb, leaderName: s.leaderName || 'Líder', trainingType: s.trainingType as any || 'Fogo/Abandono', isRealScenario: s.isRealScenario || false, tags: s.tags || [], seconds: s.seconds || 0, startTime: s.startTime || Date.now(), accumulatedSeconds: s.accumulatedSeconds || 0, isPaused: s.isPaused || false, isAdminView: true }); setCurrentPage(AppState.TRAINING); } } }} onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} onOpenNfcEnrollment={() => setCurrentPage(AppState.NFC_ENROLLMENT)} onOpenBerthManagement={() => setCurrentPage(AppState.BERTH_MANAGEMENT)} user={user} fleetStatus={fleetStatus} historyCount={history.length} activeSession={activeSession} />}
         {currentPage === AppState.TRAINING_CONFIG && <TrainingConfig onSubmit={(type, isReal) => { setTempConfig({trainingType: type, isRealScenario: isReal}); setCurrentPage(AppState.SELECTION); }} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
-        {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={(lb) => { const ns: ActiveSession = { lifeboat: lb, leaderName: user?.name || 'Operador', trainingType: tempConfig?.trainingType || 'Fogo/Abandono', isRealScenario: tempConfig?.isRealScenario || false, tags: [], seconds: 0, startTime: Date.now(), accumulatedSeconds: 0, isPaused: false }; setActiveSession(ns); setCurrentPage(AppState.TRAINING); }} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
+        {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={startTrainingSession} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
         {currentPage === AppState.HISTORY && <History records={history} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.USER_MANAGEMENT && <UserManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.NFC_ENROLLMENT && <NfcEnrollment onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
-        {currentPage === AppState.TRAINING && activeSession && (
-          <TrainingSession 
-            session={activeSession} 
-            onFinish={finishSession} 
-            onMinimize={() => setCurrentPage(AppState.DASHBOARD)} 
-            onScanTag={processNewScan} 
-            onRemoveTag={removeTag} 
-            onTogglePause={(p) => setActiveSession(prev => {
-              if(!prev) return null;
-              if(p) { // Pausando: congela os segundos atuais no acumulado
-                return { ...prev, isPaused: true, accumulatedSeconds: prev.seconds };
-              } else { // Retomando: define novo ponto de partida no tempo real
-                return { ...prev, isPaused: false, startTime: Date.now() };
-              }
-            })} 
-            onSaveRecord={saveToHistory} 
-            operatorName={user?.name || 'Operador'} 
-          />
-        )}
+        {currentPage === AppState.BERTH_MANAGEMENT && <BerthManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
+        {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onRemoveTag={removeTag} onTogglePause={(p) => setActiveSession(prev => prev ? (p ? { ...prev, isPaused: true, accumulatedSeconds: prev.seconds } : { ...prev, isPaused: false, startTime: Date.now() }) : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} />}
       </main>
 
       {user && currentPage !== AppState.LOGIN && currentPage !== AppState.TRAINING && (
         <nav className="fixed bottom-6 left-6 right-6 z-[80] animate-in slide-in-from-bottom-10 duration-500">
           <div className="max-w-lg mx-auto bg-white/80 backdrop-blur-xl border border-white/20 p-2 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-stretch justify-center gap-1.5">
-            <button onClick={() => setCurrentPage(AppState.DASHBOARD)} className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] transition-all ${currentPage === AppState.DASHBOARD ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}>
-              <i className="fa-solid fa-house text-sm"></i>
-              <span className="text-[7px] font-black uppercase tracking-widest">Início</span>
-            </button>
-            <button onClick={() => setCurrentPage(AppState.HISTORY)} className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] transition-all ${currentPage === AppState.HISTORY ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}>
-              <i className="fa-solid fa-clock-rotate-left text-sm"></i>
-              <span className="text-[7px] font-black uppercase tracking-widest">Histórico</span>
-            </button>
-            <div className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] border ${isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600 animate-pulse'}`}>
-              <i className={`fa-solid ${isOnline ? 'fa-cloud' : 'fa-plane-slash'} text-sm`}></i>
-              <span className="text-[7px] font-black uppercase tracking-widest">{isOnline ? 'Cloud' : 'Offline'}</span>
-            </div>
+            <button onClick={() => setCurrentPage(AppState.DASHBOARD)} className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] transition-all ${currentPage === AppState.DASHBOARD ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}><i className="fa-solid fa-house text-sm"></i><span className="text-[7px] font-black uppercase tracking-widest">Início</span></button>
+            <button onClick={() => setCurrentPage(AppState.HISTORY)} className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] transition-all ${currentPage === AppState.HISTORY ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}><i className="fa-solid fa-clock-rotate-left text-sm"></i><span className="text-[7px] font-black uppercase tracking-widest">Histórico</span></button>
+            <div className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] border ${isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600 animate-pulse'}`}><i className={`fa-solid ${isOnline ? 'fa-cloud' : 'fa-plane-slash'} text-sm`}></i><span className="text-[7px] font-black uppercase tracking-widest">{isOnline ? 'Cloud' : 'Offline'}</span></div>
           </div>
         </nav>
       )}

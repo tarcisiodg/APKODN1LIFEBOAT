@@ -11,14 +11,10 @@ import {
   query, 
   orderBy, 
   limit,
-  onSnapshot
+  onSnapshot,
+  writeBatch
 } from "firebase/firestore";
-import { User, TrainingRecord, LifeboatStatus, LifeboatType } from '../types';
-
-/**
- * SERVIÇO DE NUVEM FIREBASE
- * Gerencia persistência real no Google Cloud Firestore.
- */
+import { User, TrainingRecord, LifeboatStatus, LifeboatType, Berth } from '../types';
 
 const NATIVE_USER_DATA: Record<string, { name: string, role: string, pass: string, isAdmin: boolean }> = {
   'odn1radiooperator': { name: 'Radio Operator', role: 'ADMINISTRADOR', pass: '1234', isAdmin: true },
@@ -26,12 +22,8 @@ const NATIVE_USER_DATA: Record<string, { name: string, role: string, pass: strin
 };
 
 export const cloudService = {
-  // --- AUTENTICAÇÃO ---
-  
   async login(loginId: string, pass: string): Promise<User> {
     const id = loginId.toLowerCase().trim();
-    
-    // 1. Verifica usuários fixos do sistema
     if (NATIVE_USER_DATA[id]) {
       if (NATIVE_USER_DATA[id].pass === pass) {
         return { 
@@ -44,7 +36,6 @@ export const cloudService = {
       throw new Error("Senha incorreta.");
     }
 
-    // 2. Busca no Firestore
     const userRef = doc(db, "users", id);
     const userSnap = await getDoc(userRef);
 
@@ -61,15 +52,12 @@ export const cloudService = {
       }
       throw new Error("Senha incorreta.");
     }
-
     throw new Error("Usuário não encontrado.");
   },
 
   async register(data: {loginId: string, name: string, role: string, pass: string}): Promise<void> {
     const id = data.loginId.toLowerCase().trim();
     const userRef = doc(db, "users", id);
-    
-    // Verifica se já existe (nativo ou nuvem)
     if (NATIVE_USER_DATA[id]) throw new Error("Este login é reservado pelo sistema.");
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) throw new Error("Este login já está em uso.");
@@ -87,14 +75,12 @@ export const cloudService = {
     const native = Object.entries(NATIVE_USER_DATA).map(([id, data]) => ({
       loginId: id, ...data, status: 'native', requestDate: 'Sistema'
     }));
-
     const usersCol = collection(db, "users");
     const userSnapshot = await getDocs(usersCol);
     const custom = userSnapshot.docs.map(doc => ({
       loginId: doc.id,
       ...doc.data()
     }));
-
     return [...native, ...custom];
   },
 
@@ -114,24 +100,33 @@ export const cloudService = {
 
   async updateUserData(loginId: string, data: { name: string, role: string, password?: string }): Promise<void> {
     const userRef = doc(db, "users", loginId);
-    const updatePayload: any = {
-      name: data.name,
-      role: data.role.toUpperCase(),
-    };
-    if (data.password) {
-      updatePayload.password = data.password;
-    }
+    const updatePayload: any = { name: data.name, role: data.role.toUpperCase() };
+    if (data.password) updatePayload.password = data.password;
     await updateDoc(userRef, updatePayload);
   },
 
-  // --- HISTÓRICO ---
+  // --- GESTÃO DE POB / LEITOS ---
+  
+  async saveBerths(berths: Berth[]): Promise<void> {
+    const pobRef = doc(db, "config", "pob");
+    await setDoc(pobRef, { berths, lastUpdate: new Date().toISOString() });
+  },
 
+  async clearBerths(): Promise<void> {
+    const pobRef = doc(db, "config", "pob");
+    await deleteDoc(pobRef);
+  },
+
+  async getBerths(): Promise<Berth[]> {
+    const pobRef = doc(db, "config", "pob");
+    const snap = await getDoc(pobRef);
+    return snap.exists() ? (snap.data().berths as Berth[]) : [];
+  },
+
+  // --- HISTÓRICO ---
   async saveTrainingRecord(record: TrainingRecord): Promise<void> {
     const recordRef = doc(db, "history", record.id);
-    await setDoc(recordRef, {
-      ...record,
-      timestamp: new Date().toISOString()
-    });
+    await setDoc(recordRef, { ...record, timestamp: new Date().toISOString() });
   },
 
   async getHistory(): Promise<TrainingRecord[]> {
@@ -141,8 +136,7 @@ export const cloudService = {
     return snapshot.docs.map(doc => doc.data() as TrainingRecord);
   },
 
-  // --- STATUS DA FROTA (TEMPO REAL) ---
-
+  // --- STATUS DA FROTA ---
   async updateFleetStatus(status: Record<LifeboatType, LifeboatStatus>): Promise<void> {
     const fleetRef = doc(db, "fleet", "status");
     await setDoc(fleetRef, status);
@@ -154,13 +148,10 @@ export const cloudService = {
     return snap.exists() ? (snap.data() as Record<LifeboatType, LifeboatStatus>) : null;
   },
 
-  // Escuta em tempo real (para o Administrador ver mudanças sem dar refresh)
   subscribeToFleet(callback: (status: Record<LifeboatType, LifeboatStatus>) => void) {
     const fleetRef = doc(db, "fleet", "status");
     return onSnapshot(fleetRef, (doc) => {
-      if (doc.exists()) {
-        callback(doc.data() as Record<LifeboatType, LifeboatStatus>);
-      }
+      if (doc.exists()) callback(doc.data() as Record<LifeboatType, LifeboatStatus>);
     });
   }
 };

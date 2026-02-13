@@ -14,6 +14,15 @@ export interface ScannedTag {
   data: string;
   name?: string;
   role?: string;
+  leito?: string; // Adicionado para exibir o leito no treinamento
+}
+
+export interface Berth {
+  id: string; // Número do Leito
+  tagId: string; // ID Físico da Tag (Serial Number)
+  crewName: string;
+  lifeboat: LifeboatType;
+  secondaryLifeboat?: LifeboatType;
 }
 
 export interface LifeboatStatus {
@@ -37,10 +46,11 @@ export interface ActiveSession {
   isRealScenario: boolean;
   tags: ScannedTag[];
   seconds: number;
-  startTime: number; // Milissegundos de quando o timer (re)começou
-  accumulatedSeconds: number; // Segundos acumulados de períodos de atividade anteriores
+  startTime: number;
+  accumulatedSeconds: number;
   isPaused: boolean;
   isAdminView?: boolean;
+  expectedCrew?: Berth[]; 
 }
 
 export interface TrainingRecord {
@@ -67,5 +77,6 @@ export enum AppState {
   TRAINING = 'TRAINING',
   HISTORY = 'HISTORY',
   USER_MANAGEMENT = 'USER_MANAGEMENT',
-  NFC_ENROLLMENT = 'NFC_ENROLLMENT'
+  NFC_ENROLLMENT = 'NFC_ENROLLMENT',
+  BERTH_MANAGEMENT = 'BERTH_MANAGEMENT'
 }
