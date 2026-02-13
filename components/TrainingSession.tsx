@@ -28,7 +28,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [nfcError, setNfcError] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isConfirmingFinish, setIsConfirmingFinish] = useState(false);
-  const [isFinished, setIsFinished] = useState(false);
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
   const [lastScannedText, setLastScannedText] = useState<string | null>(null);
   const [tagToDelete, setTagToDelete] = useState<ScannedTag | null>(null);
@@ -90,27 +89,32 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   useEffect(() => { if (!session.isAdminView) startNFC(); }, [session.isAdminView]);
 
   const handleFinish = async () => {
-    setIsConfirmingFinish(false);
     setIsFinishing(true);
-    const durationStr = formatTime(session.seconds);
-    const summary = await generateTrainingSummary(session.lifeboat, session.tags.length, durationStr);
-    onSaveRecord({ date: new Date().toLocaleString('pt-BR'), lifeboat: session.lifeboat, leaderName: session.leaderName, trainingType: session.trainingType, isRealScenario: session.isRealScenario, crewCount: session.tags.length, duration: durationStr, summary: summary });
-    setIsFinished(true);
-    setIsFinishing(false);
-  };
+    try {
+      const durationStr = formatTime(session.seconds);
+      const summary = await generateTrainingSummary(session.lifeboat, session.tags.length, durationStr);
+      
+      // Salva o registro e aguarda a conclusão do upload para o Firebase
+      await onSaveRecord({ 
+        date: new Date().toLocaleString('pt-BR'), 
+        lifeboat: session.lifeboat, 
+        leaderName: session.leaderName, 
+        trainingType: session.trainingType, 
+        isRealScenario: session.isRealScenario, 
+        crewCount: session.tags.length, 
+        duration: durationStr, 
+        summary: summary 
+      });
 
-  const exportToExcel = () => {
-    const rows = [
-      ["Relatório Lifesafe ODN1"], ["Unidade", session.lifeboat], ["Data", new Date().toLocaleDateString()], [""],
-      ["LEITO", "NOME", "ID TAG", "HORÁRIO"]
-    ];
-    session.tags.forEach(tag => rows.push([tag.leito || "N/A", tag.name || "N/A", tag.id, tag.timestamp]));
-    const csvContent = "\uFEFF" + rows.map(e => e.map(cell => `"${cell}"`).join(";")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `EMBARQUE_${session.lifeboat}.csv`;
-    link.click();
+      // Retorna automaticamente para o Dashboard após o salvamento
+      onFinish();
+    } catch (e) {
+      console.error("Erro ao finalizar sessão:", e);
+      alert("Erro ao salvar os dados. Verifique sua conexão.");
+    } finally {
+      setIsFinishing(false);
+      setIsConfirmingFinish(false);
+    }
   };
 
   return (
@@ -129,7 +133,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={onMinimize} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-200 text-slate-600 shadow-sm"><i className="fa-solid fa-chevron-left"></i></button>
+          <button onClick={onMinimize} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-200 text-slate-600 shadow-sm transition-all active:scale-95"><i className="fa-solid fa-chevron-left"></i></button>
           <div>
             <h2 className="text-2xl font-black text-slate-900 uppercase leading-none">{session.lifeboat}</h2>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{session.trainingType}</p>
@@ -150,12 +154,12 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         {viewTab === 'present' ? (
           session.tags.length === 0 ? (
             <div className="bg-white border-2 border-dashed border-slate-100 rounded-[32px] p-16 text-center">
-              <p className="text-slate-400 text-[10px] font-black uppercase">Aguardando Aproximação...</p>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Aguardando Aproximação...</p>
             </div>
           ) : (
             <div className="grid gap-3">
               {session.tags.map((tag) => (
-                <div key={tag.id} className="p-4 rounded-[28px] border bg-white border-slate-100 shadow-sm flex items-center justify-between">
+                <div key={tag.id} className="p-4 rounded-[28px] border bg-white border-slate-100 shadow-sm flex items-center justify-between animate-in slide-in-from-left-2 duration-300">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center text-[10px] font-mono font-bold flex-shrink-0">{tag.leito || 'N/A'}</div>
                     <div className="min-w-0">
@@ -166,7 +170,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                   <div className="flex items-center gap-3">
                     <span className="text-[9px] font-black uppercase text-slate-400">{tag.timestamp}</span>
                     {!session.isAdminView && (
-                      <button onClick={() => setTagToDelete(tag)} className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center"><i className="fa-solid fa-trash text-[10px]"></i></button>
+                      <button onClick={() => setTagToDelete(tag)} className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center active:scale-90 transition-all"><i className="fa-solid fa-trash text-[10px]"></i></button>
                     )}
                   </div>
                 </div>
@@ -175,7 +179,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           )
         ) : (
           pendingCrew.map((berth) => (
-            <div key={berth.id} className="p-4 rounded-[28px] border bg-white border-slate-100 shadow-sm flex items-center justify-between opacity-60">
+            <div key={berth.id} className="p-4 rounded-[28px] border bg-white border-slate-100 shadow-sm flex items-center justify-between opacity-50 grayscale">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center text-[10px] font-mono font-bold border-2 border-dashed border-slate-200">{berth.id}</div>
                 <div>
@@ -189,29 +193,29 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-slate-50/90 backdrop-blur-md border-t border-slate-200 flex gap-4 justify-center z-50">
-        <button onClick={onMinimize} className="flex-1 max-w-xs py-4 bg-white border border-slate-200 text-slate-700 font-black rounded-2xl text-[10px] uppercase">Minimizar</button>
-        <button onClick={() => setIsConfirmingFinish(true)} className="flex-1 max-w-xs py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-lg">Finalizar</button>
+        <button onClick={onMinimize} className="flex-1 max-w-xs py-4 bg-white border border-slate-200 text-slate-700 font-black rounded-2xl text-[10px] uppercase shadow-sm active:scale-95 transition-all">Minimizar</button>
+        <button onClick={() => setIsConfirmingFinish(true)} className="flex-1 max-w-xs py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl shadow-blue-600/20 active:scale-95 transition-all">Finalizar</button>
       </div>
 
       {isConfirmingFinish && (
         <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl">
-            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase">Concluir Sessão?</h3>
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl animate-in zoom-in duration-300">
+            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">Concluir Sessão?</h3>
             <div className="grid gap-3">
-              <button onClick={handleFinish} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl">Sim, Concluir</button>
-              <button onClick={() => setIsConfirmingFinish(false)} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">Cancelar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isFinished && (
-        <div className="fixed inset-0 z-[102] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-md w-full p-10 shadow-2xl flex flex-col items-center">
-            <h2 className="text-2xl font-black text-slate-900 mb-10 uppercase">SESSÃO ENCERRADA</h2>
-            <div className="w-full space-y-3">
-              <button onClick={exportToExcel} className="w-full py-5 bg-slate-900 text-white font-black rounded-[24px] text-[10px] uppercase flex items-center justify-center gap-3"><i className="fa-solid fa-file-csv"></i> Baixar Relatório</button>
-              <button onClick={onFinish} className="w-full py-5 bg-slate-100 text-slate-900 font-black rounded-[24px] text-[10px] uppercase">Dashboard</button>
+              <button 
+                onClick={handleFinish} 
+                disabled={isFinishing}
+                className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2"
+              >
+                {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Salvando...</> : 'Sim, Concluir'}
+              </button>
+              <button 
+                onClick={() => setIsConfirmingFinish(false)} 
+                disabled={isFinishing}
+                className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
@@ -220,11 +224,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       {tagToDelete && (
         <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl text-center">
-            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase">Remover Registro?</h3>
+            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">Remover Registro?</h3>
             <div className="grid gap-3">
-              {/* Fix: use the correct prop onRemoveTag instead of undefined removeTag */}
               <button onClick={() => { onRemoveTag(tagToDelete.id); setTagToDelete(null); }} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl">Remover</button>
-              <button onClick={() => setTagToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">Cancelar</button>
+              <button onClick={() => setTagToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase tracking-widest">Cancelar</button>
             </div>
           </div>
         </div>
