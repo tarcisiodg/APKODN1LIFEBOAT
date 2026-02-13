@@ -152,32 +152,22 @@ const App: React.FC = () => {
       if (!prev || prev.isPaused || prev.isAdminView) return prev;
       if (prev.tags.some(t => t.id === tagId)) return prev;
 
-      // Lógica de Reconhecimento pelo POB Multi-Tag
+      // VALIDAÇÃO: Reconhecimento apenas se a tag estiver vinculada à baleeira desta sessão
       const matchedBerth = prev.expectedCrew?.find(b => 
         (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
         (b.tagId2 && b.tagId2.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
         (b.tagId3 && b.tagId3.trim().toLowerCase() === tagId.trim().toLowerCase())
       );
       
-      let displayName = tagData.trim();
-      let displayRole = 'IDENTIFICADO';
-      let leito = '';
-
-      if (matchedBerth) {
-        displayName = matchedBerth.crewName;
-        displayRole = 'EMBARCADO';
-        leito = matchedBerth.id;
-      } else if (!displayName) {
-        displayName = `TAG: ${tagId.slice(-4)}`;
-      }
+      if (!matchedBerth) return prev; // Se não estiver no POB desta baleeira, ignora
 
       const newTag: ScannedTag = { 
         id: tagId, 
         timestamp: new Date().toLocaleTimeString('pt-BR'), 
         data: tagData || tagId, 
-        name: displayName, 
-        role: displayRole,
-        leito: leito
+        name: matchedBerth.crewName, 
+        role: 'EMBARCADO',
+        leito: matchedBerth.id
       };
 
       return { ...prev, tags: [newTag, ...prev.tags] };

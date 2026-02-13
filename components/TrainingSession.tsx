@@ -28,8 +28,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [nfcError, setNfcError] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isConfirmingFinish, setIsConfirmingFinish] = useState(false);
-  const [lastScannedId, setLastScannedId] = useState<string | null>(null);
   const [lastScannedText, setLastScannedText] = useState<string | null>(null);
+  const [invalidScanId, setInvalidScanId] = useState<string | null>(null);
   const [tagToDelete, setTagToDelete] = useState<ScannedTag | null>(null);
   const [viewTab, setViewTab] = useState<'present' | 'pending'>('present');
   
@@ -45,7 +45,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const pendingCrew = useMemo(() => {
     if (!session.expectedCrew) return [];
     return session.expectedCrew.filter(berth => {
-      // Um leito é considerado presente se QUALQUER uma de suas tags cadastradas estiver na lista de scans
       const isAnyTagScanned = session.tags.some(tag => 
         (berth.tagId1 && tag.id.trim().toLowerCase() === berth.tagId1.trim().toLowerCase()) ||
         (berth.tagId2 && tag.id.trim().toLowerCase() === berth.tagId2.trim().toLowerCase()) ||
@@ -58,7 +57,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const startNFC = async () => {
     if (!('NDEFReader' in window)) {
       setNfcState('unsupported');
-      setNfcError('NFC não suportado.');
       return;
     }
     setNfcState('starting');
@@ -68,6 +66,24 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       await reader.scan();
       setNfcState('active');
       reader.addEventListener("reading", ({ message, serialNumber }: any) => {
+        const tagId = serialNumber || "";
+        if (!tagId) return;
+
+        // VALIDAÇÃO: Verifica se a tag pertence à tripulação desta baleeira
+        const matchedBerth = session.expectedCrew?.find(b => 
+          (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
+          (b.tagId2 && b.tagId2.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
+          (b.tagId3 && b.tagId3.trim().toLowerCase() === tagId.trim().toLowerCase())
+        );
+
+        if (!matchedBerth && !session.isAdminView) {
+          if (navigator.vibrate) navigator.vibrate([500]);
+          setInvalidScanId(tagId);
+          setTimeout(() => setInvalidScanId(null), 3000);
+          return; // BLOQUEIA A LEITURA
+        }
+
+        // Se for válida, processa o texto (se houver) e adiciona
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         let dataStr = "";
         if (message.records) {
@@ -83,11 +99,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
             }
           }
         }
-        const tagId = serialNumber || `FAKE_${Math.random()}`;
-        setLastScannedId(tagId);
-        setLastScannedText(dataStr.trim() || tagId);
+        
+        setLastScannedText(matchedBerth?.crewName || dataStr.trim() || tagId);
         onScanTag(tagId, dataStr.trim());
-        setTimeout(() => { setLastScannedId(null); setLastScannedText(null); }, 4000);
+        setTimeout(() => setLastScannedText(null), 4000);
       });
     } catch (error: any) { setNfcState('error'); }
   };
@@ -99,7 +114,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     try {
       const durationStr = formatTime(session.seconds);
       const summary = await generateTrainingSummary(session.lifeboat, session.tags.length, durationStr);
-      
       await onSaveRecord({ 
         date: new Date().toLocaleString('pt-BR'), 
         lifeboat: session.lifeboat, 
@@ -110,11 +124,9 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         duration: durationStr, 
         summary: summary 
       });
-
       onFinish();
     } catch (e) {
-      console.error("Erro ao finalizar sessão:", e);
-      alert("Erro ao salvar os dados.");
+      alert("Erro ao salvar dados.");
     } finally {
       setIsFinishing(false);
       setIsConfirmingFinish(false);
@@ -123,13 +135,28 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-32">
+      {/* Toast de Sucesso */}
       {lastScannedText && (
         <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10">
            <div className="p-4 rounded-3xl shadow-2xl border bg-slate-900 border-blue-500 text-white flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center animate-bounce"><i className="fa-solid fa-id-card"></i></div>
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center animate-bounce shadow-lg shadow-blue-600/20"><i className="fa-solid fa-check"></i></div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-[9px] font-black uppercase text-blue-400">Scan detectado:</p>
+                <p className="text-[9px] font-black uppercase text-blue-400">Embarque confirmado:</p>
                 <h4 className="text-sm font-black uppercase truncate">{lastScannedText}</h4>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Toast de Erro (Tag Não Vinculada) */}
+      {invalidScanId && (
+        <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10">
+           <div className="p-4 rounded-3xl shadow-2xl border bg-rose-600 border-rose-400 text-white flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center animate-shake"><i className="fa-solid fa-xmark"></i></div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-[9px] font-black uppercase text-rose-100">Acesso Negado:</p>
+                <h4 className="text-sm font-black uppercase truncate">Baleeira Incorreta</h4>
+                <p className="text-[8px] font-mono opacity-60">TAG: {invalidScanId}</p>
               </div>
            </div>
         </div>
@@ -206,20 +233,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl animate-in zoom-in duration-300">
             <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">Concluir Sessão?</h3>
             <div className="grid gap-3">
-              <button 
-                onClick={handleFinish} 
-                disabled={isFinishing}
-                className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2"
-              >
+              <button onClick={handleFinish} disabled={isFinishing} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2">
                 {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Salvando...</> : 'Sim, Concluir'}
               </button>
-              <button 
-                onClick={() => setIsConfirmingFinish(false)} 
-                disabled={isFinishing}
-                className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase"
-              >
-                Cancelar
-              </button>
+              <button onClick={() => setIsConfirmingFinish(false)} disabled={isFinishing} className="w-full py-4 bg-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase">Cancelar</button>
             </div>
           </div>
         </div>
@@ -236,6 +253,14 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           </div>
         </div>
       )}
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.2s ease-in-out infinite; }
+      `}</style>
     </div>
   );
 };
