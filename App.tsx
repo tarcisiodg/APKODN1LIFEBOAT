@@ -8,6 +8,7 @@ import TrainingSession from './components/TrainingSession';
 import History from './components/History';
 import TrainingConfig from './components/TrainingConfig';
 import UserManagement from './components/UserManagement';
+import NfcEnrollment from './components/NfcEnrollment';
 import { cloudService } from './services/cloudService';
 
 const INITIAL_STATUS: Record<LifeboatType, LifeboatStatus> = {
@@ -132,14 +133,13 @@ const App: React.FC = () => {
       if (prev.tags.some(t => t.id === tagId)) return prev;
       
       const cleanData = tagData.trim();
-      // Mostra o texto gravado como nome principal, se existir
       const displayName = cleanData.length > 0 ? cleanData : `Tripulante #${prev.tags.length + 1}`;
       
       const newTag: ScannedTag = { 
-        id: tagId, // Número de série
+        id: tagId, 
         timestamp: new Date().toLocaleTimeString('pt-BR'), 
-        data: cleanData || "Sem texto no chip", // Dados brutos
-        name: displayName, // Nome de exibição (Texto gravado)
+        data: cleanData || "Sem texto no chip", 
+        name: displayName, 
         role: cleanData.length > 0 ? 'IDENTIFICADO VIA CHIP' : 'ID HARDWARE' 
       };
       return { ...prev, tags: [newTag, ...prev.tags] };
@@ -215,11 +215,12 @@ const App: React.FC = () => {
       )}
 
       <main className={`flex-1 flex flex-col ${currentPage !== AppState.TRAINING ? 'pb-32' : ''}`}>
-        {currentPage === AppState.DASHBOARD && <Dashboard onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} onViewLifeboat={(lb) => { if(user?.isAdmin) { const status = fleetStatus[lb]; if(status?.isActive) { setActiveSession({ lifeboat: lb, leaderName: status.leaderName || 'Líder', trainingType: status.trainingType as any || 'Fogo/Abandono', isRealScenario: status.isRealScenario || false, tags: status.tags || [], seconds: status.seconds || 0, isPaused: status.isPaused || false, isAdminView: true }); setCurrentPage(AppState.TRAINING); } } }} onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} user={user} fleetStatus={fleetStatus} historyCount={history.length} activeSession={activeSession} />}
+        {currentPage === AppState.DASHBOARD && <Dashboard onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} onViewLifeboat={(lb) => { if(user?.isAdmin) { const status = fleetStatus[lb]; if(status?.isActive) { setActiveSession({ lifeboat: lb, leaderName: status.leaderName || 'Líder', trainingType: status.trainingType as any || 'Fogo/Abandono', isRealScenario: status.isRealScenario || false, tags: status.tags || [], seconds: status.seconds || 0, isPaused: status.isPaused || false, isAdminView: true }); setCurrentPage(AppState.TRAINING); } } }} onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} onOpenNfcEnrollment={() => setCurrentPage(AppState.NFC_ENROLLMENT)} user={user} fleetStatus={fleetStatus} historyCount={history.length} activeSession={activeSession} />}
         {currentPage === AppState.TRAINING_CONFIG && <TrainingConfig onSubmit={(type, isReal) => { setTempConfig({trainingType: type, isRealScenario: isReal}); setCurrentPage(AppState.SELECTION); }} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={(lb) => { const ns: ActiveSession = { lifeboat: lb, leaderName: user?.name || 'Operador', trainingType: tempConfig?.trainingType || 'Fogo/Abandono', isRealScenario: tempConfig?.isRealScenario || false, tags: [], seconds: 0, isPaused: false }; setActiveSession(ns); setCurrentPage(AppState.TRAINING); }} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
         {currentPage === AppState.HISTORY && <History records={history} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.USER_MANAGEMENT && <UserManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
+        {currentPage === AppState.NFC_ENROLLMENT && <NfcEnrollment onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onTogglePause={(p) => setActiveSession(prev => prev ? { ...prev, isPaused: p } : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} />}
       </main>
 

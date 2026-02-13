@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, LifeboatStatus, LifeboatType, ActiveSession } from '../types';
+import { User, LifeboatStatus, LifeboatType, ActiveSession, AppState } from '../types';
 import { cloudService } from '../services/cloudService';
 
 interface DashboardProps {
   onStartTraining: () => void;
   onViewLifeboat: (lb: LifeboatType) => void;
   onOpenUserManagement: () => void;
+  onOpenNfcEnrollment: () => void; // Nova prop
   user: User | null;
   fleetStatus: Record<LifeboatType, LifeboatStatus>;
   historyCount: number;
@@ -22,6 +23,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onStartTraining, 
   onViewLifeboat,
   onOpenUserManagement,
+  onOpenNfcEnrollment,
   user, 
   fleetStatus, 
   activeSession
@@ -43,7 +45,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [user]);
 
   const totalPeopleInFleet = useMemo(() => {
-    // Explicitly cast Object.values to LifeboatStatus[] to fix type inference errors for 'status'
     return (Object.values(fleetStatus) as LifeboatStatus[]).reduce((sum, status) => {
       return sum + (status?.isActive ? (status.count || 0) : 0);
     }, 0);
@@ -53,7 +54,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-32">
-      {/* Cabeçalho Grande e Destacado */}
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
           <h2 className="text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">
@@ -72,15 +72,20 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {user.isAdmin && (
-          <button onClick={onOpenUserManagement} className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
-            <i className="fa-solid fa-users-gear text-slate-400 group-hover:text-blue-600 transition-colors"></i>
-            <span className="text-[10px] text-slate-700 uppercase tracking-widest font-bold">Gestão</span>
-            {pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}
-          </button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button onClick={onOpenNfcEnrollment} className="flex-1 flex items-center justify-center gap-3 px-5 py-3 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-600/20 transition-all active:scale-95 group">
+              <i className="fa-solid fa-nfc-symbol"></i>
+              <span className="text-[10px] uppercase tracking-widest font-bold">Tags</span>
+            </button>
+            <button onClick={onOpenUserManagement} className="flex-1 flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
+              <i className="fa-solid fa-users-gear text-slate-400 group-hover:text-blue-600 transition-colors"></i>
+              <span className="text-[10px] text-slate-700 uppercase tracking-widest font-bold">Gestão</span>
+              {pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Seção de Resumo da Frota (Apenas para Admins) */}
       {user.isAdmin && (
         <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-700 delay-200">
            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-5 rounded-[28px] shadow-2xl shadow-blue-600/20 text-white overflow-hidden relative">
@@ -96,15 +101,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <i className="fa-solid fa-people-group text-xl text-white"></i>
                 </div>
               </div>
-              
-              {/* Elementos decorativos de fundo */}
               <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
               <div className="absolute bottom-[-20%] left-[-10%] w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
            </div>
         </div>
       )}
 
-      {/* Botão de Treinamento - Clicável mesmo se estiver em andamento */}
       {!user.isAdmin && (
         <div className="mb-8">
           <button 
@@ -147,7 +149,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* Monitoramento em Tempo Real - Exibido apenas para ADMINISTRADORES */}
       {user.isAdmin && (
         <div className="grid gap-2.5">
           <div className="flex items-center justify-between px-1 mb-1">
