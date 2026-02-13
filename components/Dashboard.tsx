@@ -5,9 +5,10 @@ import { cloudService } from '../services/cloudService';
 
 interface DashboardProps {
   onStartTraining: () => void;
+  onResumeTraining: () => void; // Nova prop para retomar
   onViewLifeboat: (lb: LifeboatType) => void;
   onOpenUserManagement: () => void;
-  onOpenNfcEnrollment: () => void; // Nova prop
+  onOpenNfcEnrollment: () => void;
   user: User | null;
   fleetStatus: Record<LifeboatType, LifeboatStatus>;
   historyCount: number;
@@ -21,6 +22,7 @@ const LIFEBOATS: LifeboatType[] = [
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   onStartTraining, 
+  onResumeTraining,
   onViewLifeboat,
   onOpenUserManagement,
   onOpenNfcEnrollment,
@@ -110,7 +112,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {!user.isAdmin && (
         <div className="mb-8">
           <button 
-            onClick={onStartTraining} 
+            onClick={activeSession ? onResumeTraining : onStartTraining} 
             className={`w-full h-32 relative overflow-hidden p-6 rounded-[32px] text-left transition-all active:scale-[0.98] shadow-xl ${
               activeSession 
                 ? 'bg-blue-600 shadow-blue-600/30 border-2 border-blue-400/30 animate-pulse-slow' 
@@ -131,7 +133,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <div>
                 <h3 className="text-xl mb-0.5 uppercase tracking-tight font-black text-white">
-                  {activeSession ? 'RETOMAR' : 'INICIAR'}
+                  {activeSession ? 'RETOMAR TREINAMENTO' : 'INICIAR TREINAMENTO'}
                 </h3>
                 {activeSession ? (
                   <p className="text-white/70 text-[9px] uppercase tracking-[0.2em] font-bold">

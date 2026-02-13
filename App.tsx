@@ -305,7 +305,19 @@ const App: React.FC = () => {
       )}
 
       <main className={`flex-1 flex flex-col ${currentPage !== AppState.TRAINING ? 'pb-32' : ''}`}>
-        {currentPage === AppState.DASHBOARD && <Dashboard onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} onViewLifeboat={(lb) => { if(user?.isAdmin) { const status = fleetStatus[lb]; if(status?.isActive) { setActiveSession({ lifeboat: lb, leaderName: status.leaderName || 'Líder', trainingType: status.trainingType as any || 'Fogo/Abandono', isRealScenario: status.isRealScenario || false, tags: status.tags || [], seconds: status.seconds || 0, isPaused: status.isPaused || false, isAdminView: true }); setCurrentPage(AppState.TRAINING); } } }} onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} onOpenNfcEnrollment={() => setCurrentPage(AppState.NFC_ENROLLMENT)} user={user} fleetStatus={fleetStatus} historyCount={history.length} activeSession={activeSession} />}
+        {currentPage === AppState.DASHBOARD && (
+          <Dashboard 
+            onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} 
+            onResumeTraining={() => setCurrentPage(AppState.TRAINING)}
+            onViewLifeboat={(lb) => { if(user?.isAdmin) { const status = fleetStatus[lb]; if(status?.isActive) { setActiveSession({ lifeboat: lb, leaderName: status.leaderName || 'Líder', trainingType: status.trainingType as any || 'Fogo/Abandono', isRealScenario: status.isRealScenario || false, tags: status.tags || [], seconds: status.seconds || 0, isPaused: status.isPaused || false, isAdminView: true }); setCurrentPage(AppState.TRAINING); } } }} 
+            onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} 
+            onOpenNfcEnrollment={() => setCurrentPage(AppState.NFC_ENROLLMENT)} 
+            user={user} 
+            fleetStatus={fleetStatus} 
+            historyCount={history.length} 
+            activeSession={activeSession} 
+          />
+        )}
         {currentPage === AppState.TRAINING_CONFIG && <TrainingConfig onSubmit={(type, isReal) => { setTempConfig({trainingType: type, isRealScenario: isReal}); setCurrentPage(AppState.SELECTION); }} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={(lb) => { const ns: ActiveSession = { lifeboat: lb, leaderName: user?.name || 'Operador', trainingType: tempConfig?.trainingType || 'Fogo/Abandono', isRealScenario: tempConfig?.isRealScenario || false, tags: [], seconds: 0, isPaused: false }; setActiveSession(ns); setCurrentPage(AppState.TRAINING); }} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
         {currentPage === AppState.HISTORY && <History records={history} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
