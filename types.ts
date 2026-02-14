@@ -44,14 +44,6 @@ export interface LifeboatStatus {
   isPaused?: boolean;
 }
 
-export interface GlobalSession {
-  isActive: boolean;
-  startTime: number;
-  trainingType: 'Gás' | 'Fogo/Abandono';
-  isRealScenario: boolean;
-  adminName: string;
-}
-
 export interface ActiveSession {
   lifeboat: LifeboatType;
   leaderName: string;

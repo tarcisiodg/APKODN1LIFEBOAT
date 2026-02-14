@@ -85,15 +85,10 @@ const App: React.FC = () => {
           
           if (localActiveSession && !isInitializingRef.current) {
             const remoteStatus = mergedStatus[localActiveSession.lifeboat];
-            // Se a sessão foi encerrada remotamente pelo administrador
             if (!remoteStatus?.isActive) {
               setActiveSession(null);
               setCurrentPage(AppState.DASHBOARD);
-              if (!localActiveSession.isAdminView) {
-                alert(`O exercício na ${localActiveSession.lifeboat} foi encerrado pelo Coordenador.`);
-              }
             } else if (localActiveSession.isAdminView) {
-              // Atualiza dados para visualização do Admin
               let currentSeconds = remoteStatus.seconds || 0;
               if (!remoteStatus.isPaused && remoteStatus.startTime) {
                 const elapsed = Math.floor((Date.now() - remoteStatus.startTime) / 1000);
@@ -292,7 +287,7 @@ const App: React.FC = () => {
         {currentPage === AppState.USER_MANAGEMENT && <UserManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.NFC_ENROLLMENT && <NfcEnrollment onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.BERTH_MANAGEMENT && <BerthManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
-        {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onRemoveTag={removeTag} onTogglePause={(p) => setActiveSession(prev => prev ? (p ? { ...prev, isPaused: true, accumulatedSeconds: prev.seconds } : { ...prev, isPaused: false, startTime: Date.now() }) : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} />}
+        {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onRemoveTag={removeTag} onTogglePause={(p) => setActiveSession(prev => prev ? (p ? { ...prev, isPaused: true, accumulatedSeconds: prev.seconds } : { ...prev, isPaused: false, startTime: Date.now() }) : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} isAdminUser={user?.isAdmin} />}
       </main>
 
       {user && currentPage !== AppState.LOGIN && currentPage !== AppState.TRAINING && (

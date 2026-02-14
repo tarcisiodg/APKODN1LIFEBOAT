@@ -1,7 +1,7 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, LifeboatStatus, LifeboatType, ActiveSession, AppState, GlobalSession, TrainingRecord } from '../types';
+import { User, LifeboatStatus, LifeboatType, ActiveSession, AppState, TrainingRecord } from '../types';
 import { cloudService } from '../services/cloudService';
-import { generateTrainingSummary } from '../services/geminiService';
 
 interface DashboardProps {
   onStartTraining: () => void;
@@ -40,15 +40,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [manualCounts, setManualCounts] = useState<Record<string, number>>(
     Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]))
   );
-  
-  const [globalSession, setGlobalSession] = useState<GlobalSession | null>(null);
-  const [globalSeconds, setGlobalSeconds] = useState(0);
-  const [isConfiguringGlobal, setIsConfiguringGlobal] = useState(false);
-  const [isEndingGlobal, setIsEndingGlobal] = useState(false);
 
   useEffect(() => {
     let unsubscribeCounters: () => void;
-    let unsubscribeGlobal: () => void;
 
     if (user?.isAdmin) {
       const fetchData = async () => {
@@ -68,30 +62,13 @@ const Dashboard: React.FC<DashboardProps> = ({
       unsubscribeCounters = cloudService.subscribeToManualCounters((counters) => {
         setManualCounts(prev => ({ ...prev, ...counters }));
       });
-      unsubscribeGlobal = cloudService.subscribeToGlobalSession((session) => {
-        setGlobalSession(session);
-      });
 
       return () => {
         clearInterval(interval);
         if (unsubscribeCounters) unsubscribeCounters();
-        if (unsubscribeGlobal) unsubscribeGlobal();
       };
     }
   }, [user]);
-
-  useEffect(() => {
-    let timer: number;
-    if (globalSession?.isActive) {
-      timer = window.setInterval(() => {
-        const elapsed = Math.floor((Date.now() - globalSession.startTime) / 1000);
-        setGlobalSeconds(elapsed);
-      }, 1000);
-    } else {
-      setGlobalSeconds(0);
-    }
-    return () => clearInterval(timer);
-  }, [globalSession]);
 
   const updateManualCount = async (category: string, delta: number) => {
     setManualCounts(prev => {
@@ -116,96 +93,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const activeLifeboatsCount = useMemo(() => LIFEBOATS.filter(lb => fleetStatus[lb]?.isActive).length, [fleetStatus]);
 
-  const formatTime = (totalSeconds: number) => {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const handleStartGlobalMuster = async (type: 'Gás' | 'Fogo/Abandono', isReal: boolean) => {
-    const session: GlobalSession = {
-      isActive: true,
-      startTime: Date.now(),
-      trainingType: type,
-      isRealScenario: isReal,
-      adminName: user?.name || 'Administrador'
-    };
-    await cloudService.updateGlobalSession(session);
-    setIsConfiguringGlobal(false);
-  };
-
-  const handleEndGlobalMuster = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!globalSession || isEndingGlobal) return;
-    
-    setIsEndingGlobal(true);
-
-    try {
-      const durationStr = formatTime(globalSeconds);
-      const currentPeopleCount = overallMusterTotal;
-      const sessionType = globalSession.trainingType;
-      const isReal = globalSession.isRealScenario;
-      const adminName = globalSession.adminName;
-
-      // 1. SINAL DE ENCERRAMENTO IMEDIATO (PRIORIDADE ZERO)
-      // Definimos isActive: false para todas as baleeiras no Firestore
-      const resetFleet: any = {};
-      LIFEBOATS.forEach(lb => {
-        resetFleet[lb] = { count: 0, isActive: false, tags: [], seconds: 0 };
-      });
-      
-      // Enviamos o reset de uma vez. Isso derruba todas as sessões em tempo real.
-      await Promise.all([
-        cloudService.updateFleetStatus(resetFleet),
-        cloudService.updateGlobalSession({ ...globalSession, isActive: false }),
-        cloudService.updateManualCounters(Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0])))
-      ]);
-
-      // 2. PROCESSAMENTO DE BACKUP (SEGUNDO PLANO)
-      // Após o sinal ser enviado, coletamos dados para o histórico sem pressa
-      const allScannedTags: any[] = [];
-      // Explicitly type the values iteration as LifeboatStatus[] to resolve 'unknown' property access errors.
-      (Object.values(fleetStatus) as LifeboatStatus[]).forEach((s) => {
-        if (s.tags) allScannedTags.push(...s.tags);
-      });
-
-      // Gerar registro histórico consolidado
-      const record: TrainingRecord = {
-        id: crypto.randomUUID(),
-        date: new Date().toLocaleString('pt-BR'),
-        lifeboat: 'FROTA COMPLETA',
-        leaderName: adminName,
-        trainingType: sessionType,
-        isRealScenario: isReal,
-        crewCount: currentPeopleCount,
-        duration: durationStr,
-        summary: "Muster Global finalizado pelo coordenador.",
-        operator: user?.name || 'Sistema',
-        tags: allScannedTags
-      };
-
-      await cloudService.saveTrainingRecord(record);
-
-      // 3. IA SUMMARY (OPCIONAL/BACKGROUND)
-      generateTrainingSummary('FROTA COMPLETA', currentPeopleCount, durationStr).then(summary => {
-        cloudService.saveTrainingRecord({ ...record, summary });
-      }).catch(() => {});
-
-    } catch (err) {
-      console.error("Erro ao encerrar muster:", err);
-      alert("Falha ao comunicar encerramento. Verifique o sinal de internet.");
-    } finally {
-      setIsEndingGlobal(false);
-    }
-  };
-
   if (!user) return null;
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-6xl mx-auto w-full pb-32">
+      {/* HEADER DO DASHBOARD */}
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
           <h2 className="text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">Olá, {user.name.split(' ')[0]}</h2>
@@ -218,98 +110,104 @@ const Dashboard: React.FC<DashboardProps> = ({
         {user.isAdmin && (
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <button onClick={onOpenBerthManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-lg transition-all active:scale-95 group"><i className="fa-solid fa-bed"></i><span className="text-[10px] uppercase tracking-widest font-bold">POB/Leitos</span></button>
-            <button onClick={onOpenUserManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group"><i className="fa-solid fa-users-gear text-slate-400 group-hover:text-blue-600 transition-colors"></i><span className="text-[10px] text-slate-700 uppercase tracking-widest font-bold">Gestão</span>{pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}</button>
+            <button onClick={onOpenUserManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group"><i className="fa-solid fa-users-gear text-slate-600 group-hover:text-blue-600 transition-colors"></i><span className="text-[10px] text-slate-800 uppercase tracking-widest font-bold">Gestão</span>{pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}</button>
           </div>
         )}
       </div>
 
       {user.isAdmin && (
         <>
-          <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
-             <div className={`relative overflow-hidden p-6 rounded-[40px] shadow-2xl transition-all duration-500 border-2 ${globalSession?.isActive ? globalSession.isRealScenario ? 'bg-rose-600 border-rose-400 animate-pulse-slow' : 'bg-blue-600 border-blue-400' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
-                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                   <div className="flex items-center gap-6">
-                      <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg transition-all ${globalSession?.isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}><i className={`fa-solid ${globalSession?.isActive ? 'fa-tower-broadcast' : 'fa-power-off'} text-2xl`}></i></div>
-                      <div>
-                         <h3 className={`text-sm font-black uppercase tracking-[0.2em] mb-1 ${globalSession?.isActive ? 'text-white' : 'text-slate-400'}`}>{globalSession?.isActive ? globalSession.isRealScenario ? 'EMERGÊNCIA REAL ATIVA' : 'EXERCÍCIO DE MUSTER ATIVO' : 'SISTEMA DE MUSTER GLOBAL'}</h3>
-                         <p className={`text-[10px] font-bold uppercase tracking-widest ${globalSession?.isActive ? 'text-white/60' : 'text-slate-300'}`}>{globalSession?.isActive ? `${globalSession.trainingType} • Iniciado por ${globalSession.adminName}` : 'Pronto para iniciar treinamento coordenado'}</p>
-                      </div>
-                   </div>
-                   <div className="flex items-center gap-8">
-                      <div className="text-center">
-                         <span className={`text-[9px] font-black uppercase tracking-[0.3em] block mb-1 ${globalSession?.isActive ? 'text-white/40' : 'text-slate-300'}`}>Tempo Decorrido</span>
-                         <span className={`text-4xl font-mono font-black tabular-nums tracking-tighter ${globalSession?.isActive ? 'text-white' : 'text-slate-200'}`}>{formatTime(globalSeconds)}</span>
-                      </div>
-                      {globalSession?.isActive ? (
-                        <button onClick={handleEndGlobalMuster} disabled={isEndingGlobal} className="px-8 py-5 bg-rose-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 border border-rose-400/50 z-20 cursor-pointer">{isEndingGlobal ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-circle-stop"></i>}ENCERRAR MUSTER GERAL</button>
-                      ) : (
-                        <button onClick={() => setIsConfiguringGlobal(true)} className="px-8 py-5 bg-blue-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-widest shadow-xl shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-3"><i className="fa-solid fa-play"></i>INICIAR MUSTER GERAL</button>
-                      )}
-                   </div>
-                </div>
-                <i className={`fa-solid ${globalSession?.isRealScenario ? 'fa-triangle-exclamation' : 'fa-anchor'} absolute right-[-20px] bottom-[-20px] text-[160px] ${globalSession?.isActive ? 'text-white/5' : 'text-slate-50'} -rotate-12`}></i>
-             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 animate-in fade-in slide-in-from-top-4 duration-700 delay-200">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-800 p-5 rounded-[32px] shadow-2xl shadow-blue-600/30 text-white overflow-hidden relative min-h-[165px]">
+          {/* CARDS DE RESUMO DO DASHBOARD */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
+            {/* Card 1: TOTAL GERAL CONTABILIZADO */}
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-800 p-4 rounded-[32px] shadow-2xl shadow-blue-600/30 text-white overflow-hidden relative min-h-[145px]">
                 <div className="relative z-10 flex flex-col justify-between h-full">
                   <div>
-                    <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/50 mb-1.5">TOTAL GERAL CONTABILIZADO (MUSTER)</h4>
-                    <div className="flex items-baseline gap-2.5"><span className="text-6xl font-black tabular-nums tracking-tighter animate-pulse-slow">{overallMusterTotal}</span><span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Pessoas</span></div>
+                    <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white mb-1.5">TOTAL GERAL CONTABILIZADO (MUSTER)</h4>
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-6xl font-black tabular-nums tracking-tighter animate-pulse-slow">{overallMusterTotal}</span>
+                      <span className="text-[10px] font-bold text-white uppercase tracking-widest">Pessoas</span>
+                    </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-center gap-x-10 gap-y-4">
-                    <div className="flex flex-col"><span className="text-[8px] font-black uppercase text-white/40 tracking-[0.2em] mb-1.5">Nas Baleeiras</span><div className="flex items-center gap-3"><div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center shadow-inner"><i className="fa-solid fa-ship text-sm text-blue-200"></i></div><span className="text-xl font-black tabular-nums leading-none">{totalPeopleInFleet}</span></div></div>
-                    <div className="w-px h-8 bg-white/10 hidden lg:block"></div>
-                    <div className="flex flex-col"><span className="text-[8px] font-black uppercase text-white/40 tracking-[0.2em] mb-1.5">Grupos Manuais</span><div className="flex items-center gap-3"><div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center shadow-inner"><i className="fa-solid fa-sliders text-sm text-indigo-200"></i></div><span className="text-xl font-black tabular-nums leading-none">{totalManualGroups}</span></div></div>
+                  <div className="mt-4 pt-4 border-t border-white/30 flex flex-wrap items-center gap-x-10 gap-y-4">
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black uppercase text-white tracking-[0.2em] mb-1.5">Nas Baleeiras</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center shadow-inner">
+                          <i className="fa-solid fa-ship text-sm text-white"></i>
+                        </div>
+                        <span className="text-xl font-black tabular-nums leading-none">{totalPeopleInFleet}</span>
+                      </div>
+                    </div>
+                    <div className="w-px h-8 bg-white/20 hidden lg:block"></div>
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black uppercase text-white tracking-[0.2em] mb-1.5">Grupos Manuais</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center shadow-inner">
+                          <i className="fa-solid fa-sliders text-sm text-white"></i>
+                        </div>
+                        <span className="text-xl font-black tabular-nums leading-none">{totalManualGroups}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <i className="fa-solid fa-clipboard-check absolute right-[-15px] bottom-[-15px] text-[120px] text-white/5 -rotate-12"></i>
-                <div className="absolute top-3 right-6 flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg border border-white/5"><div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.5)]"></div><span className="text-[7px] font-black uppercase tracking-widest text-white/90">Live Sync</span></div>
+                <div className="absolute top-3 right-6 flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg border border-white/20">
+                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.5)]"></div>
+                  <span className="text-[7px] font-black uppercase tracking-widest text-white">Live Sync</span>
+                </div>
             </div>
 
-            <div className="bg-white p-5 rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative min-h-[165px] flex flex-col justify-between">
+            {/* Card 2: POB Geral da Unidade */}
+            <div className="bg-white p-4 rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative min-h-[145px] flex flex-col justify-between">
                 <div className="relative z-10">
-                  <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 mb-1.5">PESSOAS A BORDO (POB OFICIAL)</h4>
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-800 mb-1.5">PESSOAS A BORDO (POB OFICIAL)</h4>
                   <div className="flex items-center justify-between gap-4">
-                    <div><div className="flex items-baseline gap-1.5"><span className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{berthStats.occupied}</span><span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Tripulantes</span></div></div>
-                    <div className="text-right"><div className="flex items-baseline gap-1.5 justify-end"><span className="text-xl font-black text-slate-400 tabular-nums tracking-tighter">{berthStats.total}</span></div><span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Leitos Totais</span></div>
+                    <div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{berthStats.occupied}</span>
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Tripulantes</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-baseline gap-1.5 justify-end">
+                        <span className="text-xl font-black text-slate-800 tabular-nums tracking-tighter">{berthStats.total}</span>
+                      </div>
+                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Leitos Totais</span>
+                    </div>
                   </div>
                 </div>
-                <div className="relative z-10 mt-5">
-                  <div className="w-full h-5 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-50"><div className="h-full bg-slate-900 transition-all duration-1000 ease-out shadow-lg" style={{ width: `${berthStats.total > 0 ? (berthStats.occupied / berthStats.total) * 100 : 0}%` }}></div></div>
-                  <div className="flex justify-between items-center mt-3 px-0.5"><span className="text-[11px] font-black text-slate-900 uppercase tracking-[0.15em]">{berthStats.total > 0 ? Math.round((berthStats.occupied / berthStats.total) * 100) : 0}% CAPACIDADE</span><span className={`text-[11px] font-black uppercase tracking-[0.1em] px-3 py-1 rounded-xl border-2 shadow-sm transition-all ${overallMusterTotal === berthStats.occupied ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-emerald-600/5' : 'bg-rose-50 text-rose-600 border-rose-100 shadow-rose-600/5'}`}>{overallMusterTotal === berthStats.occupied ? 'MUSTER OK' : overallMusterTotal > berthStats.occupied ? `${overallMusterTotal - berthStats.occupied} EXCEDENTE` : `${berthStats.occupied - overallMusterTotal} PENDENTES`}</span></div>
+                <div className="relative z-10 mt-4">
+                  <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200">
+                    <div className="h-full bg-slate-900 transition-all duration-1000 ease-out shadow-lg" style={{ width: `${berthStats.total > 0 ? (berthStats.occupied / berthStats.total) * 100 : 0}%` }}></div>
+                  </div>
+                  <div className="flex justify-between items-center mt-2.5 px-0.5">
+                    <span className="text-[11px] font-black text-slate-900 uppercase tracking-[0.15em]">{berthStats.total > 0 ? Math.round((berthStats.occupied / berthStats.total) * 100) : 0}% CAPACIDADE</span>
+                    <span className={`text-[11px] font-black uppercase tracking-[0.1em] px-3 py-1 rounded-xl border-2 shadow-sm transition-all ${overallMusterTotal === berthStats.occupied ? 'bg-emerald-50 text-emerald-800 border-emerald-400' : 'bg-rose-50 text-rose-800 border-rose-400'}`}>
+                      {overallMusterTotal === berthStats.occupied ? 'MUSTER OK' : overallMusterTotal > berthStats.occupied ? `${overallMusterTotal - berthStats.occupied} EXCEDENTE` : `${berthStats.occupied - overallMusterTotal} PENDENTES`}
+                    </span>
+                  </div>
                 </div>
                 <i className="fa-solid fa-bed absolute right-[-5px] top-[-5px] text-6xl text-slate-50/50"></i>
             </div>
           </div>
 
-          {isConfiguringGlobal && (
-            <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6 text-center">
-               <div className="bg-white rounded-[48px] max-w-lg w-full p-10 shadow-2xl animate-in zoom-in duration-300">
-                  <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase">Iniciar Muster Geral</h3>
-                  <div className="grid gap-4 mb-10">
-                    <button onClick={() => handleStartGlobalMuster('Fogo/Abandono', false)} className="p-6 bg-blue-50 border-2 border-blue-200 rounded-3xl text-left hover:border-blue-500 transition-all group"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><i className="fa-solid fa-graduation-cap"></i></div><div><span className="block font-black text-blue-700 text-xs uppercase">Exercício de Rotina</span><span className="text-[10px] font-bold text-slate-400 uppercase">Fogo e Abandono</span></div></div></button>
-                    <button onClick={() => handleStartGlobalMuster('Fogo/Abandono', true)} className="p-6 bg-rose-50 border-2 border-rose-200 rounded-3xl text-left hover:border-rose-500 transition-all group"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><i className="fa-solid fa-triangle-exclamation"></i></div><div><span className="block font-black text-rose-700 text-xs uppercase tracking-widest">CENÁRIO REAL</span><span className="text-[10px] font-bold text-slate-400 uppercase">Emergência Ativa</span></div></div></button>
-                  </div>
-                  <button onClick={() => setIsConfiguringGlobal(false)} className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-               </div>
-            </div>
-          )}
-
+          {/* CONTADORES MANUAIS */}
           <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
             <div className="flex items-center justify-between px-1 mb-4">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] flex items-center gap-3"><i className="fa-solid fa-sliders text-blue-500"></i>Controle de Grupos Operacionais</h3>
-              <div className="bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200"><span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Total Manual: {totalManualGroups}</span></div>
+              <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-[0.25em] flex items-center gap-3"><i className="fa-solid fa-sliders text-blue-600"></i>Controle de Grupos Operacionais</h3>
+              <div className="bg-slate-200 px-4 py-1.5 rounded-full border border-slate-300">
+                <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">Total Manual: {totalManualGroups}</span>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {MANUAL_CATEGORIES.map(category => (
-                <div key={category} className="bg-white p-3.5 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group active:scale-[0.98]">
-                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em] mb-3 text-center truncate">{category}</p>
+                <div key={category} className="bg-white p-3.5 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-all group active:scale-[0.98]">
+                  <p className="text-[8px] font-black text-slate-700 uppercase tracking-[0.1em] mb-3 text-center truncate">{category}</p>
                   <div className="flex items-center justify-between gap-1.5">
-                    <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 transition-all active:scale-75 shadow-sm"><i className="fa-solid fa-minus text-[8px]"></i></button>
-                    <span className="text-lg font-black text-slate-800 tabular-nums">{manualCounts[category] || 0}</span>
-                    <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-all active:scale-75 shadow-sm"><i className="fa-solid fa-plus text-[8px]"></i></button>
+                    <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-rose-100 hover:text-rose-700 transition-all active:scale-75 shadow-sm"><i className="fa-solid fa-minus text-[8px]"></i></button>
+                    <span className="text-lg font-black text-slate-900 tabular-nums">{manualCounts[category] || 0}</span>
+                    <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-100 hover:text-blue-700 transition-all active:scale-75 shadow-sm"><i className="fa-solid fa-plus text-[8px]"></i></button>
                   </div>
                 </div>
               ))}
@@ -318,26 +216,37 @@ const Dashboard: React.FC<DashboardProps> = ({
         </>
       )}
 
+      {/* MONITORAMENTO DAS BALEERAS */}
       {user.isAdmin && (
         <div className="grid gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
-          <div className="flex items-center justify-between px-1 mb-1">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] flex items-center gap-3"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse"></span>Monitoramento em Tempo Real</h3>
-            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{activeLifeboatsCount} {activeLifeboatsCount === 1 ? 'Unidade Ativa' : 'Unidades Ativas'}</span>
+          <div className="flex items-center justify-between px-1 mb-4">
+            <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-[0.25em] flex items-center gap-3"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse"></span>Monitoramento em Tempo Real</h3>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-h-[100px]">
             {LIFEBOATS.map(lb => {
               const status = fleetStatus[lb];
               const isActive = status?.isActive;
               return (
-                <div key={lb} onClick={() => isActive ? onViewLifeboat(lb) : null} className={`p-4 rounded-2xl border transition-all duration-300 ${isActive ? 'bg-blue-50 border-blue-100 ring-1 ring-blue-200 cursor-pointer hover:shadow-lg shadow-blue-600/5' : 'bg-white border-slate-100 opacity-70 grayscale-[0.5] hover:grayscale-0'}`}>
+                <div key={lb} onClick={() => isActive ? onViewLifeboat(lb) : null} className={`p-4 rounded-2xl border transition-all duration-300 ${isActive ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-300 cursor-pointer hover:shadow-lg shadow-blue-600/5' : 'bg-white border-slate-200 grayscale-[0.3] hover:grayscale-0'}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${isActive ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-slate-100 text-slate-400'}`}><i className={`fa-solid fa-ship text-[11px] ${isActive ? 'animate-pulse' : ''}`}></i></div>
-                      <div className="flex flex-col min-w-0"><span className={`text-[11px] uppercase tracking-tight font-black truncate ${isActive ? 'text-blue-700' : 'text-slate-500'}`}>{lb}</span><span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">{isActive ? `Líder: ${status.leaderName || 'Não Definido'}` : 'Unidade em Espera'}</span></div>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${isActive ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-slate-100 text-slate-500'}`}><i className={`fa-solid fa-ship text-[11px] ${isActive ? 'animate-pulse' : ''}`}></i></div>
+                      <div className="flex flex-col min-w-0">
+                        <span className={`text-[11px] uppercase tracking-tight font-black truncate ${isActive ? 'text-blue-800' : 'text-slate-700'}`}>{lb}</span>
+                        <span className={`text-[8px] font-bold uppercase tracking-widest truncate ${isActive ? 'text-blue-500' : 'text-slate-500'}`}>
+                          {isActive ? `Líder: ${status.leaderName || 'Não Definido'}` : 'Unidade em Espera'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-2"><div className="flex items-baseline justify-end gap-1"><span className={`text-sm font-mono font-bold ${isActive ? 'text-blue-600' : 'text-slate-300'}`}>{isActive ? (status?.count || 0) : 0}</span></div><span className="text-[7px] uppercase opacity-40 font-black tracking-widest">Pessoas</span></div>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <div className="flex items-baseline justify-end gap-1">
+                        <span className={`text-sm font-mono font-bold ${isActive ? 'text-blue-600' : 'text-slate-900'}`}>{isActive ? (status?.count || 0) : 0}</span>
+                      </div>
+                      <span className="text-[7px] uppercase opacity-70 font-black tracking-widest text-slate-600">Pessoas</span>
+                    </div>
                   </div>
-                  {isActive && <div className="mt-3 pt-3 border-t border-blue-100 flex items-center justify-between"><div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span><span className="text-[7px] font-black text-emerald-600 uppercase tracking-widest">Sessão Ativa</span></div><i className="fa-solid fa-chevron-right text-[8px] text-blue-300"></i></div>}
+                  {isActive && <div className="mt-3 pt-3 border-t border-blue-200 flex items-center justify-between"><div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span><span className="text-[7px] font-black text-emerald-600 uppercase tracking-widest">Sessão Ativa</span></div><i className="fa-solid fa-chevron-right text-[8px] text-blue-500"></i></div>}
                 </div>
               );
             })}
@@ -345,6 +254,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
+      {/* BOTÃO PARA OPERADORES (NON-ADMIN) */}
       {!user.isAdmin && (
         <div className="mb-8">
           <button onClick={activeSession ? onResumeTraining : onStartTraining} className={`w-full h-32 relative overflow-hidden p-6 rounded-[32px] text-left transition-all active:scale-[0.98] shadow-xl ${activeSession ? 'bg-blue-600 shadow-blue-600/30 border-2 border-blue-400/30 animate-pulse-slow' : 'bg-slate-900 shadow-slate-900/20'}`}>
@@ -353,7 +263,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeSession ? 'bg-white text-blue-600' : 'bg-white/20 text-white'}`}><i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : 'fa-plus'} text-sm`}></i></div>
                 {activeSession && <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg flex items-center gap-2"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span><span className="text-[8px] font-black text-white uppercase tracking-widest">Live</span></div>}
               </div>
-              <div><h3 className="text-xl mb-0.5 uppercase tracking-tight font-black text-white">{activeSession ? 'RETOMAR TREINAMENTO' : 'INICIAR TREINAMENTO'}</h3>{activeSession ? <p className="text-white/70 text-[9px] uppercase tracking-[0.2em] font-bold">Ativo na {activeSession.lifeboat} • {activeSession.tags.length} embarcados</p> : <p className="text-white/40 text-[9px] uppercase tracking-[0.2em] font-bold">Clique para configurar nova sessão</p>}</div>
+              <div><h3 className="text-xl mb-0.5 uppercase tracking-tight font-black text-white">{activeSession ? 'RETOMAR TREINAMENTO' : 'INICIAR TREINAMENTO'}</h3>{activeSession ? <p className="text-white text-[9px] uppercase tracking-[0.2em] font-bold">Ativo na {activeSession.lifeboat} • {activeSession.tags.length} embarcados</p> : <p className="text-white/60 text-[9px] uppercase tracking-[0.2em] font-bold">Clique para configurar nova sessão</p>}</div>
             </div>
             <i className={`fa-solid ${activeSession ? 'fa-circle-dot opacity-10' : 'fa-anchor opacity-5'} absolute right-[-10px] bottom-[-10px] text-[120px] text-white rotate-12 transition-all`}></i>
           </button>

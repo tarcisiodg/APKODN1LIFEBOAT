@@ -13,7 +13,7 @@ import {
   limit,
   onSnapshot
 } from "firebase/firestore";
-import { User, TrainingRecord, LifeboatStatus, LifeboatType, Berth, GlobalSession } from '../types';
+import { User, TrainingRecord, LifeboatStatus, LifeboatType, Berth } from '../types';
 
 const NATIVE_USER_DATA: Record<string, { name: string, role: string, pass: string, isAdmin: boolean }> = {
   'odn1radiooperator': { name: 'Radio Operator', role: 'ADMINISTRADOR', pass: '1234', isAdmin: true },
@@ -104,7 +104,6 @@ export const cloudService = {
     await updateDoc(userRef, updatePayload);
   },
 
-  // --- CONTADORES MANUAIS ---
   async updateManualCounters(counters: Record<string, number>): Promise<void> {
     const countersRef = doc(db, "config", "manual_counters");
     await setDoc(countersRef, counters);
@@ -120,8 +119,6 @@ export const cloudService = {
       }
     });
   },
-
-  // --- GESTÃO DE POB / LEITOS ---
   
   async saveBerth(berth: Berth): Promise<void> {
     const berths = await this.getBerths();
@@ -180,7 +177,6 @@ export const cloudService = {
     }
   },
 
-  // --- HISTÓRICO ---
   async saveTrainingRecord(record: TrainingRecord): Promise<void> {
     const recordRef = doc(db, "history", record.id);
     await setDoc(recordRef, { ...record, timestamp: new Date().toISOString() });
@@ -193,33 +189,15 @@ export const cloudService = {
     return snapshot.docs.map(doc => doc.data() as TrainingRecord);
   },
 
-  // --- STATUS DA FROTA ---
-  async updateFleetStatus(status: Record<LifeboatType, LifeboatStatus>): Promise<void> {
+  async updateFleetStatus(status: Record<string, LifeboatStatus>): Promise<void> {
     const fleetRef = doc(db, "fleet", "status");
     await setDoc(fleetRef, status);
   },
 
-  subscribeToFleet(callback: (status: Record<LifeboatType, LifeboatStatus>) => void) {
+  subscribeToFleet(callback: (status: Record<string, LifeboatStatus>) => void) {
     const fleetRef = doc(db, "fleet", "status");
     return onSnapshot(fleetRef, (doc) => {
-      if (doc.exists()) callback(doc.data() as Record<LifeboatType, LifeboatStatus>);
-    });
-  },
-
-  // --- SESSÃO GLOBAL ---
-  async updateGlobalSession(session: GlobalSession): Promise<void> {
-    const sessionRef = doc(db, "config", "global_session");
-    await setDoc(sessionRef, session);
-  },
-
-  subscribeToGlobalSession(callback: (session: GlobalSession | null) => void) {
-    const sessionRef = doc(db, "config", "global_session");
-    return onSnapshot(sessionRef, (doc) => {
-      if (doc.exists()) {
-        callback(doc.data() as GlobalSession);
-      } else {
-        callback(null);
-      }
+      if (doc.exists()) callback(doc.data() as Record<string, LifeboatStatus>);
     });
   }
 };

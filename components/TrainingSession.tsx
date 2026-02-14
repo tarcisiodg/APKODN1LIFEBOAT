@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ActiveSession, TrainingRecord, ScannedTag } from '../types';
+import { ActiveSession, TrainingRecord, ScannedTag, LifeboatType } from '../types';
 import { generateTrainingSummary } from '../services/geminiService';
+import { cloudService } from '../services/cloudService';
 
 interface TrainingSessionProps {
   session: ActiveSession;
@@ -12,7 +13,11 @@ interface TrainingSessionProps {
   onTogglePause: (paused: boolean) => void;
   onSaveRecord: (record: Omit<TrainingRecord, 'id' | 'operator'>) => void;
   operatorName: string;
+  isAdminUser?: boolean;
 }
+
+const LIFEBOATS: LifeboatType[] = ['Lifeboat 1', 'Lifeboat 2', 'Lifeboat 3', 'Lifeboat 4', 'Lifeboat 5', 'Lifeboat 6'];
+const MANUAL_CATEGORIES = ['PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS'];
 
 const TrainingSession: React.FC<TrainingSessionProps> = ({ 
   session, 
@@ -22,7 +27,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   onRemoveTag,
   onTogglePause,
   onSaveRecord,
-  operatorName
+  operatorName,
+  isAdminUser
 }) => {
   const [nfcState, setNfcState] = useState<'idle' | 'starting' | 'active' | 'error' | 'unsupported'>('idle');
   const [nfcError, setNfcError] = useState<string | null>(null);
@@ -55,7 +61,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     });
   }, [session.expectedCrew, session.tags]);
 
-  // Função auxiliar para obter os detalhes completos do tripulante a partir do leito da TAG
   const getBerthInfoForTag = (tag: ScannedTag) => {
     if (!session.expectedCrew || !tag.leito) return { role: tag.role, company: tag.company };
     const berth = session.expectedCrew.find(b => b.id === tag.leito);
@@ -121,14 +126,16 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
   useEffect(() => { if (!session.isAdminView) startNFC(); }, [session.isAdminView]);
 
-  const handleFinish = async () => {
+  const handleFinish = async (isGlobal: boolean = false) => {
     setIsFinishing(true);
     try {
       const durationStr = formatTime(session.seconds);
-      const summary = await generateTrainingSummary(session.lifeboat, session.tags.length, durationStr);
+      const label = isGlobal ? 'FROTA COMPLETA' : session.lifeboat;
+      
+      const summary = await generateTrainingSummary(label, session.tags.length, durationStr);
       await onSaveRecord({ 
         date: new Date().toLocaleString('pt-BR'), 
-        lifeboat: session.lifeboat, 
+        lifeboat: label as any, 
         leaderName: session.leaderName, 
         trainingType: session.trainingType, 
         isRealScenario: session.isRealScenario, 
@@ -136,6 +143,19 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         duration: durationStr, 
         summary: summary 
       });
+
+      if (isGlobal) {
+        // Encerra tudo em tempo real na nuvem
+        const resetFleet: any = {};
+        LIFEBOATS.forEach(lb => { resetFleet[lb] = { count: 0, isActive: false, tags: [], seconds: 0 }; });
+        const resetCounters = Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]));
+        
+        await Promise.all([
+          cloudService.updateFleetStatus(resetFleet),
+          cloudService.updateManualCounters(resetCounters)
+        ]);
+      }
+
       onFinish();
     } catch (e) {
       alert("Erro ao salvar dados.");
@@ -167,7 +187,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
               <div className="flex-1 overflow-hidden">
                 <p className="text-[9px] font-black uppercase text-rose-100">Acesso Negado:</p>
                 <h4 className="text-sm font-black uppercase truncate">Baleeira Incorreta</h4>
-                <p className="text-[8px] font-mono opacity-60">TAG: {invalidScanId}</p>
               </div>
            </div>
         </div>
@@ -176,12 +195,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-10">
         <div className="flex items-start gap-5">
-          <button 
-            onClick={onMinimize} 
-            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[#f1f5f9] text-slate-400 shadow-sm transition-all active:scale-90"
-          >
-            <i className="fa-solid fa-chevron-left"></i>
-          </button>
+          <button onClick={onMinimize} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[#f1f5f9] text-slate-400 shadow-sm transition-all active:scale-90"><i className="fa-solid fa-chevron-left"></i></button>
           <div className="mt-1">
             <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight leading-none">{session.lifeboat}</h2>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
@@ -202,26 +216,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
       {/* Tabs */}
       <div className="flex gap-4 mb-8">
-        <button 
-          onClick={() => setViewTab('present')} 
-          className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-            viewTab === 'present' 
-            ? 'bg-white border-blue-600 text-blue-600 shadow-xl shadow-blue-600/5' 
-            : 'bg-[#f1f5f9] border-transparent text-slate-400'
-          }`}
-        >
-          PRESENTES ({session.tags.length})
-        </button>
-        <button 
-          onClick={() => setViewTab('pending')} 
-          className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-            viewTab === 'pending' 
-            ? 'bg-white border-blue-600 text-blue-600 shadow-xl shadow-blue-600/5' 
-            : 'bg-[#f1f5f9] border-transparent text-slate-400'
-          }`}
-        >
-          FALTANTES ({pendingCrew.length})
-        </button>
+        <button onClick={() => setViewTab('present')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${viewTab === 'present' ? 'bg-white border-blue-600 text-blue-600 shadow-xl shadow-blue-600/5' : 'bg-[#f1f5f9] border-transparent text-slate-400'}`}>PRESENTES ({session.tags.length})</button>
+        <button onClick={() => setViewTab('pending')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${viewTab === 'pending' ? 'bg-white border-blue-600 text-blue-600 shadow-xl shadow-blue-600/5' : 'bg-[#f1f5f9] border-transparent text-slate-400'}`}>FALTANTES ({pendingCrew.length})</button>
       </div>
 
       {/* Lista de Tripulantes */}
@@ -238,9 +234,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                 return (
                   <div key={tag.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md animate-in slide-in-from-left-2 duration-300">
                     <div className="flex items-center gap-5 flex-1 min-w-0">
-                      <div className="w-14 h-11 bg-[#111827] text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
-                        {tag.leito || 'N/A'}
-                      </div>
+                      <div className="w-14 h-11 bg-[#111827] text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">{tag.leito || 'N/A'}</div>
                       <div className="min-w-0">
                         <h4 className="text-sm font-black uppercase truncate text-slate-900 tracking-tight">{tag.name}</h4>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
@@ -280,9 +274,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
               {pendingCrew.map((berth) => (
                 <div key={berth.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between opacity-80 transition-all">
                   <div className="flex items-center gap-5 flex-1 min-w-0">
-                    <div className="w-14 h-11 bg-slate-200 text-slate-500 rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
-                      {berth.id}
-                    </div>
+                    <div className="w-14 h-11 bg-slate-200 text-slate-500 rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">{berth.id}</div>
                     <div className="min-w-0">
                       <h4 className="text-sm font-black uppercase truncate text-slate-600 tracking-tight">{berth.crewName || 'VAZIO'}</h4>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
@@ -307,33 +299,33 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
       {/* Botões de Ação */}
       <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/60 backdrop-blur-xl border-t border-slate-100 flex gap-4 justify-center z-50">
-        <button 
-          onClick={onMinimize} 
-          className="flex-1 max-w-sm py-5 bg-[#f1f5f9] border border-slate-200 text-slate-600 font-black rounded-[20px] text-[10px] uppercase shadow-sm active:scale-95 transition-all tracking-widest"
-        >
-          MINIMIZAR
-        </button>
+        <button onClick={onMinimize} className="flex-1 max-w-sm py-5 bg-[#f1f5f9] border border-slate-200 text-slate-600 font-black rounded-[20px] text-[10px] uppercase shadow-sm active:scale-95 transition-all tracking-widest">MINIMIZAR</button>
         {!session.isAdminView && (
-          <button 
-            onClick={() => setIsConfirmingFinish(true)} 
-            className="flex-1 max-w-sm py-5 bg-[#2563eb] text-white font-black rounded-[20px] text-[10px] uppercase shadow-2xl shadow-blue-600/30 active:scale-95 transition-all tracking-widest"
-          >
-            FINALIZAR
-          </button>
+          <button onClick={() => setIsConfirmingFinish(true)} className="flex-1 max-w-sm py-5 bg-[#2563eb] text-white font-black rounded-[20px] text-[10px] uppercase shadow-2xl shadow-blue-600/30 active:scale-95 transition-all tracking-widest">FINALIZAR</button>
         )}
       </div>
 
       {/* Modais */}
       {isConfirmingFinish && (
         <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[48px] max-w-sm w-full p-12 shadow-2xl animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">Concluir Sessão?</h3>
+          <div className="bg-white rounded-[48px] max-w-lg w-full p-12 shadow-2xl animate-in zoom-in duration-300">
+            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">O que deseja fazer?</h3>
             <div className="grid gap-3">
-              <button onClick={handleFinish} disabled={isFinishing} className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2">
-                {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Salvando...</> : 'Sim, Concluir'}
+              <button onClick={() => handleFinish(false)} disabled={isFinishing} className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2">
+                {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Salvando...</> : 'Finalizar Esta Unidade'}
               </button>
+              
+              {isAdminUser && (
+                <button onClick={() => handleFinish(true)} disabled={isFinishing} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2 border border-rose-400/30">
+                  {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Encerrando...</> : 'Encerrar Muster Geral (Tudo)'}
+                </button>
+              )}
+              
               <button onClick={() => setIsConfirmingFinish(false)} disabled={isFinishing} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[10px] uppercase">Cancelar</button>
             </div>
+            {isAdminUser && (
+              <p className="mt-4 text-[8px] font-bold text-rose-500 uppercase tracking-widest">Atenção: Encerrar Muster Geral desativa todas as baleeiras e zera os contadores.</p>
+            )}
           </div>
         </div>
       )}
@@ -349,15 +341,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           </div>
         </div>
       )}
-      
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
-        }
-        .animate-shake { animation: shake 0.2s ease-in-out infinite; }
-      `}</style>
     </div>
   );
 };
