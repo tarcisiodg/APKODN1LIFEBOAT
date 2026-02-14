@@ -170,7 +170,8 @@ const App: React.FC = () => {
         timestamp: new Date().toLocaleTimeString('pt-BR'), 
         data: tagData || tagId, 
         name: matchedBerth.crewName, 
-        role: 'EMBARCADO',
+        role: matchedBerth.role || 'TRIPULANTE', // Captura a função real
+        company: matchedBerth.company || 'N/A', // Captura a empresa real
         leito: matchedBerth.id
       };
 

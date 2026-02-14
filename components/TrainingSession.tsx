@@ -83,7 +83,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           return; 
         }
 
-        // Se o tripulante já estiver presente, ignoramos silenciosamente para evitar spam de toasts
         const alreadyPresent = session.tags.some(t => t.leito === matchedBerth?.id);
         if (alreadyPresent) {
           if (navigator.vibrate) navigator.vibrate([50]);
@@ -178,7 +177,13 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           </button>
           <div className="mt-1">
             <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight leading-none">{session.lifeboat}</h2>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] mt-2 opacity-70">{session.trainingType}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] opacity-70 leading-none">{session.trainingType}</p>
+              <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 self-start sm:self-auto">
+                <i className="fa-solid fa-user-shield text-[8px] text-blue-500"></i>
+                <span className="text-[9px] font-black text-blue-600 uppercase tracking-wider">LIDER: {session.leaderName}</span>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -229,8 +234,16 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                     </div>
                     <div className="min-w-0">
                       <h4 className="text-sm font-black uppercase truncate text-slate-900 tracking-tight">{tag.name}</h4>
-                      <div className="flex items-center gap-3 mt-1.5">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                         <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">TAG: {tag.id}</span>
+                        {(tag.role || tag.company) && (
+                          <>
+                            <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                            <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tight">{tag.role || '-'}</span>
+                            <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tight">{tag.company || '-'}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -253,14 +266,24 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           ) : (
             <div className="grid gap-4">
               {pendingCrew.map((berth) => (
-                <div key={berth.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between opacity-80 grayscale transition-all">
+                <div key={berth.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between opacity-80 transition-all">
                   <div className="flex items-center gap-5 flex-1 min-w-0">
-                    <div className="w-14 h-11 bg-slate-400 text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
+                    <div className="w-14 h-11 bg-slate-200 text-slate-500 rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
                       {berth.id}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-black uppercase truncate text-slate-600 tracking-tight">{berth.crewName}</h4>
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">NÃO EMBARCADO</p>
+                      <h4 className="text-sm font-black uppercase truncate text-slate-600 tracking-tight">{berth.crewName || 'VAZIO'}</h4>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">NÃO EMBARCADO</span>
+                        {(berth.role || berth.company) && (
+                          <>
+                            <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                            <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tight">{berth.role || '-'}</span>
+                            <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tight">{berth.company || '-'}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

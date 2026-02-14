@@ -14,6 +14,7 @@ export interface ScannedTag {
   data: string;
   name?: string;
   role?: string;
+  company?: string; // Adicionado para persistir a empresa no embarque
   leito?: string; // Adicionado para exibir o leito no treinamento
 }
 
