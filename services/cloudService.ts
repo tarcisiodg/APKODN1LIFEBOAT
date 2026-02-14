@@ -104,6 +104,23 @@ export const cloudService = {
     await updateDoc(userRef, updatePayload);
   },
 
+  // --- CONTADORES MANUAIS ---
+  async updateManualCounters(counters: Record<string, number>): Promise<void> {
+    const countersRef = doc(db, "config", "manual_counters");
+    await setDoc(countersRef, counters);
+  },
+
+  subscribeToManualCounters(callback: (counters: Record<string, number>) => void) {
+    const countersRef = doc(db, "config", "manual_counters");
+    return onSnapshot(countersRef, (doc) => {
+      if (doc.exists()) {
+        callback(doc.data() as Record<string, number>);
+      } else {
+        callback({});
+      }
+    });
+  },
+
   // --- GESTÃO DE POB / LEITOS ---
   
   async saveBerth(berth: Berth): Promise<void> {

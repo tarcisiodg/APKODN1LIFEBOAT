@@ -20,6 +20,11 @@ const LIFEBOATS: LifeboatType[] = [
   'Lifeboat 4', 'Lifeboat 5', 'Lifeboat 6'
 ];
 
+const MANUAL_CATEGORIES = [
+  'PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 
+  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS'
+];
+
 const Dashboard: React.FC<DashboardProps> = ({ 
   onStartTraining, 
   onResumeTraining,
@@ -32,8 +37,13 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [pendingCount, setPendingCount] = useState(0);
   const [berthStats, setBerthStats] = useState({ total: 0, occupied: 0 });
+  const [manualCounts, setManualCounts] = useState<Record<string, number>>(
+    Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]))
+  );
 
   useEffect(() => {
+    let unsubscribeCounters: () => void;
+
     if (user?.isAdmin) {
       const fetchData = async () => {
         try {
@@ -49,11 +59,32 @@ const Dashboard: React.FC<DashboardProps> = ({
           });
         } catch (e) { console.error(e); }
       };
+      
       fetchData();
       const interval = setInterval(fetchData, 30000);
-      return () => clearInterval(interval);
+
+      // Subscreve aos contadores manuais para tempo real
+      unsubscribeCounters = cloudService.subscribeToManualCounters((counters) => {
+        setManualCounts(prev => ({ ...prev, ...counters }));
+      });
+
+      return () => {
+        clearInterval(interval);
+        if (unsubscribeCounters) unsubscribeCounters();
+      };
     }
   }, [user]);
+
+  const updateManualCount = async (category: string, delta: number) => {
+    const newValue = Math.max(0, (manualCounts[category] || 0) + delta);
+    const updated = { ...manualCounts, [category]: newValue };
+    setManualCounts(updated);
+    try {
+      await cloudService.updateManualCounters(updated);
+    } catch (e) {
+      console.error("Erro ao atualizar contador:", e);
+    }
+  };
 
   const totalPeopleInFleet = useMemo(() => {
     return (Object.values(fleetStatus) as LifeboatStatus[]).reduce((sum, status) => {
@@ -102,64 +133,101 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {user.isAdmin && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 animate-in fade-in slide-in-from-top-4 duration-700 delay-200">
-           {/* Card 1: Pessoal nos Exercícios (Em tempo real) */}
-           <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[32px] shadow-2xl shadow-blue-600/20 text-white overflow-hidden relative min-h-[140px]">
-              <div className="relative z-10 flex flex-col justify-between h-full">
-                <div>
-                  <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/60 mb-2">TREINAMENTO EM CURSO</h4>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-black tabular-nums tracking-tighter">{totalPeopleInFleet}</span>
-                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Pessoas Muster</span>
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Sincronizado via Cloud</span>
-                </div>
-              </div>
-              <i className="fa-solid fa-people-group absolute right-[-10px] bottom-[-10px] text-8xl text-white/10 -rotate-12"></i>
-           </div>
-
-           {/* Card 2: POB Geral (Ocupação de Leitos) */}
-           <div className="bg-white p-6 rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative min-h-[140px] flex flex-col justify-between">
-              <div className="relative z-10">
-                <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 mb-2">ESTATÍSTICAS DA UNIDADE (POB)</h4>
-                <div className="flex items-center justify-between gap-4">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 animate-in fade-in slide-in-from-top-4 duration-700 delay-200">
+            {/* Card 1: Pessoal nos Exercícios (Em tempo real) */}
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[32px] shadow-2xl shadow-blue-600/20 text-white overflow-hidden relative min-h-[140px]">
+                <div className="relative z-10 flex flex-col justify-between h-full">
                   <div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter">{berthStats.occupied}</span>
-                      <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Leitos Ocupados</span>
+                    <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/60 mb-2">TREINAMENTO EM CURSO</h4>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-5xl font-black tabular-nums tracking-tighter">{totalPeopleInFleet}</span>
+                      <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Pessoas Muster</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="flex items-baseline gap-1.5 justify-end">
-                      <span className="text-2xl font-black text-slate-400 tabular-nums tracking-tighter">{berthStats.total}</span>
-                    </div>
-                    <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Capacidade Total</span>
+                  <div className="mt-4 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Sincronizado via Cloud</span>
                   </div>
                 </div>
-              </div>
+                <i className="fa-solid fa-people-group absolute right-[-10px] bottom-[-10px] text-8xl text-white/10 -rotate-12"></i>
+            </div>
 
-              <div className="relative z-10 mt-4">
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                   <div 
-                    className="h-full bg-blue-600 transition-all duration-1000 ease-out" 
-                    style={{ width: `${berthStats.total > 0 ? (berthStats.occupied / berthStats.total) * 100 : 0}%` }}
-                   ></div>
+            {/* Card 2: POB Geral (Ocupação de Leitos) */}
+            <div className="bg-white p-6 rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative min-h-[140px] flex flex-col justify-between">
+                <div className="relative z-10">
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 mb-2">ESTATÍSTICAS DA UNIDADE (POB)</h4>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter">{berthStats.occupied}</span>
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Leitos Ocupados</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-baseline gap-1.5 justify-end">
+                        <span className="text-2xl font-black text-slate-400 tabular-nums tracking-tighter">{berthStats.total}</span>
+                      </div>
+                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Capacidade Total</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between mt-2">
-                   <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest">
-                    {berthStats.total > 0 ? Math.round((berthStats.occupied / berthStats.total) * 100) : 0}% de Ocupação
-                   </span>
-                   <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
-                    {berthStats.total - berthStats.occupied} Disponíveis
-                   </span>
+
+                <div className="relative z-10 mt-4">
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-600 transition-all duration-1000 ease-out" 
+                      style={{ width: `${berthStats.total > 0 ? (berthStats.occupied / berthStats.total) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest">
+                      {berthStats.total > 0 ? Math.round((berthStats.occupied / berthStats.total) * 100) : 0}% de Ocupação
+                    </span>
+                    <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
+                      {berthStats.total - berthStats.occupied} Disponíveis
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <i className="fa-solid fa-bed absolute right-[-5px] top-[-5px] text-6xl text-slate-50"></i>
-           </div>
-        </div>
+                <i className="fa-solid fa-bed absolute right-[-5px] top-[-5px] text-6xl text-slate-50"></i>
+            </div>
+          </div>
+
+          {/* Seção de Contadores Manuais */}
+          <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+            <div className="flex items-center justify-between px-1 mb-4">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] flex items-center gap-3">
+                <i className="fa-solid fa-sliders text-blue-500"></i>
+                Controle de Grupos Operacionais
+              </h3>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {MANUAL_CATEGORIES.map(category => (
+                <div key={category} className="bg-white p-4 rounded-[28px] border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-3 text-center truncate">{category}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <button 
+                      onClick={() => updateManualCount(category, -1)}
+                      className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 transition-all active:scale-75"
+                    >
+                      <i className="fa-solid fa-minus text-[8px]"></i>
+                    </button>
+                    <span className="text-xl font-black text-slate-800 tabular-nums">
+                      {manualCounts[category] || 0}
+                    </span>
+                    <button 
+                      onClick={() => updateManualCount(category, 1)}
+                      className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-all active:scale-75"
+                    >
+                      <i className="fa-solid fa-plus text-[8px]"></i>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {!user.isAdmin && (
@@ -207,7 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {user.isAdmin && (
         <div className="grid gap-2.5">
           <div className="flex items-center justify-between px-1 mb-1">
-            <h3 className="text-[9px] text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2.5 font-normal">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] flex items-center gap-3">
               <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse"></span> 
               Monitoramento em Tempo Real
             </h3>
