@@ -79,6 +79,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   };
 
+  const setManualCountAbsolute = async (category: string, value: string) => {
+    // Se o valor for vazio, tratamos como 0 internamente mas salvamos o estado
+    const numValue = value === '' ? 0 : parseInt(value, 10);
+    const validValue = isNaN(numValue) ? 0 : Math.max(0, numValue);
+    
+    setManualCounts(prev => {
+      const updated = { ...prev, [category]: validValue };
+      cloudService.updateManualCounters(updated).catch(console.error);
+      return updated;
+    });
+  };
+
   const totalPeopleInFleet = useMemo(() => {
     return (Object.values(fleetStatus) as LifeboatStatus[]).reduce((sum: number, status: LifeboatStatus) => {
       return sum + (status?.isActive ? (status.count || 0) : 0);
@@ -89,9 +101,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     return (Object.values(manualCounts) as number[]).reduce((sum: number, val: number) => sum + (val || 0), 0);
   }, [manualCounts]);
 
+  // FIX: Define overallMusterTotal to resolve "Cannot find name" errors.
   const overallMusterTotal = useMemo(() => totalPeopleInFleet + totalManualGroups, [totalPeopleInFleet, totalManualGroups]);
-
-  const activeLifeboatsCount = useMemo(() => LIFEBOATS.filter(lb => fleetStatus[lb]?.isActive).length, [fleetStatus]);
 
   if (!user) return null;
 
@@ -195,19 +206,30 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* CONTADORES MANUAIS */}
           <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
             <div className="flex items-center justify-between px-1 mb-4">
-              <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-[0.25em] flex items-center gap-3"><i className="fa-solid fa-sliders text-blue-600"></i>Controle de Grupos Operacionais</h3>
+              <h3 className="text-[12px] font-black text-slate-700 uppercase tracking-[0.25em] flex items-center gap-3"><i className="fa-solid fa-sliders text-blue-600"></i>Controle de Grupos Operacionais</h3>
               <div className="bg-slate-200 px-4 py-1.5 rounded-full border border-slate-300">
-                <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">Total Manual: {totalManualGroups}</span>
+                <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Total Manual: {totalManualGroups}</span>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {MANUAL_CATEGORIES.map(category => (
-                <div key={category} className="bg-white p-3.5 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-all group active:scale-[0.98]">
-                  <p className="text-[8px] font-black text-slate-700 uppercase tracking-[0.1em] mb-3 text-center truncate">{category}</p>
-                  <div className="flex items-center justify-between gap-1.5">
-                    <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-rose-100 hover:text-rose-700 transition-all active:scale-75 shadow-sm"><i className="fa-solid fa-minus text-[8px]"></i></button>
-                    <span className="text-lg font-black text-slate-900 tabular-nums">{manualCounts[category] || 0}</span>
-                    <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-100 hover:text-blue-700 transition-all active:scale-75 shadow-sm"><i className="fa-solid fa-plus text-[8px]"></i></button>
+                <div key={category} className="bg-white p-4 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-all group active:scale-[0.98]">
+                  <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.1em] mb-3 text-center truncate">{category}</p>
+                  <div className="flex items-center justify-between gap-1.5 px-1">
+                    <button onClick={() => updateManualCount(category, -1)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-rose-100 hover:text-rose-700 transition-all active:scale-75 shadow-sm flex-shrink-0"><i className="fa-solid fa-minus text-[10px]"></i></button>
+                    
+                    <input 
+                      type="number" 
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      // Mostra vazio se o valor for 0
+                      value={manualCounts[category] === 0 ? '' : manualCounts[category]} 
+                      onChange={(e) => setManualCountAbsolute(category, e.target.value)}
+                      placeholder="0"
+                      className="w-full text-center text-2xl font-black text-slate-900 bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none tabular-nums placeholder-slate-200"
+                    />
+
+                    <button onClick={() => updateManualCount(category, 1)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-100 hover:text-blue-700 transition-all active:scale-75 shadow-sm flex-shrink-0"><i className="fa-solid fa-plus text-[10px]"></i></button>
                   </div>
                 </div>
               ))}
@@ -220,7 +242,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {user.isAdmin && (
         <div className="grid gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
           <div className="flex items-center justify-between px-1 mb-4">
-            <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-[0.25em] flex items-center gap-3"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse"></span>Monitoramento em Tempo Real</h3>
+            <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-[0.25em] flex items-center gap-3"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse"></span>Monitoramento em Tempo Real</h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-h-[100px]">
@@ -233,20 +255,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${isActive ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-slate-100 text-slate-500'}`}><i className={`fa-solid fa-ship text-[11px] ${isActive ? 'animate-pulse' : ''}`}></i></div>
                       <div className="flex flex-col min-w-0">
-                        <span className={`text-[11px] uppercase tracking-tight font-black truncate ${isActive ? 'text-blue-800' : 'text-slate-700'}`}>{lb}</span>
-                        <span className={`text-[8px] font-bold uppercase tracking-widest truncate ${isActive ? 'text-blue-500' : 'text-slate-500'}`}>
+                        <span className={`text-[12px] uppercase tracking-tight font-black truncate ${isActive ? 'text-blue-800' : 'text-slate-700'}`}>{lb}</span>
+                        <span className={`text-[9px] font-bold uppercase tracking-widest truncate ${isActive ? 'text-blue-500' : 'text-slate-500'}`}>
                           {isActive ? `Líder: ${status.leaderName || 'Não Definido'}` : 'Unidade em Espera'}
                         </span>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-2">
                       <div className="flex items-baseline justify-end gap-1">
-                        <span className={`text-sm font-mono font-bold ${isActive ? 'text-blue-600' : 'text-slate-900'}`}>{isActive ? (status?.count || 0) : 0}</span>
+                        <span className={`text-base font-mono font-bold ${isActive ? 'text-blue-600' : 'text-slate-900'}`}>{isActive ? (status?.count || 0) : 0}</span>
                       </div>
-                      <span className="text-[7px] uppercase opacity-70 font-black tracking-widest text-slate-600">Pessoas</span>
+                      <span className="text-[8px] uppercase opacity-80 font-black tracking-widest text-slate-700">Pessoas</span>
                     </div>
                   </div>
-                  {isActive && <div className="mt-3 pt-3 border-t border-blue-200 flex items-center justify-between"><div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span><span className="text-[7px] font-black text-emerald-600 uppercase tracking-widest">Sessão Ativa</span></div><i className="fa-solid fa-chevron-right text-[8px] text-blue-500"></i></div>}
+                  {isActive && <div className="mt-3 pt-3 border-t border-blue-200 flex items-center justify-between"><div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span><span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Sessão Ativa</span></div><i className="fa-solid fa-chevron-right text-[9px] text-blue-500"></i></div>}
                 </div>
               );
             })}
@@ -263,7 +285,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeSession ? 'bg-white text-blue-600' : 'bg-white/20 text-white'}`}><i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : 'fa-plus'} text-sm`}></i></div>
                 {activeSession && <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg flex items-center gap-2"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span><span className="text-[8px] font-black text-white uppercase tracking-widest">Live</span></div>}
               </div>
-              <div><h3 className="text-xl mb-0.5 uppercase tracking-tight font-black text-white">{activeSession ? 'RETOMAR TREINAMENTO' : 'INICIAR TREINAMENTO'}</h3>{activeSession ? <p className="text-white text-[9px] uppercase tracking-[0.2em] font-bold">Ativo na {activeSession.lifeboat} • {activeSession.tags.length} embarcados</p> : <p className="text-white/60 text-[9px] uppercase tracking-[0.2em] font-bold">Clique para configurar nova sessão</p>}</div>
+              <div><h3 className="text-xl mb-0.5 uppercase tracking-tight font-black text-white">{activeSession ? 'RETOMAR TREINAMENTO' : 'INICIAR TREINAMENTO'}</h3>{activeSession ? <p className="text-white text-[10px] uppercase tracking-[0.2em] font-bold">Ativo na {activeSession.lifeboat} • {activeSession.tags.length} embarcados</p> : <p className="text-white/80 text-[10px] uppercase tracking-[0.2em] font-bold">Clique para configurar nova sessão</p>}</div>
             </div>
             <i className={`fa-solid ${activeSession ? 'fa-circle-dot opacity-10' : 'fa-anchor opacity-5'} absolute right-[-10px] bottom-[-10px] text-[120px] text-white rotate-12 transition-all`}></i>
           </button>
