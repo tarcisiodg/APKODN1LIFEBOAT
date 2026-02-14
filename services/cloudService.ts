@@ -119,6 +119,25 @@ export const cloudService = {
       }
     });
   },
+
+  async getReleasedCrew(): Promise<string[]> {
+    const ref = doc(db, "config", "released_crew");
+    const snap = await getDoc(ref);
+    return snap.exists() ? (snap.data().ids || []) : [];
+  },
+
+  async updateReleasedCrew(ids: string[]): Promise<void> {
+    const ref = doc(db, "config", "released_crew");
+    await setDoc(ref, { ids, lastUpdate: new Date().toISOString() });
+  },
+
+  subscribeToReleasedCrew(callback: (ids: string[]) => void) {
+    const ref = doc(db, "config", "released_crew");
+    return onSnapshot(ref, (doc) => {
+      if (doc.exists()) callback(doc.data().ids || []);
+      else callback([]);
+    });
+  },
   
   async saveBerth(berth: Berth): Promise<void> {
     const berths = await this.getBerths();

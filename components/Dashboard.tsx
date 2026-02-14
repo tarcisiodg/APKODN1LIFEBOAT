@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, LifeboatStatus, LifeboatType, ActiveSession, AppState, TrainingRecord } from '../types';
+import { User, LifeboatStatus, LifeboatType, ActiveSession, AppState, TrainingRecord, Berth } from '../types';
 import { cloudService } from '../services/cloudService';
 
 interface DashboardProps {
@@ -40,9 +40,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [manualCounts, setManualCounts] = useState<Record<string, number>>(
     Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]))
   );
+  
+  const [allBerths, setAllBerths] = useState<Berth[]>([]);
+  const [releasedIds, setReleasedIds] = useState<string[]>([]);
+  const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     let unsubscribeCounters: () => void;
+    let unsubscribeReleased: () => void;
 
     if (user?.isAdmin) {
       const fetchData = async () => {
@@ -50,6 +57,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           const allUsers = await cloudService.getAllUsers();
           setPendingCount(allUsers.filter(u => u.status === 'pending').length);
           const berths = await cloudService.getBerths();
+          setAllBerths(berths);
           setBerthStats({
             total: berths.length,
             occupied: berths.filter(b => b.crewName && b.crewName.trim() !== '').length
@@ -59,18 +67,30 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       fetchData();
       const interval = setInterval(fetchData, 30000);
+      
       unsubscribeCounters = cloudService.subscribeToManualCounters((counters) => {
         setManualCounts(prev => ({ ...prev, ...counters }));
+      });
+
+      unsubscribeReleased = cloudService.subscribeToReleasedCrew((ids) => {
+        setReleasedIds(ids);
       });
 
       return () => {
         clearInterval(interval);
         if (unsubscribeCounters) unsubscribeCounters();
+        if (unsubscribeReleased) unsubscribeReleased();
       };
     }
   }, [user]);
 
   const updateManualCount = async (category: string, delta: number) => {
+    if (category === 'LIBERADOS') {
+      if (delta > 0) setIsReleaseModalOpen(true);
+      else if (releasedIds.length > 0) setIsReturnModalOpen(true);
+      return;
+    }
+
     setManualCounts(prev => {
       const newValue = Math.max(0, (prev[category] || 0) + delta);
       const updated = { ...prev, [category]: newValue };
@@ -79,8 +99,26 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   };
 
+  const handleToggleRelease = async (berthId: string) => {
+    let newReleased = [...releasedIds];
+    if (newReleased.includes(berthId)) {
+      newReleased = newReleased.filter(id => id !== berthId);
+    } else {
+      newReleased.push(berthId);
+    }
+    
+    setReleasedIds(newReleased);
+    await cloudService.updateReleasedCrew(newReleased);
+    
+    // Sincroniza o contador manual de LIBERADOS
+    const updatedManual = { ...manualCounts, 'LIBERADOS': newReleased.length };
+    setManualCounts(updatedManual);
+    await cloudService.updateManualCounters(updatedManual);
+  };
+
   const setManualCountAbsolute = async (category: string, value: string) => {
-    // Se o valor for vazio, tratamos como 0 internamente mas salvamos o estado
+    if (category === 'LIBERADOS') return; // Bloqueia edição direta em Liberados
+
     const numValue = value === '' ? 0 : parseInt(value, 10);
     const validValue = isNaN(numValue) ? 0 : Math.max(0, numValue);
     
@@ -101,8 +139,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     return (Object.values(manualCounts) as number[]).reduce((sum: number, val: number) => sum + (val || 0), 0);
   }, [manualCounts]);
 
-  // FIX: Define overallMusterTotal to resolve "Cannot find name" errors.
   const overallMusterTotal = useMemo(() => totalPeopleInFleet + totalManualGroups, [totalPeopleInFleet, totalManualGroups]);
+
+  const availableToRelease = useMemo(() => {
+    return allBerths.filter(b => b.crewName && !releasedIds.includes(b.id));
+  }, [allBerths, releasedIds]);
+
+  const releasedCrew = useMemo(() => {
+    return allBerths.filter(b => releasedIds.includes(b.id));
+  }, [allBerths, releasedIds]);
 
   if (!user) return null;
 
@@ -213,23 +258,27 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {MANUAL_CATEGORIES.map(category => (
-                <div key={category} className="bg-white p-4 rounded-[32px] border border-slate-200 shadow-sm hover:shadow-md transition-all group active:scale-[0.98]">
+                <div key={category} className={`bg-white p-4 rounded-[32px] border transition-all group active:scale-[0.98] ${category === 'LIBERADOS' ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 shadow-sm hover:shadow-md'}`}>
                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.1em] mb-3 text-center truncate">{category}</p>
                   <div className="flex items-center justify-between gap-1.5 px-1">
-                    <button onClick={() => updateManualCount(category, -1)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-rose-100 hover:text-rose-700 transition-all active:scale-75 shadow-sm flex-shrink-0"><i className="fa-solid fa-minus text-[10px]"></i></button>
+                    <button onClick={() => updateManualCount(category, -1)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-75 shadow-sm flex-shrink-0 ${category === 'LIBERADOS' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-700'}`}>
+                      <i className={`fa-solid ${category === 'LIBERADOS' ? 'fa-minus' : 'fa-minus'} text-[10px]`}></i>
+                    </button>
                     
                     <input 
                       type="number" 
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      // Mostra vazio se o valor for 0
                       value={manualCounts[category] === 0 ? '' : manualCounts[category]} 
                       onChange={(e) => setManualCountAbsolute(category, e.target.value)}
                       placeholder="0"
-                      className="w-full text-center text-2xl font-black text-slate-900 bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none tabular-nums placeholder-slate-200"
+                      readOnly={category === 'LIBERADOS'}
+                      className={`w-full text-center text-2xl font-black text-slate-900 bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none tabular-nums placeholder-slate-200 ${category === 'LIBERADOS' ? 'cursor-default' : ''}`}
                     />
 
-                    <button onClick={() => updateManualCount(category, 1)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-blue-100 hover:text-blue-700 transition-all active:scale-75 shadow-sm flex-shrink-0"><i className="fa-solid fa-plus text-[10px]"></i></button>
+                    <button onClick={() => updateManualCount(category, 1)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-75 shadow-sm flex-shrink-0 ${category === 'LIBERADOS' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700'}`}>
+                      <i className={`fa-solid ${category === 'LIBERADOS' ? 'fa-plus' : 'fa-plus'} text-[10px]`}></i>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -289,6 +338,71 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <i className={`fa-solid ${activeSession ? 'fa-circle-dot opacity-10' : 'fa-anchor opacity-5'} absolute right-[-10px] bottom-[-10px] text-[120px] text-white rotate-12 transition-all`}></i>
           </button>
+        </div>
+      )}
+
+      {/* Modal para Adicionar Liberados */}
+      {isReleaseModalOpen && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-slate-900 uppercase">Liberar Tripulante</h3>
+              <button onClick={() => { setIsReleaseModalOpen(false); setSearchTerm(''); }} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div className="mb-6 relative">
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
+              <input type="text" placeholder="Buscar por nome..." className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-amber-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+            <div className="max-h-80 overflow-y-auto space-y-2 mb-8 pr-2 custom-scrollbar">
+              {availableToRelease.filter(b => b.crewName?.toUpperCase().includes(searchTerm.toUpperCase())).length === 0 ? (
+                <p className="text-center text-[10px] font-bold text-slate-400 uppercase py-10">Nenhum tripulante disponível</p>
+              ) : (
+                availableToRelease.filter(b => b.crewName?.toUpperCase().includes(searchTerm.toUpperCase())).map(b => (
+                  <button key={b.id} onClick={() => handleToggleRelease(b.id)} className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-amber-50 rounded-2xl border border-transparent hover:border-amber-200 transition-all group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[10px] font-black shadow-sm group-hover:bg-amber-600 group-hover:text-white transition-colors">{b.id}</div>
+                      <div className="text-left">
+                        <p className="text-xs font-black text-slate-800 uppercase leading-none mb-1">{b.crewName}</p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{b.role || 'TRIPULANTE'}</p>
+                      </div>
+                    </div>
+                    <i className="fa-solid fa-plus text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Remover de Liberados */}
+      {isReturnModalOpen && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-slate-900 uppercase">Remover de Liberados</h3>
+              <button onClick={() => { setIsReturnModalOpen(false); setSearchTerm(''); }} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div className="max-h-80 overflow-y-auto space-y-2 mb-8 pr-2 custom-scrollbar">
+              {releasedCrew.length === 0 ? (
+                <p className="text-center text-[10px] font-bold text-slate-400 uppercase py-10">Lista vazia</p>
+              ) : (
+                releasedCrew.map(b => (
+                  <button key={b.id} onClick={() => handleToggleRelease(b.id)} className="w-full flex items-center justify-between p-4 bg-amber-50 rounded-2xl border border-amber-100 hover:bg-rose-50 hover:border-rose-200 transition-all group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[10px] font-black shadow-sm group-hover:bg-rose-600 group-hover:text-white transition-colors">{b.id}</div>
+                      <div className="text-left">
+                        <p className="text-xs font-black text-slate-800 uppercase leading-none mb-1">{b.crewName}</p>
+                        <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest group-hover:text-rose-600">LIBERADO</p>
+                      </div>
+                    </div>
+                    <i className="fa-solid fa-trash-can text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                  </button>
+                ))
+              )}
+            </div>
+            <button onClick={() => setIsReturnModalOpen(false)} className="w-full py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase">Fechar</button>
+          </div>
         </div>
       )}
     </div>

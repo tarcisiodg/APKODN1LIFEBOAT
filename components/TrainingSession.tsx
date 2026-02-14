@@ -38,8 +38,16 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [invalidScanId, setInvalidScanId] = useState<string | null>(null);
   const [tagToDelete, setTagToDelete] = useState<ScannedTag | null>(null);
   const [viewTab, setViewTab] = useState<'present' | 'pending'>('present');
+  const [releasedIds, setReleasedIds] = useState<string[]>([]);
   
   const nfcReaderRef = useRef<any>(null);
+
+  useEffect(() => {
+    const unsub = cloudService.subscribeToReleasedCrew((ids) => {
+      setReleasedIds(ids);
+    });
+    return () => unsub();
+  }, []);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -51,15 +59,20 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const pendingCrew = useMemo(() => {
     if (!session.expectedCrew) return [];
     return session.expectedCrew.filter(berth => {
+      // Regra 1: Não deve estar já na lista de embarcados (tags)
       const isAnyTagScanned = session.tags.some(tag => 
         (berth.tagId1 && tag.id.trim().toLowerCase() === berth.tagId1.trim().toLowerCase()) ||
         (berth.tagId2 && tag.id.trim().toLowerCase() === berth.tagId2.trim().toLowerCase()) ||
         (berth.tagId3 && tag.id.trim().toLowerCase() === berth.tagId3.trim().toLowerCase()) ||
         (tag.leito === berth.id)
       );
-      return !isAnyTagScanned;
+      
+      // Regra 2: Não deve estar na lista de LIBERADOS
+      const isReleased = releasedIds.includes(berth.id);
+
+      return !isAnyTagScanned && !isReleased;
     });
-  }, [session.expectedCrew, session.tags]);
+  }, [session.expectedCrew, session.tags, releasedIds]);
 
   const getBerthInfoForTag = (tag: ScannedTag) => {
     if (!session.expectedCrew || !tag.leito) return { role: tag.role, company: tag.company };
@@ -78,7 +91,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       nfcReaderRef.current = reader;
       await reader.scan();
       setNfcState('active');
-      reader.addEventListener("reading", ({ message, serialNumber }: any) => {
+      reader.addEventListener("reading", async ({ message, serialNumber }: any) => {
         const tagId = serialNumber || "";
         if (!tagId) return;
 
@@ -99,6 +112,13 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         if (alreadyPresent) {
           if (navigator.vibrate) navigator.vibrate([50]);
           return;
+        }
+
+        // Caso a pessoa esteja na lista de LIBERADOS mas escaneou agora
+        if (matchedBerth && releasedIds.includes(matchedBerth.id)) {
+          const newReleased = releasedIds.filter(id => id !== matchedBerth.id);
+          await cloudService.updateReleasedCrew(newReleased);
+          // O subscription irá atualizar o estado local automaticamente
         }
 
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
@@ -152,7 +172,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         
         await Promise.all([
           cloudService.updateFleetStatus(resetFleet),
-          cloudService.updateManualCounters(resetCounters)
+          cloudService.updateManualCounters(resetCounters),
+          cloudService.updateReleasedCrew([]) // Limpa liberados no fim do muster geral
         ]);
       }
 
