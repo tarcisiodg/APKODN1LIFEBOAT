@@ -52,6 +52,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     }, 0);
   }, [fleetStatus]);
 
+  // Filtra apenas as baleeiras que estão ativas
+  const activeLifeboats = useMemo(() => {
+    return LIFEBOATS.filter(lb => fleetStatus[lb]?.isActive);
+  }, [fleetStatus]);
+
   if (!user) return null;
 
   return (
@@ -158,40 +163,52 @@ const Dashboard: React.FC<DashboardProps> = ({
               <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse"></span> 
               Monitoramento em Tempo Real
             </h3>
-            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">6 Unidades</span>
+            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
+              {activeLifeboats.length} {activeLifeboats.length === 1 ? 'Unidade Ativa' : 'Unidades Ativas'}
+            </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {LIFEBOATS.map(lb => {
-              const status = fleetStatus[lb];
-              const isOccupied = status && status.isActive;
-              return (
-                <div 
-                  key={lb} 
-                  onClick={() => isOccupied && onViewLifeboat(lb)}
-                  className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${isOccupied ? 'bg-blue-50 border-blue-100 ring-1 ring-blue-200 cursor-pointer hover:shadow-md' : 'bg-white border-slate-100'}`}
-                >
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isOccupied ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 text-slate-400'}`}>
-                      <i className="fa-solid fa-ship text-[10px]"></i>
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className={`text-[11px] uppercase tracking-tight font-black truncate ${isOccupied ? 'text-blue-700' : 'text-slate-600'}`}>
-                        {lb}
-                      </span>
-                      {isOccupied && (
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">
-                          Líder: {status.leaderName || 'Não Definido'}
-                        </span>
-                      )}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-h-[100px]">
+            {activeLifeboats.length > 0 ? (
+              activeLifeboats.map(lb => {
+                const status = fleetStatus[lb];
+                return (
+                  <div 
+                    key={lb} 
+                    onClick={() => onViewLifeboat(lb)}
+                    className="p-3 rounded-2xl border bg-blue-50 border-blue-100 ring-1 ring-blue-200 cursor-pointer hover:shadow-md transition-all animate-in fade-in zoom-in-95 duration-300"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                          <i className="fa-solid fa-ship text-[10px]"></i>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[11px] uppercase tracking-tight font-black truncate text-blue-700">
+                            {lb}
+                          </span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                            Líder: {status.leaderName || 'Não Definido'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <span className="text-xs font-mono font-normal text-blue-600">{status?.count || 0}</span>
+                        <span className="text-[7px] uppercase ml-1 opacity-30 font-normal">Pessoas</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-2">
-                    <span className={`text-xs font-mono font-normal ${isOccupied ? 'text-blue-600' : 'text-slate-400'}`}>{status?.count || 0}</span>
-                    <span className="text-[7px] uppercase ml-1 opacity-30 font-normal">Pessoas</span>
-                  </div>
+                );
+              })
+            ) : (
+              <div className="col-span-full py-16 px-6 border-2 border-dashed border-slate-100 rounded-[32px] flex flex-col items-center justify-center text-center bg-white/50">
+                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-200 mb-4">
+                  <i className="fa-solid fa-satellite-dish text-xl"></i>
                 </div>
-              );
-            })}
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Nenhuma baleeira ativa no momento</p>
+                <p className="text-[8px] font-bold text-slate-300/60 uppercase mt-1">Aguardando início de novos exercícios</p>
+              </div>
+            )}
           </div>
         </div>
       )}
