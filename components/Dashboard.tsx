@@ -31,17 +31,26 @@ const Dashboard: React.FC<DashboardProps> = ({
   activeSession
 }) => {
   const [pendingCount, setPendingCount] = useState(0);
+  const [berthStats, setBerthStats] = useState({ total: 0, occupied: 0 });
 
   useEffect(() => {
     if (user?.isAdmin) {
-      const checkPending = async () => {
+      const fetchData = async () => {
         try {
+          // Busca usuários pendentes
           const allUsers = await cloudService.getAllUsers();
           setPendingCount(allUsers.filter(u => u.status === 'pending').length);
+          
+          // Busca estatísticas de leitos (POB)
+          const berths = await cloudService.getBerths();
+          setBerthStats({
+            total: berths.length,
+            occupied: berths.filter(b => b.crewName && b.crewName.trim() !== '').length
+          });
         } catch (e) { console.error(e); }
       };
-      checkPending();
-      const interval = setInterval(checkPending, 30000);
+      fetchData();
+      const interval = setInterval(fetchData, 30000);
       return () => clearInterval(interval);
     }
   }, [user]);
@@ -52,7 +61,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     }, 0);
   }, [fleetStatus]);
 
-  // Filtra apenas as baleeiras que estão ativas
   const activeLifeboats = useMemo(() => {
     return LIFEBOATS.filter(lb => fleetStatus[lb]?.isActive);
   }, [fleetStatus]);
@@ -60,7 +68,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   if (!user) return null;
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-32">
+    <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pb-32">
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
           <h2 className="text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">
@@ -94,22 +102,62 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {user.isAdmin && (
-        <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-700 delay-200">
-           <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-5 rounded-[28px] shadow-2xl shadow-blue-600/20 text-white overflow-hidden relative">
-              <div className="relative z-10 flex items-center justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 animate-in fade-in slide-in-from-top-4 duration-700 delay-200">
+           {/* Card 1: Pessoal nos Exercícios (Em tempo real) */}
+           <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[32px] shadow-2xl shadow-blue-600/20 text-white overflow-hidden relative min-h-[140px]">
+              <div className="relative z-10 flex flex-col justify-between h-full">
                 <div>
-                  <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/60 mb-1">TOTAL EMBARCADO</h4>
+                  <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/60 mb-2">TREINAMENTO EM CURSO</h4>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black tabular-nums tracking-tighter">{totalPeopleInFleet}</span>
-                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Pessoas</span>
+                    <span className="text-5xl font-black tabular-nums tracking-tighter">{totalPeopleInFleet}</span>
+                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Pessoas Muster</span>
                   </div>
                 </div>
-                <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10">
-                  <i className="fa-solid fa-people-group text-xl text-white"></i>
+                <div className="mt-4 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Sincronizado via Cloud</span>
                 </div>
               </div>
-              <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-[-20%] left-[-10%] w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
+              <i className="fa-solid fa-people-group absolute right-[-10px] bottom-[-10px] text-8xl text-white/10 -rotate-12"></i>
+           </div>
+
+           {/* Card 2: POB Geral (Ocupação de Leitos) */}
+           <div className="bg-white p-6 rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative min-h-[140px] flex flex-col justify-between">
+              <div className="relative z-10">
+                <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 mb-2">ESTATÍSTICAS DA UNIDADE (POB)</h4>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-4xl font-black text-slate-900 tabular-nums tracking-tighter">{berthStats.occupied}</span>
+                      <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Leitos Ocupados</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-baseline gap-1.5 justify-end">
+                      <span className="text-2xl font-black text-slate-400 tabular-nums tracking-tighter">{berthStats.total}</span>
+                    </div>
+                    <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Capacidade Total</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative z-10 mt-4">
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                   <div 
+                    className="h-full bg-blue-600 transition-all duration-1000 ease-out" 
+                    style={{ width: `${berthStats.total > 0 ? (berthStats.occupied / berthStats.total) * 100 : 0}%` }}
+                   ></div>
+                </div>
+                <div className="flex justify-between mt-2">
+                   <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest">
+                    {berthStats.total > 0 ? Math.round((berthStats.occupied / berthStats.total) * 100) : 0}% de Ocupação
+                   </span>
+                   <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
+                    {berthStats.total - berthStats.occupied} Disponíveis
+                   </span>
+                </div>
+              </div>
+              <i className="fa-solid fa-bed absolute right-[-5px] top-[-5px] text-6xl text-slate-50"></i>
            </div>
         </div>
       )}
