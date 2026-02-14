@@ -1,7 +1,7 @@
 {
-  "name": "LIFEBOAT MUSTER ",
+  "name": "Lifesafe ODN1 (NS-41)",
   "short_name": "Lifesafe",
-  "description": "Plataforma de monitoramento de embarque em baleeiras em situações reais ou treinamento.",
+  "description": "Plataforma de monitoramento de embarque e treinamento em baleeiras para a unidade ODN1 NS-41, com tecnologia NFC.",
   "requestFramePermissions": [
     "geolocation",
     "camera"

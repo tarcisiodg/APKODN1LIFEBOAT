@@ -23,6 +23,8 @@ export interface Berth {
   tagId2: string; // ID Físico da Tag 2
   tagId3: string; // ID Físico da Tag 3
   crewName: string;
+  role?: string;    // Função do tripulante
+  company?: string; // Empresa do tripulante
   lifeboat: LifeboatType;
   secondaryLifeboat?: LifeboatType;
 }

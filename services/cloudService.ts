@@ -122,21 +122,24 @@ export const cloudService = {
     await setDoc(pobRef, { berths, lastUpdate: new Date().toISOString() });
   },
 
-  async saveBerthNames(nameMap: Record<string, string>): Promise<void> {
+  async saveBerthNames(detailsMap: Record<string, { crewName: string, role: string, company: string }>): Promise<void> {
     const berths = await this.getBerths();
     const updated = berths.map(b => ({
       ...b,
-      crewName: nameMap[b.id] || b.crewName
+      crewName: detailsMap[b.id]?.crewName || b.crewName,
+      role: detailsMap[b.id]?.role || b.role || '',
+      company: detailsMap[b.id]?.company || b.company || ''
     }));
     await this.saveBerths(updated);
   },
 
-  // NOVA LÓGICA: Limpa apenas os nomes, mantendo Leitos e Tags
   async clearBerthNames(): Promise<void> {
     const berths = await this.getBerths();
     const cleared = berths.map(b => ({
       ...b,
-      crewName: ''
+      crewName: '',
+      role: '',
+      company: ''
     }));
     await this.saveBerths(cleared);
   },
