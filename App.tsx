@@ -242,7 +242,14 @@ const App: React.FC = () => {
         await cloudService.updateFleetStatus(finalFleet);
       } catch (e) { console.error(e); }
     }
-    setUser(null); setActiveSession(null); setTempConfig(null); setFleetStatus(INITIAL_STATUS); localStorage.clear(); setCurrentPage(AppState.LOGIN); setIsSyncing(false);
+    setUser(null); 
+    setActiveSession(null); 
+    setTempConfig(null); 
+    setFleetStatus(INITIAL_STATUS); 
+    localStorage.clear(); 
+    setIsConfirmingLogout(false);
+    setCurrentPage(AppState.LOGIN); 
+    setIsSyncing(false);
   };
 
   const finishSession = async () => {
