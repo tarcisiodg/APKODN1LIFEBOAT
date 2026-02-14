@@ -63,7 +63,7 @@ const App: React.FC = () => {
           const parsedSession = JSON.parse(savedSession);
           if (!parsedSession.isPaused && parsedSession.startTime) {
             const elapsed = Math.floor((Date.now() - parsedSession.startTime) / 1000);
-            parsedSession.seconds = parsedSession.accumulatedSeconds + elapsed;
+            parsedSession.seconds = (parsedSession.accumulatedSeconds || 0) + elapsed;
           }
           setActiveSession(parsedSession);
           activeSessionRef.current = parsedSession;
@@ -82,23 +82,24 @@ const App: React.FC = () => {
         setFleetStatus(currentLocalStatus => {
           const mergedStatus = { ...INITIAL_STATUS, ...updatedStatusFromCloud };
           const localActiveSession = activeSessionRef.current;
-          if (localActiveSession && !localActiveSession.isAdminView && !isInitializingRef.current) {
+          
+          if (localActiveSession && !isInitializingRef.current) {
             const remoteStatus = mergedStatus[localActiveSession.lifeboat];
+            // Se a sessão foi encerrada remotamente pelo administrador
             if (!remoteStatus?.isActive) {
               setActiveSession(null);
               setCurrentPage(AppState.DASHBOARD);
-              alert(`O exercício na ${localActiveSession.lifeboat} foi encerrado.`);
-            }
-          }
-          if (localActiveSession?.isAdminView) {
-            const remoteData = mergedStatus[localActiveSession.lifeboat];
-            if (remoteData) {
-              let currentSeconds = remoteData.seconds || 0;
-              if (!remoteData.isPaused && remoteData.startTime) {
-                const elapsed = Math.floor((Date.now() - remoteData.startTime) / 1000);
-                currentSeconds = (remoteData.accumulatedSeconds || 0) + elapsed;
+              if (!localActiveSession.isAdminView) {
+                alert(`O exercício na ${localActiveSession.lifeboat} foi encerrado pelo Coordenador.`);
               }
-              setActiveSession(prev => prev ? { ...prev, tags: remoteData.tags || [], seconds: currentSeconds, isPaused: remoteData.isPaused || false } : null);
+            } else if (localActiveSession.isAdminView) {
+              // Atualiza dados para visualização do Admin
+              let currentSeconds = remoteStatus.seconds || 0;
+              if (!remoteStatus.isPaused && remoteStatus.startTime) {
+                const elapsed = Math.floor((Date.now() - remoteStatus.startTime) / 1000);
+                currentSeconds = (remoteStatus.accumulatedSeconds || 0) + elapsed;
+              }
+              setActiveSession(prev => prev ? { ...prev, tags: remoteStatus.tags || [], seconds: currentSeconds, isPaused: remoteStatus.isPaused || false } : null);
             }
           }
           return mergedStatus;
@@ -150,8 +151,6 @@ const App: React.FC = () => {
     if (!tagId) return;
     setActiveSession(prev => {
       if (!prev || prev.isPaused || prev.isAdminView) return prev;
-      
-      // Verifica se a TAG física exata já foi lida
       if (prev.tags.some(t => t.id === tagId)) return prev;
 
       const matchedBerth = prev.expectedCrew?.find(b => 
@@ -161,8 +160,6 @@ const App: React.FC = () => {
       );
       
       if (!matchedBerth) return prev; 
-
-      // REGRA DE OURO: Verifica se alguém deste LEITO já embarcou com qualquer outra TAG
       if (prev.tags.some(t => t.leito === matchedBerth.id)) return prev;
 
       const newTag: ScannedTag = { 
@@ -170,8 +167,8 @@ const App: React.FC = () => {
         timestamp: new Date().toLocaleTimeString('pt-BR'), 
         data: tagData || tagId, 
         name: matchedBerth.crewName, 
-        role: matchedBerth.role || 'TRIPULANTE', // Captura a função real
-        company: matchedBerth.company || 'N/A', // Captura a empresa real
+        role: matchedBerth.role || 'TRIPULANTE',
+        company: matchedBerth.company || 'N/A',
         leito: matchedBerth.id
       };
 

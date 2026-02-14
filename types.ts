@@ -14,18 +14,18 @@ export interface ScannedTag {
   data: string;
   name?: string;
   role?: string;
-  company?: string; // Adicionado para persistir a empresa no embarque
-  leito?: string; // Adicionado para exibir o leito no treinamento
+  company?: string;
+  leito?: string;
 }
 
 export interface Berth {
-  id: string; // Número do Leito
-  tagId1: string; // ID Físico da Tag 1
-  tagId2: string; // ID Físico da Tag 2
-  tagId3: string; // ID Físico da Tag 3
+  id: string;
+  tagId1: string;
+  tagId2: string;
+  tagId3: string;
   crewName: string;
-  role?: string;    // Função do tripulante
-  company?: string; // Empresa do tripulante
+  role?: string;
+  company?: string;
   lifeboat: LifeboatType;
   secondaryLifeboat?: LifeboatType;
 }
@@ -42,6 +42,14 @@ export interface LifeboatStatus {
   tags?: ScannedTag[];
   seconds?: number;
   isPaused?: boolean;
+}
+
+export interface GlobalSession {
+  isActive: boolean;
+  startTime: number;
+  trainingType: 'Gás' | 'Fogo/Abandono';
+  isRealScenario: boolean;
+  adminName: string;
 }
 
 export interface ActiveSession {
@@ -61,7 +69,7 @@ export interface ActiveSession {
 export interface TrainingRecord {
   id: string;
   date: string;
-  lifeboat: LifeboatType;
+  lifeboat: LifeboatType | 'FROTA COMPLETA';
   leaderName: string;
   trainingType: string;
   isRealScenario: boolean;

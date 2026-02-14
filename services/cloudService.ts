@@ -13,7 +13,7 @@ import {
   limit,
   onSnapshot
 } from "firebase/firestore";
-import { User, TrainingRecord, LifeboatStatus, LifeboatType, Berth } from '../types';
+import { User, TrainingRecord, LifeboatStatus, LifeboatType, Berth, GlobalSession } from '../types';
 
 const NATIVE_USER_DATA: Record<string, { name: string, role: string, pass: string, isAdmin: boolean }> = {
   'odn1radiooperator': { name: 'Radio Operator', role: 'ADMINISTRADOR', pass: '1234', isAdmin: true },
@@ -203,6 +203,23 @@ export const cloudService = {
     const fleetRef = doc(db, "fleet", "status");
     return onSnapshot(fleetRef, (doc) => {
       if (doc.exists()) callback(doc.data() as Record<LifeboatType, LifeboatStatus>);
+    });
+  },
+
+  // --- SESSÃO GLOBAL ---
+  async updateGlobalSession(session: GlobalSession): Promise<void> {
+    const sessionRef = doc(db, "config", "global_session");
+    await setDoc(sessionRef, session);
+  },
+
+  subscribeToGlobalSession(callback: (session: GlobalSession | null) => void) {
+    const sessionRef = doc(db, "config", "global_session");
+    return onSnapshot(sessionRef, (doc) => {
+      if (doc.exists()) {
+        callback(doc.data() as GlobalSession);
+      } else {
+        callback(null);
+      }
     });
   }
 };

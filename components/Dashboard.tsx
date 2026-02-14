@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, LifeboatStatus, LifeboatType, ActiveSession, AppState } from '../types';
+import { User, LifeboatStatus, LifeboatType, ActiveSession, AppState, GlobalSession, TrainingRecord } from '../types';
 import { cloudService } from '../services/cloudService';
+import { generateTrainingSummary } from '../services/geminiService';
 
 interface DashboardProps {
   onStartTraining: () => void;
@@ -40,18 +41,22 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [manualCounts, setManualCounts] = useState<Record<string, number>>(
     Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]))
   );
+  
+  // Estado da Sessão Global
+  const [globalSession, setGlobalSession] = useState<GlobalSession | null>(null);
+  const [globalSeconds, setGlobalSeconds] = useState(0);
+  const [isConfiguringGlobal, setIsConfiguringGlobal] = useState(false);
+  const [isEndingGlobal, setIsEndingGlobal] = useState(false);
 
   useEffect(() => {
     let unsubscribeCounters: () => void;
+    let unsubscribeGlobal: () => void;
 
     if (user?.isAdmin) {
       const fetchData = async () => {
         try {
-          // Busca usuários pendentes
           const allUsers = await cloudService.getAllUsers();
           setPendingCount(allUsers.filter(u => u.status === 'pending').length);
-          
-          // Busca estatísticas de leitos (POB)
           const berths = await cloudService.getBerths();
           setBerthStats({
             total: berths.length,
@@ -63,27 +68,43 @@ const Dashboard: React.FC<DashboardProps> = ({
       fetchData();
       const interval = setInterval(fetchData, 30000);
 
-      // Subscreve aos contadores manuais para tempo real
       unsubscribeCounters = cloudService.subscribeToManualCounters((counters) => {
         setManualCounts(prev => ({ ...prev, ...counters }));
+      });
+
+      unsubscribeGlobal = cloudService.subscribeToGlobalSession((session) => {
+        setGlobalSession(session);
       });
 
       return () => {
         clearInterval(interval);
         if (unsubscribeCounters) unsubscribeCounters();
+        if (unsubscribeGlobal) unsubscribeGlobal();
       };
     }
   }, [user]);
 
-  const updateManualCount = async (category: string, delta: number) => {
-    const newValue = Math.max(0, (manualCounts[category] || 0) + delta);
-    const updated = { ...manualCounts, [category]: newValue };
-    setManualCounts(updated);
-    try {
-      await cloudService.updateManualCounters(updated);
-    } catch (e) {
-      console.error("Erro ao atualizar contador:", e);
+  // Timer Global Sincronizado
+  useEffect(() => {
+    let timer: number;
+    if (globalSession?.isActive) {
+      timer = window.setInterval(() => {
+        const elapsed = Math.floor((Date.now() - globalSession.startTime) / 1000);
+        setGlobalSeconds(elapsed);
+      }, 1000);
+    } else {
+      setGlobalSeconds(0);
     }
+    return () => clearInterval(timer);
+  }, [globalSession]);
+
+  const updateManualCount = async (category: string, delta: number) => {
+    setManualCounts(prev => {
+      const newValue = Math.max(0, (prev[category] || 0) + delta);
+      const updated = { ...prev, [category]: newValue };
+      cloudService.updateManualCounters(updated).catch(console.error);
+      return updated;
+    });
   };
 
   const totalPeopleInFleet = useMemo(() => {
@@ -104,10 +125,100 @@ const Dashboard: React.FC<DashboardProps> = ({
     return LIFEBOATS.filter(lb => fleetStatus[lb]?.isActive).length;
   }, [fleetStatus]);
 
+  const formatTime = (totalSeconds: number) => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleStartGlobalMuster = async (type: 'Gás' | 'Fogo/Abandono', isReal: boolean) => {
+    const session: GlobalSession = {
+      isActive: true,
+      startTime: Date.now(),
+      trainingType: type,
+      isRealScenario: isReal,
+      adminName: user?.name || 'Administrador'
+    };
+    await cloudService.updateGlobalSession(session);
+    setIsConfiguringGlobal(false);
+  };
+
+  const handleEndGlobalMuster = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!globalSession || isEndingGlobal) {
+      console.log("End blocked:", { hasSession: !!globalSession, isEnding: isEndingGlobal });
+      return;
+    }
+    
+    setIsEndingGlobal(true);
+    console.log("Starting Global Muster Shutdown...");
+
+    try {
+      const durationStr = formatTime(globalSeconds);
+      
+      // 1. DESATIVAR TUDO IMEDIATAMENTE (RESET GLOBAL NA NUVEM)
+      // Esta é a parte mais crítica, deve ser rápida.
+      const resetFleet: any = {};
+      LIFEBOATS.forEach(lb => {
+        resetFleet[lb] = { count: 0, isActive: false, tags: [], seconds: 0 };
+      });
+      
+      // Envia as atualizações em paralelo para a nuvem
+      await Promise.all([
+        cloudService.updateFleetStatus(resetFleet),
+        cloudService.updateManualCounters(Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]))),
+        cloudService.updateGlobalSession({ ...globalSession, isActive: false })
+      ]);
+
+      console.log("Fleet and Global Timer reset successfully.");
+
+      // 2. COLETAR DADOS PARA O HISTÓRICO (PROCESSO EM SEGUNDO PLANO)
+      const allScannedTags: any[] = [];
+      Object.entries(fleetStatus).forEach(([lb, s]) => {
+        if (s.tags) allScannedTags.push(...s.tags);
+      });
+
+      let summary = "Exercício de Muster global finalizado.";
+      try {
+        // Tentamos gerar o resumo, mas não deixamos falhar o encerramento se a IA demorar
+        summary = await generateTrainingSummary('FROTA COMPLETA', overallMusterTotal, durationStr);
+      } catch (iaErr) {
+        console.warn("IA Summary error:", iaErr);
+      }
+
+      const record: TrainingRecord = {
+        id: crypto.randomUUID(),
+        date: new Date().toLocaleString('pt-BR'),
+        lifeboat: 'FROTA COMPLETA',
+        leaderName: globalSession.adminName,
+        trainingType: globalSession.trainingType,
+        isRealScenario: globalSession.isRealScenario,
+        crewCount: overallMusterTotal,
+        duration: durationStr,
+        summary: summary,
+        operator: user?.name || 'Sistema',
+        tags: allScannedTags
+      };
+
+      await cloudService.saveTrainingRecord(record);
+      console.log("History record saved.");
+      
+    } catch (err) {
+      console.error("Critical failure during Muster end:", err);
+      alert("Erro ao encerrar muster. Verifique sua conexão e tente novamente.");
+    } finally {
+      setIsEndingGlobal(false);
+    }
+  };
+
   if (!user) return null;
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-6xl mx-auto w-full pb-32">
+      {/* HEADER DO DASHBOARD */}
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
           <h2 className="text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">
@@ -142,8 +253,69 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {user.isAdmin && (
         <>
+          {/* SEÇÃO: CENTRO DE COMANDO GLOBAL (ADMIN ONLY) */}
+          <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
+             <div className={`relative overflow-hidden p-6 rounded-[40px] shadow-2xl transition-all duration-500 border-2 ${
+               globalSession?.isActive 
+               ? globalSession.isRealScenario 
+                 ? 'bg-rose-600 border-rose-400 animate-pulse-slow' 
+                 : 'bg-blue-600 border-blue-400' 
+               : 'bg-white border-slate-100 shadow-slate-200/50'
+             }`}>
+                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                   <div className="flex items-center gap-6">
+                      <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg transition-all ${
+                        globalSession?.isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                         <i className={`fa-solid ${globalSession?.isActive ? 'fa-tower-broadcast' : 'fa-power-off'} text-2xl`}></i>
+                      </div>
+                      <div>
+                         <h3 className={`text-sm font-black uppercase tracking-[0.2em] mb-1 ${globalSession?.isActive ? 'text-white' : 'text-slate-400'}`}>
+                           {globalSession?.isActive 
+                             ? globalSession.isRealScenario ? 'EMERGÊNCIA REAL ATIVA' : 'EXERCÍCIO DE MUSTER ATIVO' 
+                             : 'SISTEMA DE MUSTER GLOBAL'}
+                         </h3>
+                         <p className={`text-[10px] font-bold uppercase tracking-widest ${globalSession?.isActive ? 'text-white/60' : 'text-slate-300'}`}>
+                            {globalSession?.isActive ? `${globalSession.trainingType} • Iniciado por ${globalSession.adminName}` : 'Pronto para iniciar treinamento coordenado'}
+                         </p>
+                      </div>
+                   </div>
+
+                   <div className="flex items-center gap-8">
+                      <div className="text-center">
+                         <span className={`text-[9px] font-black uppercase tracking-[0.3em] block mb-1 ${globalSession?.isActive ? 'text-white/40' : 'text-slate-300'}`}>Tempo Decorrido</span>
+                         <span className={`text-4xl font-mono font-black tabular-nums tracking-tighter ${globalSession?.isActive ? 'text-white' : 'text-slate-200'}`}>
+                           {formatTime(globalSeconds)}
+                         </span>
+                      </div>
+                      
+                      {globalSession?.isActive ? (
+                        <button 
+                          onClick={handleEndGlobalMuster}
+                          disabled={isEndingGlobal}
+                          className="px-8 py-5 bg-rose-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 border border-rose-400/50 z-20 cursor-pointer"
+                        >
+                          {isEndingGlobal ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-circle-stop"></i>}
+                          ENCERRAR MUSTER GERAL
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => setIsConfiguringGlobal(true)}
+                          className="px-8 py-5 bg-blue-600 text-white rounded-[24px] font-black text-[11px] uppercase tracking-widest shadow-xl shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-3"
+                        >
+                          <i className="fa-solid fa-play"></i>
+                          INICIAR MUSTER GERAL
+                        </button>
+                      )}
+                   </div>
+                </div>
+                <i className={`fa-solid ${globalSession?.isRealScenario ? 'fa-triangle-exclamation' : 'fa-anchor'} absolute right-[-20px] bottom-[-20px] text-[160px] ${globalSession?.isActive ? 'text-white/5' : 'text-slate-50'} -rotate-12`}></i>
+             </div>
+          </div>
+
+          {/* CARDS DE RESUMO DO DASHBOARD */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 animate-in fade-in slide-in-from-top-4 duration-700 delay-200">
-            {/* Card 1: TOTAL GERAL CONTABILIZADO - COMPACTADO */}
+            {/* Card 1: TOTAL GERAL CONTABILIZADO */}
             <div className="bg-gradient-to-br from-blue-600 to-indigo-800 p-5 rounded-[32px] shadow-2xl shadow-blue-600/30 text-white overflow-hidden relative min-h-[165px]">
                 <div className="relative z-10 flex flex-col justify-between h-full">
                   <div>
@@ -186,7 +358,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
             </div>
 
-            {/* Card 2: POB Geral da Unidade - COMPACTADO */}
+            {/* Card 2: POB Geral da Unidade */}
             <div className="bg-white p-5 rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative min-h-[165px] flex flex-col justify-between">
                 <div className="relative z-10">
                   <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 mb-1.5">PESSOAS A BORDO (POB OFICIAL)</h4>
@@ -231,6 +403,38 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
+          {/* Modal: Configuração do Muster Global */}
+          {isConfiguringGlobal && (
+            <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6 text-center">
+               <div className="bg-white rounded-[48px] max-w-lg w-full p-10 shadow-2xl animate-in zoom-in duration-300">
+                  <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase">Iniciar Muster Geral</h3>
+                  
+                  <div className="grid gap-4 mb-10">
+                    <button onClick={() => handleStartGlobalMuster('Fogo/Abandono', false)} className="p-6 bg-blue-50 border-2 border-blue-200 rounded-3xl text-left hover:border-blue-500 transition-all group">
+                       <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><i className="fa-solid fa-graduation-cap"></i></div>
+                          <div>
+                             <span className="block font-black text-blue-700 text-xs uppercase">Exercício de Rotina</span>
+                             <span className="text-[10px] font-bold text-slate-400 uppercase">Fogo e Abandono</span>
+                          </div>
+                       </div>
+                    </button>
+                    <button onClick={() => handleStartGlobalMuster('Fogo/Abandono', true)} className="p-6 bg-rose-50 border-2 border-rose-200 rounded-3xl text-left hover:border-rose-500 transition-all group">
+                       <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><i className="fa-solid fa-triangle-exclamation"></i></div>
+                          <div>
+                             <span className="block font-black text-rose-700 text-xs uppercase tracking-widest">CENÁRIO REAL</span>
+                             <span className="text-[10px] font-bold text-slate-400 uppercase">Emergência Ativa</span>
+                          </div>
+                       </div>
+                    </button>
+                  </div>
+                  
+                  <button onClick={() => setIsConfiguringGlobal(false)} className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
+               </div>
+            </div>
+          )}
+
           {/* Seção de Contadores Manuais - GRADE DE 6 COLUNAS */}
           <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
             <div className="flex items-center justify-between px-1 mb-4">
@@ -271,48 +475,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </>
       )}
 
-      {!user.isAdmin && (
-        <div className="mb-8">
-          <button 
-            onClick={activeSession ? onResumeTraining : onStartTraining} 
-            className={`w-full h-32 relative overflow-hidden p-6 rounded-[32px] text-left transition-all active:scale-[0.98] shadow-xl ${
-              activeSession 
-                ? 'bg-blue-600 shadow-blue-600/30 border-2 border-blue-400/30 animate-pulse-slow' 
-                : 'bg-slate-900 shadow-slate-900/20'
-            }`}
-          >
-            <div className="relative z-10 flex flex-col h-full justify-between">
-              <div className="flex justify-between items-start w-full">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeSession ? 'bg-white text-blue-600' : 'bg-white/20 text-white'}`}>
-                  <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : 'fa-plus'} text-sm`}></i>
-                </div>
-                {activeSession && (
-                  <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
-                    <span className="text-[8px] font-black text-white uppercase tracking-widest">Live</span>
-                  </div>
-                )}
-              </div>
-              <div>
-                <h3 className="text-xl mb-0.5 uppercase tracking-tight font-black text-white">
-                  {activeSession ? 'RETOMAR TREINAMENTO' : 'INICIAR TREINAMENTO'}
-                </h3>
-                {activeSession ? (
-                  <p className="text-white/70 text-[9px] uppercase tracking-[0.2em] font-bold">
-                    Ativo na {activeSession.lifeboat} • {activeSession.tags.length} embarcados
-                  </p>
-                ) : (
-                  <p className="text-white/40 text-[9px] uppercase tracking-[0.2em] font-bold">
-                    Clique para configurar nova sessão
-                  </p>
-                )}
-              </div>
-            </div>
-            <i className={`fa-solid ${activeSession ? 'fa-circle-dot opacity-10' : 'fa-anchor opacity-5'} absolute right-[-10px] bottom-[-10px] text-[120px] text-white rotate-12 transition-all`}></i>
-          </button>
-        </div>
-      )}
-
+      {/* MONITORAMENTO DAS BALEERAS */}
       {user.isAdmin && (
         <div className="grid gap-2.5 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-400">
           <div className="flex items-center justify-between px-1 mb-1">
@@ -382,6 +545,49 @@ const Dashboard: React.FC<DashboardProps> = ({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* BOTÃO PARA OPERADORES (NON-ADMIN) */}
+      {!user.isAdmin && (
+        <div className="mb-8">
+          <button 
+            onClick={activeSession ? onResumeTraining : onStartTraining} 
+            className={`w-full h-32 relative overflow-hidden p-6 rounded-[32px] text-left transition-all active:scale-[0.98] shadow-xl ${
+              activeSession 
+                ? 'bg-blue-600 shadow-blue-600/30 border-2 border-blue-400/30 animate-pulse-slow' 
+                : 'bg-slate-900 shadow-slate-900/20'
+            }`}
+          >
+            <div className="relative z-10 flex flex-col h-full justify-between">
+              <div className="flex justify-between items-start w-full">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeSession ? 'bg-white text-blue-600' : 'bg-white/20 text-white'}`}>
+                  <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : 'fa-plus'} text-sm`}></i>
+                </div>
+                {activeSession && (
+                  <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
+                    <span className="text-[8px] font-black text-white uppercase tracking-widest">Live</span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <h3 className="text-xl mb-0.5 uppercase tracking-tight font-black text-white">
+                  {activeSession ? 'RETOMAR TREINAMENTO' : 'INICIAR TREINAMENTO'}
+                </h3>
+                {activeSession ? (
+                  <p className="text-white/70 text-[9px] uppercase tracking-[0.2em] font-bold">
+                    Ativo na {activeSession.lifeboat} • {activeSession.tags.length} embarcados
+                  </p>
+                ) : (
+                  <p className="text-white/40 text-[9px] uppercase tracking-[0.2em] font-bold">
+                    Clique para configurar nova sessão
+                  </p>
+                )}
+              </div>
+            </div>
+            <i className={`fa-solid ${activeSession ? 'fa-circle-dot opacity-10' : 'fa-anchor opacity-5'} absolute right-[-10px] bottom-[-10px] text-[120px] text-white rotate-12 transition-all`}></i>
+          </button>
         </div>
       )}
     </div>
