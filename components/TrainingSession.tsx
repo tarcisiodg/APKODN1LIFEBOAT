@@ -55,6 +55,13 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     });
   }, [session.expectedCrew, session.tags]);
 
+  // Função auxiliar para obter os detalhes completos do tripulante a partir do leito da TAG
+  const getBerthInfoForTag = (tag: ScannedTag) => {
+    if (!session.expectedCrew || !tag.leito) return { role: tag.role, company: tag.company };
+    const berth = session.expectedCrew.find(b => b.id === tag.leito);
+    return berth ? { role: berth.role, company: berth.company } : { role: tag.role, company: tag.company };
+  };
+
   const startNFC = async () => {
     if (!('NDEFReader' in window)) {
       setNfcState('unsupported');
@@ -226,35 +233,40 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
             </div>
           ) : (
             <div className="grid gap-4">
-              {session.tags.map((tag) => (
-                <div key={tag.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md animate-in slide-in-from-left-2 duration-300">
-                  <div className="flex items-center gap-5 flex-1 min-w-0">
-                    <div className="w-14 h-11 bg-[#111827] text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
-                      {tag.leito || 'N/A'}
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-black uppercase truncate text-slate-900 tracking-tight">{tag.name}</h4>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                        <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">TAG: {tag.id}</span>
-                        {(tag.role || tag.company) && (
-                          <>
-                            <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
-                            <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tight">{tag.role || '-'}</span>
-                            <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
-                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tight">{tag.company || '-'}</span>
-                          </>
-                        )}
+              {session.tags.map((tag) => {
+                const berthInfo = getBerthInfoForTag(tag);
+                return (
+                  <div key={tag.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md animate-in slide-in-from-left-2 duration-300">
+                    <div className="flex items-center gap-5 flex-1 min-w-0">
+                      <div className="w-14 h-11 bg-[#111827] text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
+                        {tag.leito || 'N/A'}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-black uppercase truncate text-slate-900 tracking-tight">{tag.name}</h4>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                          <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">TAG: {tag.id}</span>
+                          <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                          <span className="text-[9px] font-black text-emerald-500 uppercase tracking-tight">EMBARCADO</span>
+                          {(berthInfo.role || berthInfo.company) && (
+                            <>
+                              <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                              <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tight">{berthInfo.role || '-'}</span>
+                              <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+                              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tight">{berthInfo.company || '-'}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-6 pr-2">
+                      <span className="text-[10px] font-black text-slate-400 tabular-nums">{tag.timestamp}</span>
+                      {!session.isAdminView && (
+                        <button onClick={() => setTagToDelete(tag)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-400 flex items-center justify-center active:scale-90 transition-all"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6 pr-2">
-                    <span className="text-[10px] font-black text-slate-400 tabular-nums">{tag.timestamp}</span>
-                    {!session.isAdminView && (
-                      <button onClick={() => setTagToDelete(tag)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-400 flex items-center justify-center active:scale-90 transition-all"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )
         ) : (
