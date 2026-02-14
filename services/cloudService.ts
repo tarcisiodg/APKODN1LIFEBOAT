@@ -11,8 +11,7 @@ import {
   query, 
   orderBy, 
   limit,
-  onSnapshot,
-  writeBatch
+  onSnapshot
 } from "firebase/firestore";
 import { User, TrainingRecord, LifeboatStatus, LifeboatType, Berth } from '../types';
 
@@ -107,9 +106,39 @@ export const cloudService = {
 
   // --- GESTÃO DE POB / LEITOS ---
   
+  async saveBerth(berth: Berth): Promise<void> {
+    const berths = await this.getBerths();
+    const existingIndex = berths.findIndex(b => b.id === berth.id);
+    if (existingIndex >= 0) {
+      berths[existingIndex] = berth;
+    } else {
+      berths.push(berth);
+    }
+    await this.saveBerths(berths);
+  },
+
   async saveBerths(berths: Berth[]): Promise<void> {
     const pobRef = doc(db, "config", "pob");
     await setDoc(pobRef, { berths, lastUpdate: new Date().toISOString() });
+  },
+
+  async saveBerthNames(nameMap: Record<string, string>): Promise<void> {
+    const berths = await this.getBerths();
+    const updated = berths.map(b => ({
+      ...b,
+      crewName: nameMap[b.id] || b.crewName
+    }));
+    await this.saveBerths(updated);
+  },
+
+  // NOVA LÓGICA: Limpa apenas os nomes, mantendo Leitos e Tags
+  async clearBerthNames(): Promise<void> {
+    const berths = await this.getBerths();
+    const cleared = berths.map(b => ({
+      ...b,
+      crewName: ''
+    }));
+    await this.saveBerths(cleared);
   },
 
   async clearBerths(): Promise<void> {
@@ -118,9 +147,17 @@ export const cloudService = {
   },
 
   async getBerths(): Promise<Berth[]> {
-    const pobRef = doc(db, "config", "pob");
-    const snap = await getDoc(pobRef);
-    return snap.exists() ? (snap.data().berths as Berth[]) : [];
+    try {
+      const pobRef = doc(db, "config", "pob");
+      const snap = await getDoc(pobRef);
+      if (snap.exists() && snap.data().berths) {
+        return snap.data().berths as Berth[];
+      }
+      return [];
+    } catch (e) {
+      console.error("Erro ao carregar POB:", e);
+      return [];
+    }
   },
 
   // --- HISTÓRICO ---
@@ -140,12 +177,6 @@ export const cloudService = {
   async updateFleetStatus(status: Record<LifeboatType, LifeboatStatus>): Promise<void> {
     const fleetRef = doc(db, "fleet", "status");
     await setDoc(fleetRef, status);
-  },
-
-  async fetchFleetStatus(): Promise<Record<LifeboatType, LifeboatStatus> | null> {
-    const fleetRef = doc(db, "fleet", "status");
-    const snap = await getDoc(fleetRef);
-    return snap.exists() ? (snap.data() as Record<LifeboatType, LifeboatStatus>) : null;
   },
 
   subscribeToFleet(callback: (status: Record<LifeboatType, LifeboatStatus>) => void) {
