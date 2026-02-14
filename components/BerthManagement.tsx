@@ -68,18 +68,19 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
       reader.addEventListener("reading", ({ serialNumber }: any) => {
         const tagId = serialNumber?.toUpperCase();
         if (tagId) {
-          // 1. Verificar se a tag já está em uso em OUTROS campos deste mesmo registro
-          const otherFieldsInCurrent = ['tagId1', 'tagId2', 'tagId3'].filter(f => f !== field);
-          const isDuplicateInCurrent = otherFieldsInCurrent.some(f => (newBerth as any)[f] === tagId);
-
-          // 2. Verificar se a tag já está cadastrada em QUALQUER outro leito do sistema
-          const isDuplicateInSystem = berths.some(b => 
+          // Validação de Duplicidade
+          // 1. Verificar no formulário atual
+          const otherFields = ['tagId1', 'tagId2', 'tagId3'].filter(f => f !== field);
+          const existsInCurrentForm = otherFields.some(f => (newBerth as any)[f] === tagId);
+          
+          // 2. Verificar em outros leitos do sistema
+          const existsInSystem = berths.some(b => 
             (b.id !== newBerth.id) && (b.tagId1 === tagId || b.tagId2 === tagId || b.tagId3 === tagId)
           );
 
-          if (isDuplicateInCurrent || isDuplicateInSystem) {
+          if (existsInCurrentForm || existsInSystem) {
             if (navigator.vibrate) navigator.vibrate([500]);
-            alert("ERRO: Esta TAG já está cadastrada no sistema para outro campo ou leito.");
+            alert("Cartão já cadastrado em outro campo ou leito!");
             stopNfcScan();
             return;
           }
@@ -104,10 +105,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
 
   const handleOpenAdd = () => {
     setIsEditing(false);
-    setNewBerth({ 
-      id: '', tagId1: '', tagId2: '', tagId3: '', crewName: '', role: '', company: '', 
-      lifeboat: 'Lifeboat 1', secondaryLifeboat: 'Lifeboat 2' 
-    });
+    setNewBerth({ id: '', tagId1: '', tagId2: '', tagId3: '', crewName: '', role: '', company: '', lifeboat: 'Lifeboat 1', secondaryLifeboat: 'Lifeboat 2' });
     setIsModalOpen(true);
   };
 
@@ -119,8 +117,8 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
 
   const handleAddManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newBerth.id || !newBerth.tagId1) {
-      alert("ID do Leito e a Tag Helideck são obrigatórios.");
+    if (!newBerth.id) {
+      alert("O ID do Leito é obrigatório.");
       return;
     }
 
@@ -138,7 +136,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
 
   const downloadTemplate = () => {
     const header = "COLUNA A;COLUNA B;LEITO (C);COLUNA D;COLUNA E;COLUNA F;COLUNA G;COLUNA H;NOME (I);FUNÇÃO (J);COLUNA K;COLUNA L;EMPRESA (M)\n";
-    const example = ";;301-A;;;;;;JOÃO SILVA;RADIO OPERADOR;;;FORESEA\n;;301-B;;;;;;MARIA SOUZA;TECNICO;;;FORESEA";
+    const example = ";;101-A;;;;;;JOÃO SILVA;RADIO OPERADOR;;;FORESEA\n;;101-B;;;;;;MARIA SOUZA;TECNICO;;;FORESEA";
     const blob = new Blob(["\uFEFF" + header + example], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -163,7 +161,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
         const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
         if (jsonData.length < 1) {
-          alert("O arquivo está vazio ou não pôde ser lido.");
+          alert("O arquivo está vazio.");
           setIsLoading(false);
           return;
         }
@@ -194,9 +192,9 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
         if (updatedCount > 0) {
           await cloudService.saveBerthNames(detailsMap);
           await loadBerths();
-          alert(`Sucesso! ${updatedCount} leitos processados.`);
+          alert(`${updatedCount} leitos atualizados com sucesso.`);
         } else {
-          alert("Nenhum dado válido encontrado.");
+          alert("Nenhum leito encontrado para importar.");
         }
       } catch (err) {
         console.error("Erro importação:", err);
@@ -215,13 +213,6 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
     b.crewName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (b.company && b.company.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-
-  const getScanningLabel = () => {
-    if (isScanning === 'tagId1') return "TAG HELIDECK";
-    if (isScanning === 'tagId2') return "TAG PROA";
-    if (isScanning === 'tagId3') return "TAG POPA";
-    return "TAG";
-  };
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-7xl mx-auto w-full pb-40 animate-in fade-in duration-500">
@@ -269,7 +260,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <i className="fa-solid fa-rotate animate-spin text-blue-500 text-3xl"></i>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Carregando dados...</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Processando...</p>
             </div>
           ) : filteredBerths.length === 0 ? (
              <div className="flex flex-col items-center justify-center py-32 opacity-30">
@@ -304,14 +295,14 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                       </button>
                     </td>
                     <td className="p-5"><span className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold">{b.id}</span></td>
-                    <td className="p-5">
+                    <td className="p-5 truncate max-w-[200px]">
                       <span className={`text-xs font-black uppercase tracking-tight ${b.crewName ? 'text-slate-800' : 'text-slate-200 italic opacity-50'}`}>
                         {b.crewName || 'VAZIO'}
                       </span>
                     </td>
                     <td className="p-5 text-[10px] font-bold text-slate-500 uppercase">{b.role || '-'}</td>
                     <td className="p-5 text-[10px] font-black text-blue-600 uppercase">{b.company || '-'}</td>
-                    <td className="p-5 font-mono text-[9px] text-blue-600 font-bold">{b.tagId1}</td>
+                    <td className="p-5 font-mono text-[9px] text-blue-600 font-bold">{b.tagId1 || '-'}</td>
                     <td className="p-5 font-mono text-[9px] text-slate-400 font-bold">{b.tagId2 || '-'}</td>
                     <td className="p-5 font-mono text-[9px] text-slate-400 font-bold">{b.tagId3 || '-'}</td>
                     <td className="p-5 text-center"><span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase">{b.lifeboat}</span></td>
@@ -324,103 +315,121 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* MODAL CADASTRO / EDIÇÃO MANUAL */}
+      {/* MODAL EDITAR LEITO */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[48px] max-w-2xl w-full p-10 shadow-[0_32px_128px_rgba(0,0,0,0.3)] animate-in zoom-in duration-300 relative overflow-hidden">
+          <div className="bg-white rounded-[48px] max-w-2xl w-full p-10 shadow-2xl animate-in zoom-in duration-300 relative overflow-hidden border-8 border-white">
             
-            {/* OVERLAY DE SCAN INDIVIDUAL */}
             {isScanning && (
               <div className="absolute inset-0 bg-blue-600/95 backdrop-blur-md z-[120] flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-300">
                 <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
                   <i className="fa-solid fa-nfc text-5xl text-white"></i>
                 </div>
                 <h4 className="text-xl font-black text-white uppercase mb-2">Aproxime a TAG agora</h4>
-                <p className="text-white/70 text-[11px] uppercase font-black tracking-widest">Digitalizando: <span className="text-white">{getScanningLabel()}</span></p>
-                <button onClick={stopNfcScan} className="mt-12 px-10 py-4 bg-white text-blue-600 rounded-3xl font-black text-[11px] uppercase tracking-widest active:scale-95 shadow-xl transition-all">Cancelar Leitura</button>
+                <p className="text-white/60 text-[10px] uppercase font-bold tracking-widest">Digitalizando campo específico</p>
+                <button onClick={stopNfcScan} className="mt-10 px-8 py-3 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase shadow-lg">Cancelar Leitura</button>
               </div>
             )}
 
             <div className="flex justify-between items-center mb-10">
-              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
-                {isEditing ? 'Editar Leito' : 'Novo Cadastro'}
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 hover:text-slate-600 rounded-2xl transition-all">
-                <i className="fa-solid fa-xmark text-2xl"></i>
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">EDITAR LEITO</h3>
+              <button onClick={() => setIsModalOpen(false)} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 transition-all">
+                <i className="fa-solid fa-xmark text-xl"></i>
               </button>
             </div>
             
-            <form onSubmit={handleAddManual} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 mb-2 block">ID do Leito (Obrigatório)</label>
-                <input type="text" required disabled={isEditing} value={newBerth.id} onChange={e => setNewBerth({...newBerth, id: e.target.value.toUpperCase()})} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Ex: 301-A" />
+            <form onSubmit={handleAddManual} className="space-y-6">
+              <div className="grid grid-cols-1 gap-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ID DO LEITO (OBRIGATÓRIO)</label>
+                <input type="text" required disabled={isEditing} value={newBerth.id} onChange={e => setNewBerth({...newBerth, id: e.target.value.toUpperCase()})} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="301-A" />
               </div>
-              
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 block">Tag Helideck (Principal)</label>
-                <div className="flex gap-2">
-                  <input type="text" required value={newBerth.tagId1} onChange={e => setNewBerth({...newBerth, tagId1: e.target.value.toUpperCase()})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="SCAN OU DIGITE" />
-                  <button type="button" onClick={() => handleScanTag('tagId1')} className="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center active:scale-90 hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20">
-                    <i className="fa-solid fa-wifi text-xl"></i>
-                  </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">TAG HELIDECK (PRINCIPAL)</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <input type="text" value={newBerth.tagId1 || ''} onChange={e => setNewBerth({...newBerth, tagId1: e.target.value.toUpperCase()})} className="w-full pl-6 pr-10 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-bold uppercase outline-none" placeholder="04:XX:XX:..." />
+                      {newBerth.tagId1 && (
+                        <button type="button" onClick={() => setNewBerth({...newBerth, tagId1: ''})} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500"><i className="fa-solid fa-circle-xmark"></i></button>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => handleScanTag('tagId1')} className="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 active:scale-90 transition-all">
+                      <i className="fa-solid fa-wifi text-xl"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">TAG PROA</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <input type="text" value={newBerth.tagId2 || ''} onChange={e => setNewBerth({...newBerth, tagId2: e.target.value.toUpperCase()})} className="w-full pl-6 pr-10 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-bold uppercase outline-none" placeholder="Opcional" />
+                      {newBerth.tagId2 && (
+                        <button type="button" onClick={() => setNewBerth({...newBerth, tagId2: ''})} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500"><i className="fa-solid fa-circle-xmark"></i></button>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => handleScanTag('tagId2')} className="w-14 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all active:scale-90">
+                      <i className="fa-solid fa-wifi text-xl"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 block">Tag Proa</label>
-                <div className="flex gap-2">
-                  <input type="text" value={newBerth.tagId2} onChange={e => setNewBerth({...newBerth, tagId2: e.target.value.toUpperCase()})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="OPCIONAL" />
-                  <button type="button" onClick={() => handleScanTag('tagId2')} className="w-14 h-14 bg-slate-100 text-slate-500 rounded-2xl flex items-center justify-center active:scale-90 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                    <i className="fa-solid fa-wifi text-xl"></i>
-                  </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">TAG POPA</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <input type="text" value={newBerth.tagId3 || ''} onChange={e => setNewBerth({...newBerth, tagId3: e.target.value.toUpperCase()})} className="w-full pl-6 pr-10 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-bold uppercase outline-none" placeholder="Opcional" />
+                      {newBerth.tagId3 && (
+                        <button type="button" onClick={() => setNewBerth({...newBerth, tagId3: ''})} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500"><i className="fa-solid fa-circle-xmark"></i></button>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => handleScanTag('tagId3')} className="w-14 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all active:scale-90">
+                      <i className="fa-solid fa-wifi text-xl"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">TRIPULANTE</label>
+                  <input type="text" value={newBerth.crewName} onChange={e => setNewBerth({...newBerth, crewName: e.target.value.toUpperCase()})} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black uppercase outline-none" placeholder="NOME COMPLETO" />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 block">Tag Popa</label>
-                <div className="flex gap-2">
-                  <input type="text" value={newBerth.tagId3} onChange={e => setNewBerth({...newBerth, tagId3: e.target.value.toUpperCase()})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="OPCIONAL" />
-                  <button type="button" onClick={() => handleScanTag('tagId3')} className="w-14 h-14 bg-slate-100 text-slate-500 rounded-2xl flex items-center justify-center active:scale-90 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                    <i className="fa-solid fa-wifi text-xl"></i>
-                  </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">FUNÇÃO</label>
+                  <input type="text" value={newBerth.role} onChange={e => setNewBerth({...newBerth, role: e.target.value.toUpperCase()})} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black uppercase outline-none" placeholder="EX: RADIO OPERADOR" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">EMPRESA</label>
+                  <input type="text" value={newBerth.company} onChange={e => setNewBerth({...newBerth, company: e.target.value.toUpperCase()})} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black uppercase outline-none" placeholder="EX: SOLSTAT" />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 block">Tripulante</label>
-                <input type="text" value={newBerth.crewName} onChange={e => setNewBerth({...newBerth, crewName: e.target.value.toUpperCase()})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Nome Completo" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">BALEEIRA PRIMÁRIA</label>
+                  <select value={newBerth.lifeboat} onChange={e => setNewBerth({...newBerth, lifeboat: e.target.value as LifeboatType})} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black uppercase outline-none">
+                    {LIFEBOATS.map(lb => <option key={lb} value={lb}>{lb}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">BALEEIRA SECUNDÁRIA</label>
+                  <select value={newBerth.secondaryLifeboat} onChange={e => setNewBerth({...newBerth, secondaryLifeboat: e.target.value as LifeboatType})} className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-black uppercase outline-none">
+                    {LIFEBOATS.map(lb => <option key={lb} value={lb}>{lb}</option>)}
+                  </select>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 block">Função</label>
-                <input type="text" value={newBerth.role} onChange={e => setNewBerth({...newBerth, role: e.target.value.toUpperCase()})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="PLATAFORMISTA" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 block">Empresa</label>
-                <input type="text" value={newBerth.company} onChange={e => setNewBerth({...newBerth, company: e.target.value.toUpperCase()})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="FORESEA" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 block">Baleeira Primária</label>
-                <select value={newBerth.lifeboat} onChange={e => setNewBerth({...newBerth, lifeboat: e.target.value as LifeboatType})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all">
-                  {LIFEBOATS.map(lb => <option key={lb} value={lb}>{lb.toUpperCase()}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] ml-1 block">Baleeira Secundária</label>
-                <select value={newBerth.secondaryLifeboat} onChange={e => setNewBerth({...newBerth, secondaryLifeboat: e.target.value as LifeboatType})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all">
-                  {LIFEBOATS.map(lb => <option key={lb} value={lb}>{lb.toUpperCase()}</option>)}
-                </select>
-              </div>
-
-              <div className="md:col-span-2 pt-8 flex flex-col sm:flex-row gap-4">
-                <button type="submit" disabled={isLoading} className="flex-1 py-5 bg-blue-600 text-white font-black rounded-[24px] text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/30 active:scale-95 transition-all">
-                  {isLoading ? 'Salvando...' : 'Salvar Alterações'}
+              <div className="pt-8 flex flex-col md:flex-row gap-4">
+                <button type="submit" disabled={isLoading} className="flex-1 py-5 bg-blue-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-2xl shadow-blue-600/30 active:scale-95 transition-all">
+                  {isLoading ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}
                 </button>
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-12 py-5 bg-slate-100 text-slate-500 font-black rounded-[24px] text-[11px] uppercase tracking-[0.2em] active:scale-95 transition-all hover:bg-slate-200">
-                  Cancelar
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-10 py-5 bg-slate-100 text-slate-500 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all">
+                  CANCELAR
                 </button>
               </div>
             </form>
@@ -431,14 +440,14 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
       {/* CONFIRMAÇÃO CLEAR */}
       {isConfirmingClear && (
         <div className="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[48px] max-w-sm w-full p-12 shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-12 shadow-2xl animate-in zoom-in duration-300">
             <h3 className="text-xl font-black text-slate-900 mb-4 uppercase">Limpar Tripulantes?</h3>
             <p className="text-slate-500 text-[10px] font-bold uppercase mb-10 leading-relaxed tracking-wide">
-              Esta ação removerá <span className="text-rose-600 font-black">NOMES, FUNÇÕES E EMPRESAS</span> de todos os leitos. As TAGs físicas serão mantidas.
+              Esta ação removerá <span className="text-rose-600 font-black">NOMES, FUNÇÕES E EMPRESAS</span> de todos os leitos. As TAGs físicas serão mantidas nos registros.
             </p>
             <div className="grid gap-3">
-              <button onClick={async () => { await cloudService.clearBerthNames(); await loadBerths(); setIsConfirmingClear(false); }} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all">Sim, Limpar Tudo</button>
-              <button onClick={() => setIsConfirmingClear(false)} className="w-full py-5 bg-slate-100 text-slate-400 font-black rounded-3xl text-[10px] uppercase tracking-widest active:scale-95 transition-all">Cancelar</button>
+              <button onClick={async () => { await cloudService.clearBerthNames(); await loadBerths(); setIsConfirmingClear(false); }} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl shadow-rose-600/20 active:scale-95 transition-all">Sim, Limpar</button>
+              <button onClick={() => setIsConfirmingClear(false)} className="w-full py-5 bg-slate-100 text-slate-400 font-black rounded-3xl text-[10px] uppercase">Cancelar</button>
             </div>
           </div>
         </div>
