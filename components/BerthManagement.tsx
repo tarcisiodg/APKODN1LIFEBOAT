@@ -148,11 +148,6 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
           return;
         }
 
-        // Mapeamento:
-        // C: Leito (2)
-        // I: Nome (8)
-        // J: Função (9)
-        // M: Empresa (12)
         const LEITO_COL_IDX = 2; 
         const NOME_COL_IDX = 8;
         const FUNCAO_COL_IDX = 9;
@@ -322,7 +317,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
       {/* MODAL CADASTRO / EDIÇÃO MANUAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] max-w-xl w-full p-8 shadow-2xl animate-in zoom-in duration-300 relative overflow-hidden">
+          <div className="bg-white rounded-[40px] max-w-2xl w-full p-10 shadow-2xl animate-in zoom-in duration-300 relative overflow-hidden">
             
             {isScanning && (
               <div className="absolute inset-0 bg-blue-600/95 backdrop-blur-md z-[120] flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-300">
@@ -330,87 +325,91 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                   <i className="fa-solid fa-nfc text-5xl text-white"></i>
                 </div>
                 <h4 className="text-xl font-black text-white uppercase mb-2">Aproxime a TAG agora</h4>
-                <button onClick={stopNfcScan} className="mt-10 px-8 py-3 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase">Cancelar</button>
+                <p className="text-white/70 text-[10px] uppercase font-bold tracking-widest">Digitalizando campo: {isScanning.replace('tagId', 'Tag ')}</p>
+                <button onClick={stopNfcScan} className="mt-10 px-8 py-3 bg-white text-blue-600 rounded-2xl font-black text-[10px] uppercase">Cancelar Leitura</button>
               </div>
             )}
 
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
                 {isEditing ? 'Editar Leito' : 'Novo Cadastro'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <i className="fa-solid fa-xmark text-xl"></i>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <i className="fa-solid fa-xmark text-2xl"></i>
               </button>
             </div>
             
-            <form onSubmit={handleAddManual} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <form onSubmit={handleAddManual} className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">ID do Leito</label>
-                <input type="text" required disabled={isEditing} value={newBerth.id} onChange={e => setNewBerth({...newBerth, id: e.target.value.toUpperCase()})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none" placeholder="Ex: 101-A" />
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">ID do Leito</label>
+                <input type="text" required disabled={isEditing} value={newBerth.id} onChange={e => setNewBerth({...newBerth, id: e.target.value.toUpperCase()})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase outline-none focus:border-blue-500 transition-all" placeholder="Ex: 301-A" />
               </div>
               
-              <div className="relative">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Tag Helideck</label>
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Tag Helideck</label>
                 <div className="flex gap-2">
-                  <input type="text" required value={newBerth.tagId1} onChange={e => setNewBerth({...newBerth, tagId1: e.target.value.toUpperCase()})} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-mono font-bold uppercase outline-none" placeholder="04:XX:XX:..." />
-                  <button type="button" onClick={() => handleScanTag('tagId1')} className="w-11 h-11 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center active:scale-90 shadow-sm shadow-blue-600/10">
-                    <i className="fa-solid fa-wifi text-[12px]"></i>
+                  <input type="text" required value={newBerth.tagId1} onChange={e => setNewBerth({...newBerth, tagId1: e.target.value.toUpperCase()})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-bold uppercase outline-none focus:border-blue-500 transition-all" placeholder="ID TAG" />
+                  <button type="button" onClick={() => handleScanTag('tagId1')} className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center active:scale-90 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                    <i className="fa-solid fa-wifi text-lg"></i>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Tag Proa</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Tag Proa</label>
                 <div className="flex gap-2">
-                  <input type="text" value={newBerth.tagId2} onChange={e => setNewBerth({...newBerth, tagId2: e.target.value.toUpperCase()})} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-mono font-bold uppercase outline-none" placeholder="Opcional" />
-                  <button type="button" onClick={() => handleScanTag('tagId2')} className="w-11 h-11 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all active:scale-90">
-                    <i className="fa-solid fa-wifi text-[12px]"></i>
+                  <input type="text" value={newBerth.tagId2} onChange={e => setNewBerth({...newBerth, tagId2: e.target.value.toUpperCase()})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-bold uppercase outline-none focus:border-blue-500 transition-all" placeholder="Opcional" />
+                  <button type="button" onClick={() => handleScanTag('tagId2')} className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                    <i className="fa-solid fa-wifi text-lg"></i>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Tag Popa</label>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Tag Popa</label>
                 <div className="flex gap-2">
-                  <input type="text" value={newBerth.tagId3} onChange={e => setNewBerth({...newBerth, tagId3: e.target.value.toUpperCase()})} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-mono font-bold uppercase outline-none" placeholder="Opcional" />
-                  <button type="button" onClick={() => handleScanTag('tagId3')} className="w-11 h-11 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all active:scale-90">
-                    <i className="fa-solid fa-wifi text-[12px]"></i>
+                  <input type="text" value={newBerth.tagId3} onChange={e => setNewBerth({...newBerth, tagId3: e.target.value.toUpperCase()})} className="flex-1 px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-mono font-bold uppercase outline-none focus:border-blue-500 transition-all" placeholder="Opcional" />
+                  <button type="button" onClick={() => handleScanTag('tagId3')} className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center active:scale-90 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                    <i className="fa-solid fa-wifi text-lg"></i>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Tripulante</label>
-                <input type="text" value={newBerth.crewName} onChange={e => setNewBerth({...newBerth, crewName: e.target.value.toUpperCase()})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none" placeholder="Nome Completo" />
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Tripulante</label>
+                <input type="text" value={newBerth.crewName} onChange={e => setNewBerth({...newBerth, crewName: e.target.value.toUpperCase()})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase outline-none focus:border-blue-500 transition-all" placeholder="Nome Completo" />
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Função</label>
-                <input type="text" value={newBerth.role} onChange={e => setNewBerth({...newBerth, role: e.target.value.toUpperCase()})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none" placeholder="Ex: RADIO OPERADOR" />
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Função</label>
+                <input type="text" value={newBerth.role} onChange={e => setNewBerth({...newBerth, role: e.target.value.toUpperCase()})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase outline-none focus:border-blue-500 transition-all" placeholder="Ex: PLATAFORMISTA" />
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Empresa</label>
-                <input type="text" value={newBerth.company} onChange={e => setNewBerth({...newBerth, company: e.target.value.toUpperCase()})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none" placeholder="Ex: SOLSTAT" />
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Empresa</label>
+                <input type="text" value={newBerth.company} onChange={e => setNewBerth({...newBerth, company: e.target.value.toUpperCase()})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase outline-none focus:border-blue-500 transition-all" placeholder="Ex: FORESEA" />
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Baleeira Primária</label>
-                <select value={newBerth.lifeboat} onChange={e => setNewBerth({...newBerth, lifeboat: e.target.value as LifeboatType})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Baleeira Primária</label>
+                <select value={newBerth.lifeboat} onChange={e => setNewBerth({...newBerth, lifeboat: e.target.value as LifeboatType})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold outline-none focus:border-blue-500 transition-all">
                   {LIFEBOATS.map(lb => <option key={lb} value={lb}>{lb}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Baleeira Secundária</label>
-                <select value={newBerth.secondaryLifeboat} onChange={e => setNewBerth({...newBerth, secondaryLifeboat: e.target.value as LifeboatType})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Baleeira Secundária</label>
+                <select value={newBerth.secondaryLifeboat} onChange={e => setNewBerth({...newBerth, secondaryLifeboat: e.target.value as LifeboatType})} className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold outline-none focus:border-blue-500 transition-all">
                   {LIFEBOATS.map(lb => <option key={lb} value={lb}>{lb}</option>)}
                 </select>
               </div>
 
-              <div className="md:col-span-2 pt-4">
-                <button type="submit" disabled={isLoading} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-xl active:scale-95 transition-all">
+              <div className="md:col-span-2 pt-6 flex gap-4">
+                <button type="submit" disabled={isLoading} className="flex-1 py-5 bg-blue-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-2xl shadow-blue-600/20 active:scale-95 transition-all">
                   {isLoading ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-10 py-5 bg-slate-100 text-slate-500 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all">
+                  Cancelar
                 </button>
               </div>
             </form>
