@@ -48,7 +48,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       const isAnyTagScanned = session.tags.some(tag => 
         (berth.tagId1 && tag.id.trim().toLowerCase() === berth.tagId1.trim().toLowerCase()) ||
         (berth.tagId2 && tag.id.trim().toLowerCase() === berth.tagId2.trim().toLowerCase()) ||
-        (berth.tagId3 && tag.id.trim().toLowerCase() === berth.tagId3.trim().toLowerCase())
+        (berth.tagId3 && tag.id.trim().toLowerCase() === berth.tagId3.trim().toLowerCase()) ||
+        (tag.leito === berth.id)
       );
       return !isAnyTagScanned;
     });
@@ -80,6 +81,13 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           setInvalidScanId(tagId);
           setTimeout(() => setInvalidScanId(null), 3000);
           return; 
+        }
+
+        // Se o tripulante já estiver presente, ignoramos silenciosamente para evitar spam de toasts
+        const alreadyPresent = session.tags.some(t => t.leito === matchedBerth?.id);
+        if (alreadyPresent) {
+          if (navigator.vibrate) navigator.vibrate([50]);
+          return;
         }
 
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
@@ -159,7 +167,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         </div>
       )}
 
-      {/* Cabeçalho Estilo Print */}
+      {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-10">
         <div className="flex items-start gap-5">
           <button 
@@ -180,7 +188,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         </div>
       </div>
 
-      {/* Tabs conforme o Print */}
+      {/* Tabs */}
       <div className="flex gap-4 mb-8">
         <button 
           onClick={() => setViewTab('present')} 
@@ -204,7 +212,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         </button>
       </div>
 
-      {/* Lista de Tripulantes conforme o Print */}
+      {/* Lista de Tripulantes */}
       <div className="flex-1 space-y-3 overflow-y-auto pb-10">
         {viewTab === 'present' ? (
           session.tags.length === 0 ? (

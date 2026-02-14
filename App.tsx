@@ -150,6 +150,8 @@ const App: React.FC = () => {
     if (!tagId) return;
     setActiveSession(prev => {
       if (!prev || prev.isPaused || prev.isAdminView) return prev;
+      
+      // Verifica se a TAG física exata já foi lida
       if (prev.tags.some(t => t.id === tagId)) return prev;
 
       const matchedBerth = prev.expectedCrew?.find(b => 
@@ -159,6 +161,9 @@ const App: React.FC = () => {
       );
       
       if (!matchedBerth) return prev; 
+
+      // REGRA DE OURO: Verifica se alguém deste LEITO já embarcou com qualquer outra TAG
+      if (prev.tags.some(t => t.leito === matchedBerth.id)) return prev;
 
       const newTag: ScannedTag = { 
         id: tagId, 
