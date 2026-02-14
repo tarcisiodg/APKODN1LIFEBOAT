@@ -49,8 +49,6 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
   const stopNfcScan = () => {
     setIsScanning(null);
     if (nfcReaderRef.current) {
-      // O NDEFReader não tem um método "stop", mas o fechamento do modal ou reset do estado 
-      // interrompe o processamento lógico das mensagens recebidas.
       nfcReaderRef.current = null;
     }
   };
@@ -68,10 +66,26 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
       await reader.scan();
 
       reader.addEventListener("reading", ({ serialNumber }: any) => {
-        if (serialNumber) {
+        const tagId = serialNumber?.toUpperCase();
+        if (tagId) {
+          // 1. Verificar se a tag já está em uso em OUTROS campos deste mesmo registro
+          const otherFieldsInCurrent = ['tagId1', 'tagId2', 'tagId3'].filter(f => f !== field);
+          const isDuplicateInCurrent = otherFieldsInCurrent.some(f => (newBerth as any)[f] === tagId);
+
+          // 2. Verificar se a tag já está cadastrada em QUALQUER outro leito do sistema
+          const isDuplicateInSystem = berths.some(b => 
+            (b.id !== newBerth.id) && (b.tagId1 === tagId || b.tagId2 === tagId || b.tagId3 === tagId)
+          );
+
+          if (isDuplicateInCurrent || isDuplicateInSystem) {
+            if (navigator.vibrate) navigator.vibrate([500]);
+            alert("ERRO: Esta TAG já está cadastrada no sistema para outro campo ou leito.");
+            stopNfcScan();
+            return;
+          }
+
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-          // Atualiza especificamente o campo selecionado
-          setNewBerth(prev => ({ ...prev, [field]: serialNumber.toUpperCase() }));
+          setNewBerth(prev => ({ ...prev, [field]: tagId }));
           stopNfcScan();
         }
       });
