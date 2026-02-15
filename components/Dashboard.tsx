@@ -49,7 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estados para o cronômetro de treinamento geral (Muster Geral)
+  // Estados para o cronômetro de treinamento geral (Contagem Geral)
   const [generalTraining, setGeneralTraining] = useState<{
     isActive: boolean;
     isFinished: boolean;
@@ -174,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         date: new Date().toLocaleString('pt-BR'),
         lifeboat: 'FROTA COMPLETA',
         leaderName: user?.name || 'Operador',
-        trainingType: 'Muster Geral',
+        trainingType: 'Contagem Geral',
         isRealScenario: false,
         crewCount: generalTraining.finalTotal || overallMusterTotal,
         duration: generalTraining.duration,
@@ -186,7 +186,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       await cloudService.finalizeEverythingGlobally();
       setGeneralTraining({ isActive: false, isFinished: false, startTime: '', endTime: '', duration: '' });
     } catch (e) {
-      alert("Erro ao encerrar muster geral.");
+      alert("Erro ao encerrar contagem geral.");
     } finally {
       setIsSaving(false);
     }
@@ -237,7 +237,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const musterStatus = useMemo(() => {
     const diff = berthStats.occupied - overallMusterTotal;
-    if (diff === 0) return { label: 'MUSTER OK', color: 'bg-emerald-100 text-emerald-700' };
+    if (diff === 0) return { label: 'CONTATO OK', color: 'bg-emerald-100 text-emerald-700' };
     else if (diff > 0) return { label: `${diff} ${diff === 1 ? 'PENDENTE' : 'PENDENTES'}`, color: 'bg-rose-100 text-rose-700' };
     else return { label: `${Math.abs(diff)} EXCEDIDO`, color: 'bg-amber-100 text-amber-700' };
   }, [overallMusterTotal, berthStats.occupied]);
@@ -294,46 +294,52 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {user.isAdmin && (
         <div className="mb-10">
-          <div className="bg-blue-600 p-5 rounded-[32px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[190px] flex flex-col">
-            <div className="relative z-10 flex flex-col flex-1">
+          <div className="bg-blue-600 p-8 rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 h-[260px] flex flex-col">
+            <div className="relative z-10 flex flex-col flex-1 h-full">
               {/* TOPO DO CARD */}
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex flex-col gap-2">
-                  <div className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
-                    <h4 className="text-[9px] font-black uppercase tracking-widest text-white">MUSTER GERAL</h4>
-                  </div>
-                  <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full shadow-md animate-in fade-in zoom-in duration-500 ring-2 ring-white/10 ${musterStatus.color}`}>
-                    {musterStatus.label}
-                  </span>
+              <div className="flex justify-between items-center mb-4">
+                <div className="inline-flex items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">CONTAGEM GERAL</h4>
                 </div>
                 
-                <div className="flex flex-col items-end gap-2">
+                <div className="relative flex items-center gap-3">
                    {generalTraining.isFinished ? (
-                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
+                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
                         {isSaving ? <i className="fa-solid fa-rotate animate-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
                         Limpar e Salvar
                       </button>
                     ) : (
-                      <button onClick={generalTraining.isActive ? handleFinishGeneralTraining : handleStartGeneralTraining} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-500 border-rose-400/30 text-white animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
+                      <button onClick={generalTraining.isActive ? handleFinishGeneralTraining : handleStartGeneralTraining} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-500 border-rose-400/30 text-white animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
                         <i className={`fa-solid ${generalTraining.isActive ? 'fa-stop' : 'fa-play'}`}></i>
                         {generalTraining.isActive ? 'Finalizar' : 'Iniciar Treino'}
                       </button>
                     )}
-                    
+
+                    {/* BALÃO DE TEMPO POSICIONADO ABSOLUTAMENTE */}
                     {(generalTraining.isActive || generalTraining.duration) && (
-                      <div className="bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex flex-col items-end gap-1 min-w-[140px] shadow-inner">
+                      <div className="absolute top-[100%] right-0 mt-3 bg-black/40 backdrop-blur-xl rounded-[24px] p-4 border border-white/20 flex flex-col items-end gap-2 min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
                         {generalTraining.isActive ? (
                           <>
-                            <div className="flex items-center gap-2 w-full justify-between">
-                              <span className="text-[8px] font-bold text-blue-200 uppercase tracking-widest">DURAÇÃO</span>
-                              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]"></div>
+                            <div className="flex items-center gap-3 w-full justify-between mb-1">
+                              <span className="text-[14px] font-black text-emerald-400 uppercase tracking-widest drop-shadow-sm">INÍCIO: {generalTraining.startTime}</span>
+                              <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_12px_rgba(52,211,153,1)]"></div>
                             </div>
-                            <span className="text-2xl font-mono font-black tabular-nums tracking-tighter leading-none text-white drop-shadow-md">{liveDuration}</span>
+                            <div className="flex flex-col items-end w-full">
+                              <span className="text-[12px] font-black text-blue-200 uppercase tracking-widest mb-1 opacity-80">EM CURSO</span>
+                              <span className="text-4xl font-mono font-black tabular-nums tracking-tighter leading-none text-white drop-shadow-2xl">{liveDuration}</span>
+                            </div>
                           </>
                         ) : (
-                          <div className="flex flex-col items-end w-full">
-                            <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">TREINO CONCLUÍDO</span>
-                            <span className="text-lg font-mono font-black tabular-nums tracking-tighter leading-none text-emerald-400">{generalTraining.duration}</span>
+                          <div className="flex flex-col items-end w-full gap-2">
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-[14px] font-black text-white uppercase tracking-widest leading-none drop-shadow-sm">INÍCIO: {generalTraining.startTime}</span>
+                              <span className="text-[14px] font-black text-white uppercase tracking-widest leading-none drop-shadow-sm">TÉRMINO: {generalTraining.endTime}</span>
+                            </div>
+                            <div className="h-px w-full bg-white/20 my-1"></div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[13px] font-black text-emerald-400 uppercase tracking-widest mb-1 opacity-80">DURAÇÃO TOTAL</span>
+                              <span className="text-4xl font-mono font-black tabular-nums tracking-tighter leading-none text-emerald-400 drop-shadow-2xl">{generalTraining.duration}</span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -341,28 +347,36 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* CONTEÚDO CENTRAL */}
-              <div className="flex-1 flex flex-col justify-center">
+              {/* CONTEÚDO CENTRAL - LIMPO E CENTRALIZADO */}
+              <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-6xl font-black tabular-nums tracking-tighter leading-none">{overallMusterTotal}</span>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60">Pessoas Bordo</span>
+                  <span className="text-[85px] font-black tabular-nums tracking-tighter leading-none drop-shadow-lg">{overallMusterTotal}</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Pessoas Bordo</span>
                 </div>
               </div>
 
-              {/* BASE DO CARD */}
-              <div className="mt-2 pt-3 border-t border-white/10 flex gap-x-8">
-                <div className="group cursor-default">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-blue-300/60 block mb-0.5">LIFEBOATS</span>
-                  <span className="text-2xl font-black tabular-nums">{totalPeopleInFleet}</span>
+              {/* BASE DO CARD - COM O BALÃO DE STATUS ALINHADO ÀS EQUIPES */}
+              <div className="mt-auto pt-4 border-t border-white/10 flex items-end justify-between gap-6">
+                <div className="flex gap-x-12">
+                  <div className="group cursor-default">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">LIFEBOATS</span>
+                    <span className="text-3xl font-black tabular-nums">{totalPeopleInFleet}</span>
+                  </div>
+                  <div className="group cursor-default">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">EQUIPES RESPOSTA</span>
+                    <span className="text-3xl font-black tabular-nums">{totalManualGroups}</span>
+                  </div>
                 </div>
-                <div className="group cursor-default">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-blue-300/60 block mb-0.5">EQUIPES</span>
-                  <span className="text-2xl font-black tabular-nums">{totalManualGroups}</span>
+
+                <div className="pb-1">
+                   <span className={`text-[12px] font-black uppercase px-6 py-2 rounded-2xl shadow-xl animate-in fade-in zoom-in duration-500 ring-2 ring-white/10 ${musterStatus.color}`}>
+                    {musterStatus.label}
+                  </span>
                 </div>
               </div>
             </div>
             
-            <i className="fa-solid fa-clipboard-check absolute right-[-10px] bottom-[-20px] text-[150px] text-white/5 -rotate-12 pointer-events-none"></i>
+            <i className="fa-solid fa-clipboard-check absolute right-[-20px] bottom-[-40px] text-[200px] text-white/5 -rotate-12 pointer-events-none"></i>
           </div>
         </div>
       )}

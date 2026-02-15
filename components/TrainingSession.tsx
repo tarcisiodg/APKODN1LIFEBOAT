@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ActiveSession, TrainingRecord, ScannedTag, LifeboatType } from '../types';
 import { generateTrainingSummary } from '../services/geminiService';
@@ -157,7 +158,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         date: new Date().toLocaleString('pt-BR'), 
         lifeboat: label as any, 
         leaderName: session.leaderName, 
-        trainingType: session.trainingType, 
+        trainingType: isGlobal ? 'Contagem Geral' : session.trainingType, 
         isRealScenario: session.isRealScenario, 
         crewCount: session.tags.length, 
         duration: durationStr, 
@@ -173,7 +174,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         await Promise.all([
           cloudService.updateFleetStatus(resetFleet),
           cloudService.updateManualCounters(resetCounters),
-          cloudService.updateReleasedCrew([]) // Limpa liberados no fim do muster geral
+          cloudService.updateReleasedCrew([]) // Limpa liberados no fim da contagem geral
         ]);
       }
 
@@ -340,14 +341,14 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
               
               {isAdminUser && (
                 <button onClick={() => handleFinish(true)} disabled={isFinishing} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-md flex items-center justify-center gap-2 border border-rose-400/30">
-                  {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Encerrando...</> : 'Encerrar Muster Geral (Tudo)'}
+                  {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Encerrando...</> : 'Encerrar Contagem Geral (Tudo)'}
                 </button>
               )}
               
               <button onClick={() => setIsConfirmingFinish(false)} disabled={isFinishing} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[10px] uppercase">Cancelar</button>
             </div>
             {isAdminUser && (
-              <p className="mt-4 text-[8px] font-bold text-rose-500 uppercase tracking-widest">Atenção: Encerrar Muster Geral desativa todas as baleeiras e zera os contadores.</p>
+              <p className="mt-4 text-[8px] font-bold text-rose-500 uppercase tracking-widest">Atenção: Encerrar Contagem Geral desativa todas as baleeiras e zera os contadores.</p>
             )}
           </div>
         </div>
