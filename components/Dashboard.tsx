@@ -257,26 +257,37 @@ const Dashboard: React.FC<DashboardProps> = ({
               <i className="fa-solid fa-sliders text-blue-600"></i> Controle de Grupos
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {MANUAL_CATEGORIES.map(category => (
-                <div key={category} className={`bg-white p-4 rounded-[28px] border transition-all ${category === 'LIBERADOS' ? 'border-amber-200 bg-amber-50/30 shadow-sm' : 'border-slate-100 shadow-sm'}`}>
-                  <p className="text-[9px] font-black text-slate-400 uppercase text-center mb-3 truncate">{category}</p>
-                  <div className="flex items-center justify-between gap-1">
-                    <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 active:scale-95">
-                      <i className="fa-solid fa-minus text-[8px]"></i>
-                    </button>
-                    <input 
-                      type="number" 
-                      value={manualCounts[category] === 0 ? '' : (manualCounts[category] || '')} 
-                      onChange={(e) => setManualCountAbsolute(category, e.target.value)}
-                      readOnly={category === 'LIBERADOS'}
-                      className="w-10 text-center font-black text-lg bg-transparent border-none outline-none focus:ring-0"
-                    />
-                    <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 active:scale-95">
-                      <i className="fa-solid fa-plus text-[8px]"></i>
-                    </button>
+              {MANUAL_CATEGORIES.map(category => {
+                const count = manualCounts[category] || 0;
+                const hasValue = count > 0;
+                
+                return (
+                  <div key={category} className={`bg-white p-4 rounded-[28px] border-2 transition-all duration-300 ${category === 'LIBERADOS' ? 'border-amber-400 bg-amber-50/30 shadow-sm' : hasValue ? 'border-blue-500 bg-blue-50/20 shadow-md ring-1 ring-blue-50' : 'border-slate-300 shadow-sm'}`}>
+                    <p className={`text-[10px] font-black uppercase text-center mb-3 truncate tracking-tight transition-colors ${hasValue ? 'text-blue-700' : 'text-slate-600'}`}>{category}</p>
+                    <div className="flex items-center justify-between gap-1">
+                      <button 
+                        onClick={() => updateManualCount(category, -1)} 
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"
+                      >
+                        <i className="fa-solid fa-minus text-[8px]"></i>
+                      </button>
+                      <input 
+                        type="number" 
+                        value={count === 0 ? '' : count} 
+                        onChange={(e) => setManualCountAbsolute(category, e.target.value)}
+                        readOnly={category === 'LIBERADOS'}
+                        className={`w-12 text-center font-black text-2xl bg-transparent border-none outline-none focus:ring-0 transition-colors ${hasValue ? 'text-blue-900' : 'text-slate-800'}`}
+                      />
+                      <button 
+                        onClick={() => updateManualCount(category, 1)} 
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"
+                      >
+                        <i className="fa-solid fa-plus text-[8px]"></i>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -285,9 +296,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               const status = fleetStatus[lb];
               const isActive = status?.isActive;
               return (
-                <div key={lb} onClick={() => isActive && onViewLifeboat(lb)} className={`p-4 rounded-2xl border transition-all ${isActive ? 'bg-blue-50 border-blue-100 cursor-pointer shadow-sm' : 'bg-white border-slate-100 opacity-60 shadow-sm'}`}>
+                <div key={lb} onClick={() => isActive && onViewLifeboat(lb)} className={`p-4 rounded-2xl border-2 transition-all ${isActive ? 'bg-blue-50 border-blue-600 cursor-pointer shadow-sm' : 'bg-white border-slate-200 opacity-60 shadow-sm'}`}>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                    <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm">
                       <i className={`fa-solid fa-ship ${isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300'}`}></i>
                     </div>
                     <div className="text-right">
