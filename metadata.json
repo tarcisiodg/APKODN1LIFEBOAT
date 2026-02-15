@@ -1,6 +1,6 @@
 {
   "name": "LIFEBOAT MUSTER",
-  "short_name": "Lifesafe",
+  "short_name": "Muster",
   "description": "Sistema de Monitoramento Offshore.",
   "requestFramePermissions": [
     "geolocation",

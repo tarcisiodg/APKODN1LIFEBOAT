@@ -310,7 +310,7 @@ const App: React.FC = () => {
             </button>
             <div className={`flex flex-col items-center gap-1 ${isOnline ? 'text-emerald-500' : 'text-rose-500'}`}>
               <i className={`fa-solid ${isOnline ? 'fa-cloud' : 'fa-plane-slash'} text-lg`}></i>
-              <span className="text-[9px] font-bold uppercase">{isOnline ? 'Online' : 'Offline'}</span>
+              <span className="text-[9px] font-bold uppercase">{isOnline ? 'CLOUD' : 'OFFLINE'}</span>
             </div>
         </nav>
       )}

@@ -186,7 +186,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-6xl mx-auto w-full pb-32">
-      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+      <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
           <h2 className="text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">Olá, {user.name.split(' ')[0]}</h2>
           <div className="flex items-center gap-2">
@@ -196,35 +196,54 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {user.isAdmin && (
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {/* NOVO CONTAINER POB DISCRETO */}
-            <div className="bg-white border border-slate-100 rounded-2xl px-5 py-2.5 flex items-center gap-5 shadow-sm">
-              <div className="flex flex-col">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">POB VIGENTE</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-slate-900 leading-none">{berthStats.occupied}</span>
-                  <span className="text-xs font-bold text-slate-300">/</span>
-                  <span className="text-xs font-black text-slate-400 leading-none">{berthStats.total}</span>
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            {/* GRUPO DE BALÕES UNIFORMES (INFO + AÇÃO) */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
+              {/* BALÃO POB VIGENTE */}
+              <div className="flex-1 sm:flex-none bg-white border border-slate-200 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">POB VIGENTE</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black text-slate-900 leading-none">{berthStats.occupied}</span>
+                  <span className="text-sm font-bold text-slate-300">/</span>
+                  <span className="text-sm font-black text-slate-400 leading-none">{berthStats.total}</span>
                 </div>
               </div>
-              <div className="h-8 w-px bg-slate-100"></div>
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5 text-right">CAPACIDADE</span>
-                <span className={`text-xs font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-500' : 'text-emerald-500'}`}>
+
+              {/* BALÃO CAPACIDADE */}
+              <div className="flex-1 sm:flex-none bg-white border border-slate-200 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-sm">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 text-center">CAPACIDADE</span>
+                <span className={`text-2xl font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-600' : 'text-emerald-600'}`}>
                   {capacityPercentage}%
                 </span>
               </div>
-            </div>
 
-            <div className="flex gap-2">
-              <button onClick={onOpenBerthManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-md transition-all active:scale-95 group">
-                <i className="fa-solid fa-bed"></i>
-                <span className="text-[10px] uppercase tracking-widest font-bold">POB/Leitos</span>
+              {/* BALÃO/BOTÃO POB/LEITOS - ESTILO EDIÇÃO AZUL */}
+              <button 
+                onClick={onOpenBerthManagement} 
+                className="flex-1 sm:flex-none bg-blue-600 border border-blue-700 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group"
+              >
+                <span className="text-[9px] font-black text-blue-100 uppercase tracking-widest leading-none mb-2 opacity-80">CONTROLE</span>
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-bed text-white"></i>
+                  <span className="text-[10px] text-white font-black uppercase tracking-tight">LEITOS</span>
+                </div>
               </button>
-              <button onClick={onOpenUserManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
-                <i className="fa-solid fa-users-gear text-slate-600 group-hover:text-blue-600 transition-colors"></i>
-                <span className="text-[10px] text-slate-800 uppercase tracking-widest font-bold">Gestão</span>
-                {pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}
+
+              {/* BALÃO/BOTÃO GESTÃO - ESTILO SISTEMA DARK */}
+              <button 
+                onClick={onOpenUserManagement} 
+                className="flex-1 sm:flex-none bg-slate-800 border border-slate-900 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative"
+              >
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 opacity-80">SISTEMA</span>
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-users-gear text-white"></i>
+                  <span className="text-[10px] text-white font-black uppercase tracking-tight">GESTÃO</span>
+                </div>
+                {pendingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[8px] font-bold shadow-sm animate-bounce">
+                    {pendingCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>

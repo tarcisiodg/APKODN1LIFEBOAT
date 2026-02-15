@@ -191,7 +191,12 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                         <i className="fa-solid fa-pencil text-[10px]"></i>
                       </button>
                     </td>
-                    <td className="p-4"><span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm">{b.id}</span></td>
+                    <td className="p-4">
+                      {/* FIX: added whitespace-nowrap and inline-block to prevent text breaking inside the badge */}
+                      <span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm whitespace-nowrap inline-block">
+                        {b.id}
+                      </span>
+                    </td>
                     <td className="p-4"><span className={`text-xs font-bold uppercase tracking-tight ${b.crewName ? 'text-slate-800' : 'text-slate-200 italic opacity-50'}`}>{b.crewName || 'VAZIO'}</span></td>
                     <td className="p-4 text-[10px] font-medium text-slate-500 uppercase">{b.role || '-'}</td>
                     <td className="p-4 text-[10px] font-bold text-blue-600 uppercase">{b.company || '-'}</td>
