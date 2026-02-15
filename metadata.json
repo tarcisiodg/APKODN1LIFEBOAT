@@ -1,12 +1,13 @@
 {
-  "name": "Lifesafe ODN1 (NS-41)",
+  "name": "Lifesafe ODN1(NS-41)",
   "short_name": "Lifesafe",
-  "description": "Plataforma de monitoramento de embarque e treinamento em baleeiras para a unidade ODN1 NS-41, com tecnologia NFC.",
+  "description": "Sistema de monitoramento de embarque e controle de muster station Lifesafe.",
   "requestFramePermissions": [
     "geolocation",
-    "camera"
+    "camera",
+    "microphone"
   ],
   "theme_color": "#2563eb",
-  "background_color": "#f8fafc",
+  "background_color": "#f1f5f9",
   "display": "standalone"
 }

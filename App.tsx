@@ -27,7 +27,6 @@ const App: React.FC = () => {
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
   const [fleetStatus, setFleetStatus] = useState<Record<LifeboatType, LifeboatStatus>>(INITIAL_STATUS);
   const [history, setHistory] = useState<TrainingRecord[]>([]);
-  const [isNfcAvailable, setIsNfcAvailable] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isConfirmingLogout, setIsConfirmingLogout] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -103,7 +102,17 @@ const App: React.FC = () => {
       setTimeout(() => { isInitializingRef.current = false; setIsSyncing(false); }, 1500);
     };
     initData();
-    return () => { if (unsubscribeFleet) unsubscribeFleet(); };
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => { 
+      if (unsubscribeFleet) unsubscribeFleet();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   useEffect(() => {
@@ -139,8 +148,6 @@ const App: React.FC = () => {
     };
     syncToCloud();
   }, [activeSession?.tags.length, activeSession?.isPaused, activeSession?.seconds]);
-
-  useEffect(() => { setIsNfcAvailable('NDEFReader' in window); }, []);
 
   const processNewScan = useCallback((tagId: string, tagData: string) => {
     if (!tagId) return;
@@ -221,7 +228,8 @@ const App: React.FC = () => {
       tags: activeSession?.tags || recordData.tags || [] 
     };
     await cloudService.saveTrainingRecord(newRecord);
-    setHistory(await cloudService.getHistory());
+    const cloudHistory = await cloudService.getHistory();
+    setHistory(cloudHistory);
     setIsSyncing(false);
   };
 
@@ -264,22 +272,22 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col">
       {currentPage === AppState.LOGIN && <Login onLogin={handleLogin} />}
       {currentPage !== AppState.LOGIN && (
-        <header className="bg-white/90 backdrop-blur-md px-6 py-4 flex justify-between items-center sticky top-0 z-[70] border-b border-slate-100 shadow-sm">
+        <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-[70] shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#2563eb] rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-600/20 text-xs">LM</div>
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md">LS</div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
+                <h1 className="text-sm md:text-base font-bold text-slate-800 leading-none uppercase tracking-tight">LIFESAFE</h1>
                 {isSyncing && <i className="fa-solid fa-rotate animate-spin text-blue-400 text-[10px]"></i>}
               </div>
-              <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">ODN I - NS41</span>
+              <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">ODN1(NS-41)</span>
             </div>
           </div>
           <button onClick={() => setIsConfirmingLogout(true)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"><i className="fa-solid fa-power-off"></i></button>
         </header>
       )}
 
-      <main className={`flex-1 flex flex-col ${currentPage !== AppState.TRAINING ? 'pb-32' : ''}`}>
+      <main className={`flex-1 flex flex-col ${currentPage !== AppState.TRAINING && currentPage !== AppState.LOGIN ? 'pb-24' : ''}`}>
         {currentPage === AppState.DASHBOARD && <Dashboard onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} onResumeTraining={() => setCurrentPage(AppState.TRAINING)} onViewLifeboat={async (lb) => { if(user?.isAdmin) { const s = fleetStatus[lb]; if(s?.isActive) { setIsSyncing(true); const allBerths = await cloudService.getBerths(); const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb); setActiveSession({ lifeboat: lb, leaderName: s.leaderName || 'Líder', trainingType: s.trainingType as any || 'Fogo/Abandono', isRealScenario: s.isRealScenario || false, tags: s.tags || [], seconds: s.seconds || 0, startTime: s.startTime || Date.now(), accumulatedSeconds: s.accumulatedSeconds || 0, isPaused: s.isPaused || false, isAdminView: true, expectedCrew: expectedCrew }); setCurrentPage(AppState.TRAINING); setIsSyncing(false); } } }} onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} onOpenBerthManagement={() => setCurrentPage(AppState.BERTH_MANAGEMENT)} user={user} fleetStatus={fleetStatus} historyCount={history.length} activeSession={activeSession} />}
         {currentPage === AppState.TRAINING_CONFIG && <TrainingConfig onSubmit={(type, isReal) => { setTempConfig({trainingType: type, isRealScenario: isReal}); setCurrentPage(AppState.SELECTION); }} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={startTrainingSession} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
@@ -291,24 +299,31 @@ const App: React.FC = () => {
       </main>
 
       {user && currentPage !== AppState.LOGIN && currentPage !== AppState.TRAINING && (
-        <nav className="fixed bottom-6 left-6 right-6 z-[80] animate-in slide-in-from-bottom-10 duration-500">
-          <div className="max-w-lg mx-auto bg-white/80 backdrop-blur-xl border border-white/20 p-2 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-stretch justify-center gap-1.5">
-            <button onClick={() => setCurrentPage(AppState.DASHBOARD)} className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] transition-all ${currentPage === AppState.DASHBOARD ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}><i className="fa-solid fa-house text-sm"></i><span className="text-[7px] font-black uppercase tracking-widest">Início</span></button>
-            <button onClick={() => setCurrentPage(AppState.HISTORY)} className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] transition-all ${currentPage === AppState.HISTORY ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}><i className="fa-solid fa-clock-rotate-left text-sm"></i><span className="text-[7px] font-black uppercase tracking-widest">Histórico</span></button>
-            <div className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-[24px] border ${isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600 animate-pulse'}`}><i className={`fa-solid ${isOnline ? 'fa-cloud' : 'fa-plane-slash'} text-sm`}></i><span className="text-[7px] font-black uppercase tracking-widest">{isOnline ? 'Cloud' : 'Offline'}</span></div>
-          </div>
+        <nav className="fixed bottom-0 left-0 right-0 z-[80] bg-white border-t border-slate-200 flex items-center justify-around py-3 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <button onClick={() => setCurrentPage(AppState.DASHBOARD)} className={`flex flex-col items-center gap-1 transition-colors ${currentPage === AppState.DASHBOARD ? 'text-blue-600' : 'text-slate-400'}`}>
+              <i className="fa-solid fa-house text-lg"></i>
+              <span className="text-[9px] font-bold uppercase">Início</span>
+            </button>
+            <button onClick={() => setCurrentPage(AppState.HISTORY)} className={`flex flex-col items-center gap-1 transition-colors ${currentPage === AppState.HISTORY ? 'text-blue-600' : 'text-slate-400'}`}>
+              <i className="fa-solid fa-clock-rotate-left text-lg"></i>
+              <span className="text-[9px] font-bold uppercase">Histórico</span>
+            </button>
+            <div className={`flex flex-col items-center gap-1 ${isOnline ? 'text-emerald-500' : 'text-rose-500'}`}>
+              <i className={`fa-solid ${isOnline ? 'fa-cloud' : 'fa-plane-slash'} text-lg`}></i>
+              <span className="text-[9px] font-bold uppercase">{isOnline ? 'Online' : 'Offline'}</span>
+            </div>
         </nav>
       )}
 
       {isConfirmingLogout && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-sm w-full p-8 shadow-2xl text-center">
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-3xl max-sm w-full p-8 shadow-2xl">
             <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6"><i className="fa-solid fa-power-off text-2xl"></i></div>
             <h3 className="text-xl font-bold mb-2">Sair do Sistema?</h3>
-            <p className="text-slate-500 text-xs mb-8">Exercícios ativos serão salvos em nuvem.</p>
+            <p className="text-slate-500 text-xs mb-8">Sessões ativas serão salvas em nuvem.</p>
             <div className="grid gap-3">
-              <button onClick={handleLogout} className="w-full py-4 bg-red-600 text-white font-black rounded-2xl text-[10px] uppercase shadow-lg">Sair</button>
-              <button onClick={() => setIsConfirmingLogout(false)} className="w-full py-4 bg-slate-100 text-slate-700 font-black rounded-2xl text-[10px] uppercase">Cancelar</button>
+              <button onClick={handleLogout} className="w-full py-4 bg-red-600 text-white font-bold rounded-xl text-xs uppercase">Sair</button>
+              <button onClick={() => setIsConfirmingLogout(false)} className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs uppercase">Cancelar</button>
             </div>
           </div>
         </div>

@@ -4,8 +4,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>LIFESAFE ODN1 - MUSTER SYSTEM</title>
-    <!-- Tailwind Play CDN - Versão Estável -->
+    <title>Lifesafe ODN1(NS-41) - Controle de Embarque</title>
+    <!-- Tailwind Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -29,11 +29,20 @@
       }
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #f8fafc;
-        overscroll-behavior-y: contain;
+        background-color: #f1f5f9;
+        color: #1e293b;
+        overflow-x: hidden;
       }
-      /* Esconde o aviso do Tailwind em produção se necessário */
-      .tailwind-cdn-warning { display: none !important; }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
     </style>
     <script type="importmap">
     {
@@ -44,7 +53,8 @@
         "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
         "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
-        "firebase/": "https://esm.sh/firebase@^12.8.0/"
+        "firebase/": "https://esm.sh/firebase@^12.8.0/",
+        "xlsx": "https://esm.sh/xlsx@0.18.5"
       }
     }
     </script>
