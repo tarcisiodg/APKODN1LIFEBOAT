@@ -273,16 +273,14 @@ const App: React.FC = () => {
       {currentPage !== AppState.LOGIN && (
         <header className="bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center sticky top-0 z-[70] shadow-sm">
           <div className="flex items-center gap-3">
-            {/* Header logo updated for consistency - using rounded-xl for a square-with-rounded-edges feel */}
             <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-lg shadow-sm">
               <i className="fa-solid fa-shield-halved"></i>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm md:text-base font-bold text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT</h1>
+                <h1 className="text-sm md:text-base font-bold text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
                 {isSyncing && <i className="fa-solid fa-rotate animate-spin text-blue-400 text-[10px]"></i>}
               </div>
-              <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">MUSTER</span>
             </div>
           </div>
           <button onClick={() => setIsConfirmingLogout(true)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"><i className="fa-solid fa-power-off"></i></button>

@@ -204,20 +204,25 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="bg-blue-600 p-6 rounded-[32px] shadow-md text-white relative overflow-hidden">
                 <div className="relative z-10 flex flex-col justify-between h-full">
                   <div>
-                    <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/70 mb-1.5">MUSTER TOTAL (CONTABILIZADO)</h4>
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/70 mb-1.5">MUSTER TOTAL (CONTABILIZADO)</h4>
+                      <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full shadow-sm animate-in fade-in zoom-in duration-500 ${musterStatus.color}`}>
+                        {musterStatus.label}
+                      </span>
+                    </div>
                     <div className="flex items-baseline gap-2.5">
                       <span className="text-6xl font-black tabular-nums tracking-tighter">{overallMusterTotal}</span>
                       <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Pessoas</span>
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-white/20 flex gap-x-8">
+                  <div className="mt-4 pt-4 border-t border-white/20 flex gap-x-12">
                     <div>
-                      <span className="text-[8px] font-black uppercase tracking-widest opacity-50 block mb-1">Baleeras</span>
-                      <span className="text-lg font-black">{totalPeopleInFleet}</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 block mb-1">Baleeras</span>
+                      <span className="text-3xl font-black tabular-nums">{totalPeopleInFleet}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black uppercase tracking-widest opacity-50 block mb-1">Manual</span>
-                      <span className="text-lg font-black">{totalManualGroups}</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 block mb-1">Manual</span>
+                      <span className="text-3xl font-black tabular-nums">{totalManualGroups}</span>
                     </div>
                   </div>
                 </div>
@@ -244,9 +249,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{berthStats.total > 0 ? Math.round((berthStats.occupied / berthStats.total) * 100) : 0}% CAPACIDADE</span>
-                    <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${musterStatus.color}`}>
-                      {musterStatus.label}
-                    </span>
                   </div>
                 </div>
             </div>
@@ -296,18 +298,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               const status = fleetStatus[lb];
               const isActive = status?.isActive;
               return (
-                <div key={lb} onClick={() => isActive && onViewLifeboat(lb)} className={`p-4 rounded-2xl border-2 transition-all ${isActive ? 'bg-blue-50 border-blue-600 cursor-pointer shadow-sm' : 'bg-white border-slate-200 opacity-60 shadow-sm'}`}>
+                <div key={lb} onClick={() => isActive && onViewLifeboat(lb)} className={`p-4 rounded-2xl border-2 transition-all ${isActive ? 'bg-blue-50 border-blue-600 cursor-pointer shadow-sm' : 'bg-white border-slate-300 opacity-60 shadow-sm'}`}>
                   <div className="flex items-center justify-between mb-4">
                     <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm">
                       <i className={`fa-solid fa-ship ${isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300'}`}></i>
                     </div>
                     <div className="text-right">
                       <span className="text-2xl font-black text-slate-900 tabular-nums">{status?.count || 0}</span>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Pessoas</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pessoas</p>
                     </div>
                   </div>
-                  <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{lb}</h4>
-                  <div className={`text-[8px] font-black uppercase mt-1 ${isActive ? 'text-emerald-500' : 'text-slate-300'}`}>
+                  <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight transition-colors">{lb}</h4>
+                  <div className={`text-[8px] font-black uppercase mt-1 transition-colors ${isActive ? 'text-emerald-500' : 'text-slate-400'}`}>
                     {isActive ? `Líder: ${status.leaderName || '-'}` : 'STANDBY'}
                   </div>
                 </div>
