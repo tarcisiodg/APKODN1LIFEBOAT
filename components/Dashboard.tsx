@@ -135,7 +135,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const currentPendingMuster = useMemo(() => Math.max(0, berthStats.occupied - overallMusterTotal), [berthStats.occupied, overallMusterTotal]);
 
-  // Fix: Added capacityPercentage computation using useMemo to resolve undefined reference error
   const capacityPercentage = useMemo(() => {
     if (berthStats.total === 0) return 0;
     return Math.round((berthStats.occupied / berthStats.total) * 100);
@@ -367,10 +366,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">EQUIPES RESPOSTA</span>
                   <span className="text-3xl font-black tabular-nums">{totalManualGroups}</span>
                 </div>
-                <div className="group cursor-default">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">PENDENTES</span>
-                  <span className={`text-3xl font-black tabular-nums ${currentPendingMuster > 0 ? 'text-rose-400' : 'text-white'}`}>{currentPendingMuster}</span>
-                </div>
+                {/* Conditionally render PENDENTES based on generalTraining.isActive */}
+                {generalTraining.isActive && (
+                  <div className="group cursor-default animate-in fade-in zoom-in duration-500">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">PENDENTES</span>
+                    <span className={`text-3xl font-black tabular-nums ${currentPendingMuster > 0 ? 'text-rose-400' : 'text-white'}`}>{currentPendingMuster}</span>
+                  </div>
+                )}
               </div>
             </div>
             
