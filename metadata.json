@@ -1,7 +1,7 @@
 {
-  "name": "Lifesafe ODN1(NS-41)",
+  "name": "LIFEBOAT MUSTER",
   "short_name": "Lifesafe",
-  "description": "Sistema de monitoramento de embarque e controle de muster station Lifesafe.",
+  "description": "Sistema de Monitoramento Offshore.",
   "requestFramePermissions": [
     "geolocation",
     "camera",
