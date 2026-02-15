@@ -234,7 +234,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <span className="text-4xl font-black tabular-nums">{totalPeopleInFleet}</span>
                     </div>
                     <div>
-                      <span className="text-[11px] font-black uppercase tracking-[0.15em] text-white/60 block mb-1">Manual</span>
+                      <span className="text-[11px] font-black uppercase tracking-[0.15em] text-white/60 block mb-1">EQUIPES</span>
                       <span className="text-4xl font-black tabular-nums">{totalManualGroups}</span>
                     </div>
                   </div>
@@ -242,31 +242,32 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <i className="fa-solid fa-clipboard-check absolute right-[-20px] bottom-[-20px] text-[150px] text-white/5 -rotate-12"></i>
             </div>
 
-            <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between relative overflow-hidden">
+            <div className="bg-white p-7 rounded-[32px] shadow-md border border-slate-100 flex flex-col justify-between relative overflow-hidden transition-all hover:shadow-lg">
                 <div className="relative z-10">
-                  <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 mb-1.5">PESSOAS A BORDO (POB OFICIAL)</h4>
-                  <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-3 flex items-center gap-2">
+                    TOTAL DE PESSOAS NO POB
+                  </h4>
+                  <div className="flex items-end gap-3 mt-1">
                     <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter">{berthStats.occupied}</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tripulantes</span>
+                        <span className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">{berthStats.occupied}</span>
+                        <span className="text-2xl font-black text-blue-600/30 tabular-nums tracking-tighter leading-none bg-blue-50/50 px-2 py-1 rounded-xl">/ {berthStats.total}</span>
                     </div>
-                    <div className="text-right">
-                        <span className="text-xl font-black text-slate-400 tabular-nums">{berthStats.total}</span>
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Leitos</p>
+                    <div className="pb-1.5">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Pessoas a bordo</span>
                     </div>
                   </div>
                 </div>
-                <div className="relative z-10 mt-4">
-                  <div className="w-full h-8 bg-slate-100 rounded-full overflow-hidden relative shadow-inner border border-slate-200">
+                <div className="relative z-10 mt-6">
+                  <div className="w-full h-9 bg-slate-100 rounded-full overflow-hidden relative shadow-inner border border-slate-200 p-0.5">
                     <div 
-                      className="h-full transition-all duration-1000 flex items-center justify-center" 
+                      className="h-full transition-all duration-1000 flex items-center justify-center rounded-full" 
                       style={{ 
                         width: `${capacityPercentage}%`,
                         backgroundColor: capacityColor
                       }}
                     >
                       {capacityPercentage > 15 && (
-                        <span className={`text-[11px] font-black uppercase tracking-tighter drop-shadow-sm ${berthStats.occupied > 150 && berthStats.occupied <= 170 ? 'text-slate-900' : 'text-white'}`}>
+                        <span className={`text-[12px] font-black uppercase tracking-tighter drop-shadow-sm ${berthStats.occupied > 150 && berthStats.occupied <= 170 ? 'text-slate-900' : 'text-white'}`}>
                           {capacityPercentage}% CAPACIDADE
                         </span>
                       )}
@@ -280,13 +281,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                     )}
                   </div>
                 </div>
+                <i className="fa-solid fa-users absolute right-[-15px] top-[-15px] text-[100px] text-slate-50/50 -rotate-12 pointer-events-none"></i>
             </div>
           </div>
 
           <div className="mb-10">
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-sliders text-blue-600"></i> EQUIPES DE RESPOSTA A EMERGÊNCIAS
-            </h3>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
+              <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
+                EQUIPES DE RESPOSTA A EMERGÊNCIAS
+              </h3>
+              <div className="flex-1 h-px bg-slate-100"></div>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {MANUAL_CATEGORIES.map(category => {
                 const count = manualCounts[category] || 0;
@@ -334,11 +340,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                     <div className="text-right">
                       <span className="text-2xl font-black text-slate-900 tabular-nums">{status?.count || 0}</span>
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pessoas</p>
+                      <p className="text-right text-[8px] font-black text-slate-700 uppercase tracking-widest">Pessoas</p>
                     </div>
                   </div>
-                  <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight transition-colors">{lb}</h4>
-                  <div className={`text-[8px] font-black uppercase mt-1 transition-colors ${isActive ? 'text-emerald-500' : 'text-slate-400'}`}>
+                  <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight transition-colors">{lb}</h4>
+                  <div className={`text-[8px] font-black uppercase mt-1 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-600'}`}>
                     {isActive ? `Líder: ${status.leaderName || '-'}` : 'STANDBY'}
                   </div>
                 </div>
