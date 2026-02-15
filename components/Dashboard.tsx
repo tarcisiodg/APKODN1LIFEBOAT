@@ -196,16 +196,37 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {user.isAdmin && (
-          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <button onClick={onOpenBerthManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-md transition-all active:scale-95 group">
-              <i className="fa-solid fa-bed"></i>
-              <span className="text-[10px] uppercase tracking-widest font-bold">POB/Leitos</span>
-            </button>
-            <button onClick={onOpenUserManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
-              <i className="fa-solid fa-users-gear text-slate-600 group-hover:text-blue-600 transition-colors"></i>
-              <span className="text-[10px] text-slate-800 uppercase tracking-widest font-bold">Gestão</span>
-              {pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}
-            </button>
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* NOVO CONTAINER POB DISCRETO */}
+            <div className="bg-white border border-slate-100 rounded-2xl px-5 py-2.5 flex items-center gap-5 shadow-sm">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">POB VIGENTE</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-slate-900 leading-none">{berthStats.occupied}</span>
+                  <span className="text-xs font-bold text-slate-300">/</span>
+                  <span className="text-xs font-black text-slate-400 leading-none">{berthStats.total}</span>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-slate-100"></div>
+              <div className="flex flex-col items-end">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5 text-right">CAPACIDADE</span>
+                <span className={`text-xs font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {capacityPercentage}%
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={onOpenBerthManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-md transition-all active:scale-95 group">
+                <i className="fa-solid fa-bed"></i>
+                <span className="text-[10px] uppercase tracking-widest font-bold">POB/Leitos</span>
+              </button>
+              <button onClick={onOpenUserManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 group">
+                <i className="fa-solid fa-users-gear text-slate-600 group-hover:text-blue-600 transition-colors"></i>
+                <span className="text-[10px] text-slate-800 uppercase tracking-widest font-bold">Gestão</span>
+                {pendingCount > 0 && <span className="flex items-center justify-center min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[9px] font-bold animate-bounce">{pendingCount}</span>}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -214,9 +235,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         <>
           <div className="mb-10">
             <div className="bg-blue-600 p-8 rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10">
-              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20 items-stretch">
+              <div className="relative z-10 grid grid-cols-1 gap-10 lg:gap-20 items-stretch">
                 
-                {/* LADO ESQUERDO: TOTAL CONTABILIZADO */}
+                {/* LADO ÚNICO: TOTAL CONTABILIZADO */}
                 <div className="flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-center mb-6 h-6">
@@ -240,53 +261,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div>
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-300/60 block mb-1.5">EQUIPES</span>
                       <span className="text-4xl font-black tabular-nums">{totalManualGroups}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* LADO DIREITO: POB E CAPACIDADE (ALINHADO AO CENTRO) */}
-                <div className="lg:border-l lg:border-white/10 lg:pl-16 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-center items-center mb-6 h-6">
-                      <div className="inline-flex items-center px-5 py-2 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
-                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-white">POB VIGENTE</h4>
-                      </div>
-                    </div>
-                    
-                    {/* Alinhamento horizontal centralizado com a barra abaixo */}
-                    <div className="flex items-baseline justify-center gap-3">
-                        <span className="text-7xl font-black text-white tabular-nums tracking-tighter leading-none">
-                          {berthStats.occupied}
-                        </span>
-                        <span className="text-6xl font-extralight text-blue-200/50">/</span>
-                        <span className="text-6xl font-black text-blue-100/70 tabular-nums tracking-tighter leading-none">
-                          {berthStats.total}
-                        </span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-8 w-full">
-                    <div className="w-full h-11 bg-black/20 rounded-full overflow-hidden relative shadow-inner p-1 border border-white/5">
-                      <div 
-                        className="h-full transition-all duration-1000 flex items-center justify-center rounded-full shadow-lg" 
-                        style={{ 
-                          width: `${capacityPercentage}%`,
-                          backgroundColor: capacityColor
-                        }}
-                      >
-                        {capacityPercentage > 25 && (
-                          <span className={`text-[12px] font-black uppercase tracking-tighter drop-shadow-md ${berthStats.occupied > 150 && berthStats.occupied <= 170 ? 'text-slate-900' : 'text-white'}`}>
-                            {capacityPercentage}% CAPACIDADE
-                          </span>
-                        )}
-                      </div>
-                      {capacityPercentage <= 25 && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-[11px] font-black text-blue-100/60 uppercase tracking-tighter">
-                            {capacityPercentage}% CAPACIDADE
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
