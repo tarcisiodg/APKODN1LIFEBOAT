@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { cloudService } from '../services/cloudService';
 
@@ -88,7 +87,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
   return (
     <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-40 animate-in fade-in duration-500">
       <div className="flex items-center gap-4 mb-8">
-        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95"><i className="fa-solid fa-chevron-left"></i></button>
+        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95"><i className="fa-solid fa-chevron-left"></i></button>
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Gestão de Usuários</h2>
@@ -98,7 +97,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="flex bg-slate-100 p-1 rounded-2xl mb-8">
+      <div className="flex bg-slate-100 p-1 rounded-2xl mb-8 shadow-sm">
         <button onClick={() => setActiveTab('all')} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Aprovados ({registeredUsers.length})</button>
         <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Pendentes ({pendingUsers.length})</button>
       </div>
@@ -106,7 +105,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
       <div className="space-y-4 relative">
         {isLoading && !editingUser && !deletingId && (
           <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-3xl">
-            <div className="bg-white px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3 border border-slate-100">
+            <div className="bg-white px-6 py-4 rounded-2xl shadow-md flex items-center gap-3 border border-slate-100">
               <i className="fa-solid fa-spinner animate-spin text-blue-600"></i>
               <span className="text-xs font-black text-slate-800 uppercase tracking-widest">Sincronizando...</span>
             </div>
@@ -134,7 +133,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 {u.status === 'pending' ? (
                   <>
-                    <button onClick={() => handleApproval(u.loginId, true)} className="flex-1 bg-emerald-600 text-white font-black px-4 py-2 rounded-xl text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-600/20 active:scale-95 transition-all">Aprovar</button>
+                    <button onClick={() => handleApproval(u.loginId, true)} className="flex-1 bg-emerald-600 text-white font-black px-4 py-2 rounded-xl text-[9px] uppercase tracking-widest shadow-sm active:scale-95 transition-all">Aprovar</button>
                     <button onClick={() => handleApproval(u.loginId, false)} className="flex-1 bg-rose-50 text-rose-500 font-black px-4 py-2 rounded-xl text-[9px] uppercase tracking-widest active:scale-95 transition-all">Recusar</button>
                   </>
                 ) : (
@@ -143,14 +142,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                       <div className="flex gap-2">
                         <button 
                           onClick={() => startEdit(u)}
-                          className="w-9 h-9 bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 rounded-xl flex items-center justify-center transition-all"
+                          className="w-9 h-9 bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 rounded-xl flex items-center justify-center transition-all shadow-sm"
                           title="Editar Cadastro"
                         >
                           <i className="fa-solid fa-pen-to-square text-xs"></i>
                         </button>
                         <button 
                           onClick={() => setDeletingId(u.loginId)}
-                          className="w-9 h-9 bg-slate-50 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl flex items-center justify-center transition-all"
+                          className="w-9 h-9 bg-slate-50 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl flex items-center justify-center transition-all shadow-sm"
                           title="Excluir Usuário"
                         >
                           <i className="fa-solid fa-trash-can text-xs"></i>
@@ -172,7 +171,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
       {/* Modal de Edição */}
       {editingUser && (
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-md animate-in fade-in zoom-in duration-200">
             <h3 className="text-xl font-black text-slate-900 mb-6 text-center uppercase tracking-tight">Editar Usuário</h3>
             <div className="space-y-4">
               <div>
@@ -181,7 +180,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                   type="text" 
                   value={editForm.name} 
                   onChange={e => setEditForm({...editForm, name: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-100 outline-none"
                 />
               </div>
               <div>
@@ -190,7 +189,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                   type="text" 
                   value={editForm.role} 
                   onChange={e => setEditForm({...editForm, role: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-100 outline-none"
                 />
               </div>
               <div>
@@ -200,12 +199,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                   placeholder="Deixe em branco para manter"
                   value={editForm.password} 
                   onChange={e => setEditForm({...editForm, password: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold focus:ring-1 focus:ring-blue-100 outline-none"
                 />
               </div>
             </div>
             <div className="grid gap-2 mt-8">
-              <button onClick={saveEdit} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all">Salvar Alterações</button>
+              <button onClick={saveEdit} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-all">Salvar Alterações</button>
               <button onClick={() => setEditingUser(null)} className="w-full py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95">Cancelar</button>
             </div>
           </div>
@@ -215,7 +214,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
       {/* Modal de Exclusão */}
       {deletingId && (
         <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-200 text-center">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-md animate-in fade-in zoom-in duration-200 text-center">
             <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-user-slash text-2xl"></i>
             </div>
@@ -224,7 +223,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
               Esta ação removerá permanentemente o acesso de <span className="font-bold text-slate-900">@{deletingId}</span> da nuvem. Esta operação não pode ser desfeita.
             </p>
             <div className="grid gap-2">
-              <button onClick={handleDelete} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg shadow-rose-600/20 active:scale-95 transition-all">Confirmar Exclusão</button>
+              <button onClick={handleDelete} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-all">Confirmar Exclusão</button>
               <button onClick={() => setDeletingId(null)} className="w-full py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95">Cancelar</button>
             </div>
           </div>

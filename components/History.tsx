@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { TrainingRecord, LifeboatType } from '../types';
 
@@ -147,7 +146,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack }) => {
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition-colors shadow-sm active:scale-95"
           >
             <i className="fa-solid fa-chevron-left"></i>
           </button>
@@ -158,7 +157,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack }) => {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm mb-6">
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
             <i className="fa-solid fa-filter"></i>
@@ -181,7 +180,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack }) => {
             <select 
               value={lifeboatFilter}
               onChange={(e) => setLifeboatFilter(e.target.value as any)}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:ring-1 focus:ring-blue-100 outline-none"
             >
               {LIFEBOATS.map(lb => (
                 <option key={lb} value={lb}>{lb.toUpperCase()}</option>
@@ -194,7 +193,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack }) => {
               type="date" 
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:ring-1 focus:ring-blue-100 outline-none"
             />
           </div>
         </div>
@@ -203,7 +202,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack }) => {
           <div className="flex justify-center border-t border-slate-100 pt-6">
             <button 
               onClick={exportFilteredToCSV}
-              className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-wider"
+              className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md shadow-green-600/10 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-wider"
             >
               <i className="fa-solid fa-file-excel text-sm"></i>
               Exportar
@@ -213,7 +212,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack }) => {
       </div>
 
       {filteredRecords.length === 0 ? (
-        <div className="bg-white border-2 border-dashed border-slate-200 rounded-[32px] p-12 text-center flex flex-col items-center">
+        <div className="bg-white border-2 border-dashed border-slate-100 rounded-[32px] p-12 text-center flex flex-col items-center shadow-sm">
           <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
              <i className="fa-solid fa-magnifying-glass text-2xl"></i>
           </div>
@@ -229,7 +228,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack }) => {
           </div>
           
           {filteredRecords.map((record) => (
-            <div key={record.id} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <div key={record.id} className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">

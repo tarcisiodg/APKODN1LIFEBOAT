@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, LifeboatType, User, LifeboatStatus, TrainingRecord, ActiveSession, ScannedTag, Berth } from './types';
 import Login from './components/Login';
@@ -272,15 +271,18 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col">
       {currentPage === AppState.LOGIN && <Login onLogin={handleLogin} />}
       {currentPage !== AppState.LOGIN && (
-        <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-[70] shadow-sm">
+        <header className="bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center sticky top-0 z-[70] shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md">LS</div>
+            {/* Header logo updated for consistency - using rounded-xl for a square-with-rounded-edges feel */}
+            <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-lg shadow-sm">
+              <i className="fa-solid fa-shield-halved"></i>
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm md:text-base font-bold text-slate-800 leading-none uppercase tracking-tight">LIFESAFE</h1>
+                <h1 className="text-sm md:text-base font-bold text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT</h1>
                 {isSyncing && <i className="fa-solid fa-rotate animate-spin text-blue-400 text-[10px]"></i>}
               </div>
-              <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">ODN1(NS-41)</span>
+              <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">MUSTER</span>
             </div>
           </div>
           <button onClick={() => setIsConfirmingLogout(true)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"><i className="fa-solid fa-power-off"></i></button>
@@ -299,7 +301,7 @@ const App: React.FC = () => {
       </main>
 
       {user && currentPage !== AppState.LOGIN && currentPage !== AppState.TRAINING && (
-        <nav className="fixed bottom-0 left-0 right-0 z-[80] bg-white border-t border-slate-200 flex items-center justify-around py-3 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <nav className="fixed bottom-0 left-0 right-0 z-[80] bg-white border-t border-slate-100 flex items-center justify-around py-3 px-4 shadow-sm">
             <button onClick={() => setCurrentPage(AppState.DASHBOARD)} className={`flex flex-col items-center gap-1 transition-colors ${currentPage === AppState.DASHBOARD ? 'text-blue-600' : 'text-slate-400'}`}>
               <i className="fa-solid fa-house text-lg"></i>
               <span className="text-[9px] font-bold uppercase">Início</span>
@@ -317,12 +319,12 @@ const App: React.FC = () => {
 
       {isConfirmingLogout && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-3xl max-sm w-full p-8 shadow-2xl">
+          <div className="bg-white rounded-3xl max-sm w-full p-8 shadow-md">
             <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6"><i className="fa-solid fa-power-off text-2xl"></i></div>
             <h3 className="text-xl font-bold mb-2">Sair do Sistema?</h3>
             <p className="text-slate-500 text-xs mb-8">Sessões ativas serão salvas em nuvem.</p>
             <div className="grid gap-3">
-              <button onClick={handleLogout} className="w-full py-4 bg-red-600 text-white font-bold rounded-xl text-xs uppercase">Sair</button>
+              <button onClick={handleLogout} className="w-full py-4 bg-red-600 text-white font-bold rounded-xl text-xs uppercase shadow-sm">Sair</button>
               <button onClick={() => setIsConfirmingLogout(false)} className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs uppercase">Cancelar</button>
             </div>
           </div>

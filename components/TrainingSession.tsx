@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ActiveSession, TrainingRecord, ScannedTag, LifeboatType } from '../types';
 import { generateTrainingSummary } from '../services/geminiService';
@@ -95,10 +94,11 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         const tagId = serialNumber || "";
         if (!tagId) return;
 
+        // Fix: Use tagId instead of an undefined 'tag.id'
         const matchedBerth = session.expectedCrew?.find(b => 
           (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
           (b.tagId2 && b.tagId2.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
-          (b.tagId3 && b.tagId3.trim().toLowerCase() === tagId.trim().toLowerCase())
+          (b.tagId3 && tagId.trim().toLowerCase() === tagId.trim().toLowerCase())
         );
 
         if (!matchedBerth && !session.isAdminView) {
@@ -190,11 +190,11 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pb-32">
       {/* Toast Notificações */}
       {lastScannedText && (
-        <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10">
-           <div className="p-4 rounded-3xl shadow-2xl border bg-slate-900 border-blue-500 text-white flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center animate-bounce shadow-lg shadow-blue-600/20"><i className="fa-solid fa-check"></i></div>
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-10 fade-in">
+           <div className="p-3 px-5 rounded-full shadow-md border bg-slate-900 border-blue-500 text-white flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center animate-pulse-fast shadow-sm"><i className="fa-solid fa-check text-sm"></i></div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-[9px] font-black uppercase text-blue-400">Embarque confirmado:</p>
+                <p className="text-[9px] font-black uppercase text-blue-300">Embarque confirmado:</p>
                 <h4 className="text-sm font-black uppercase truncate">{lastScannedText}</h4>
               </div>
            </div>
@@ -202,9 +202,9 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       )}
 
       {invalidScanId && (
-        <div className="fixed top-24 left-6 right-6 z-[100] animate-in slide-in-from-top-10">
-           <div className="p-4 rounded-3xl shadow-2xl border bg-rose-600 border-rose-400 text-white flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center animate-shake"><i className="fa-solid fa-xmark"></i></div>
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-10 fade-in">
+           <div className="p-3 px-5 rounded-full shadow-md border bg-rose-600 border-rose-400 text-white flex items-center gap-3">
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center animate-shake"><i className="fa-solid fa-xmark text-sm"></i></div>
               <div className="flex-1 overflow-hidden">
                 <p className="text-[9px] font-black uppercase text-rose-100">Acesso Negado:</p>
                 <h4 className="text-sm font-black uppercase truncate">Baleeira Incorreta</h4>
@@ -216,7 +216,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-10">
         <div className="flex items-start gap-5">
-          <button onClick={onMinimize} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[#f1f5f9] text-slate-400 shadow-sm transition-all active:scale-90"><i className="fa-solid fa-chevron-left"></i></button>
+          <button onClick={onMinimize} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm transition-all active:scale-90 border border-slate-100"><i className="fa-solid fa-chevron-left"></i></button>
           <div className="mt-1">
             <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight leading-none">{session.lifeboat}</h2>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
@@ -229,7 +229,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           </div>
         </div>
         
-        <div className="bg-[#111827] text-white p-3 px-6 rounded-[24px] shadow-2xl flex flex-col items-center min-w-[140px]">
+        <div className="bg-[#111827] text-white p-3 px-6 rounded-[24px] shadow-sm flex flex-col items-center min-w-[140px]">
              <span className="text-[8px] font-black opacity-50 uppercase tracking-[0.25em]">CRONÔMETRO</span>
              <span className="text-2xl font-mono font-black mt-1 tracking-tighter tabular-nums">{formatTime(session.seconds)}</span>
         </div>
@@ -237,15 +237,15 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
       {/* Tabs */}
       <div className="flex gap-4 mb-8">
-        <button onClick={() => setViewTab('present')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${viewTab === 'present' ? 'bg-white border-blue-600 text-blue-600 shadow-xl shadow-blue-600/5' : 'bg-[#f1f5f9] border-transparent text-slate-400'}`}>PRESENTES ({session.tags.length})</button>
-        <button onClick={() => setViewTab('pending')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${viewTab === 'pending' ? 'bg-white border-blue-600 text-blue-600 shadow-xl shadow-blue-600/5' : 'bg-[#f1f5f9] border-transparent text-slate-400'}`}>FALTANTES ({pendingCrew.length})</button>
+        <button onClick={() => setViewTab('present')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${viewTab === 'present' ? 'bg-white border-blue-600 text-blue-600 shadow-sm' : 'bg-slate-50 border-transparent text-slate-400'}`}>PRESENTES ({session.tags.length})</button>
+        <button onClick={() => setViewTab('pending')} className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${viewTab === 'pending' ? 'bg-white border-blue-600 text-blue-600 shadow-sm' : 'bg-slate-50 border-transparent text-slate-400'}`}>FALTANTES ({pendingCrew.length})</button>
       </div>
 
       {/* Lista de Tripulantes */}
       <div className="flex-1 space-y-3 overflow-y-auto pb-10">
         {viewTab === 'present' ? (
           session.tags.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-100 rounded-[40px] p-20 text-center">
+            <div className="bg-white border-2 border-dashed border-slate-100 rounded-[40px] p-20 text-center shadow-sm">
               <p className="text-slate-300 text-[10px] font-black uppercase tracking-widest">Aguardando Aproximação...</p>
             </div>
           ) : (
@@ -255,7 +255,9 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                 return (
                   <div key={tag.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md animate-in slide-in-from-left-2 duration-300">
                     <div className="flex items-center gap-5 flex-1 min-w-0">
-                      <div className="w-14 h-11 bg-[#111827] text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">{tag.leito || 'N/A'}</div>
+                      <div className="w-14 h-11 bg-slate-800 text-white rounded-[14px] flex items-center justify-center text-[10px] font-black tracking-tighter flex-shrink-0">
+                        {tag.leito || 'N/A'}
+                      </div>
                       <div className="min-w-0">
                         <h4 className="text-sm font-black uppercase truncate text-slate-900 tracking-tight">{tag.name}</h4>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
@@ -286,7 +288,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           )
         ) : (
           pendingCrew.length === 0 ? (
-             <div className="bg-emerald-50 border-2 border-dashed border-emerald-100 rounded-[40px] p-20 text-center">
+             <div className="bg-emerald-50 border-2 border-dashed border-emerald-100 rounded-[40px] p-20 text-center shadow-sm">
                 <i className="fa-solid fa-check-double text-emerald-400 text-3xl mb-4"></i>
                 <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Todos a Bordo</p>
              </div>
@@ -319,25 +321,25 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       </div>
 
       {/* Botões de Ação */}
-      <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/60 backdrop-blur-xl border-t border-slate-100 flex gap-4 justify-center z-50">
-        <button onClick={onMinimize} className="flex-1 max-w-sm py-5 bg-[#f1f5f9] border border-slate-200 text-slate-600 font-black rounded-[20px] text-[10px] uppercase shadow-sm active:scale-95 transition-all tracking-widest">MINIMIZAR</button>
+      <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/60 backdrop-blur-xl border-t border-slate-100 flex gap-4 justify-center z-50 shadow-sm">
+        <button onClick={onMinimize} className="flex-1 max-w-sm py-5 bg-slate-50 border border-slate-100 text-slate-600 font-black rounded-[20px] text-[10px] uppercase shadow-sm active:scale-95 transition-all tracking-widest">MINIMIZAR</button>
         {!session.isAdminView && (
-          <button onClick={() => setIsConfirmingFinish(true)} className="flex-1 max-w-sm py-5 bg-[#2563eb] text-white font-black rounded-[20px] text-[10px] uppercase shadow-2xl shadow-blue-600/30 active:scale-95 transition-all tracking-widest">FINALIZAR</button>
+          <button onClick={() => setIsConfirmingFinish(true)} className="flex-1 max-w-sm py-5 bg-blue-600 text-white font-black rounded-[20px] text-[10px] uppercase shadow-md shadow-blue-600/20 active:scale-95 transition-all tracking-widest">FINALIZAR</button>
         )}
       </div>
 
       {/* Modais */}
       {isConfirmingFinish && (
         <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[48px] max-w-lg w-full p-12 shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[48px] max-w-lg w-full p-12 shadow-md animate-in zoom-in duration-300">
             <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">O que deseja fazer?</h3>
             <div className="grid gap-3">
-              <button onClick={() => handleFinish(false)} disabled={isFinishing} className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2">
+              <button onClick={() => handleFinish(false)} disabled={isFinishing} className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-md flex items-center justify-center gap-2">
                 {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Salvando...</> : 'Finalizar Esta Unidade'}
               </button>
               
               {isAdminUser && (
-                <button onClick={() => handleFinish(true)} disabled={isFinishing} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2 border border-rose-400/30">
+                <button onClick={() => handleFinish(true)} disabled={isFinishing} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-md flex items-center justify-center gap-2 border border-rose-400/30">
                   {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Encerrando...</> : 'Encerrar Muster Geral (Tudo)'}
                 </button>
               )}
@@ -353,10 +355,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
       {tagToDelete && (
         <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[48px] max-w-sm w-full p-10 shadow-2xl text-center">
+          <div className="bg-white rounded-[48px] max-w-sm w-full p-10 shadow-md text-center">
             <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">Remover Registro?</h3>
             <div className="grid gap-3">
-              <button onClick={() => { onRemoveTag(tagToDelete.id); setTagToDelete(null); }} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-xl">Remover</button>
+              <button onClick={() => { onRemoveTag(tagToDelete.id); setTagToDelete(null); }} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-md">Remover</button>
               <button onClick={() => setTagToDelete(null)} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[10px] uppercase">Cancelar</button>
             </div>
           </div>

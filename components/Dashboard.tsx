@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth } from '../types';
 import { cloudService } from '../services/cloudService';
@@ -163,7 +162,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         {user.isAdmin && (
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <button onClick={onOpenBerthManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-lg transition-all active:scale-95 group">
+            <button onClick={onOpenBerthManagement} className="flex-1 min-w-[140px] flex items-center justify-center gap-3 px-5 py-3 bg-slate-800 text-white rounded-2xl shadow-md transition-all active:scale-95 group">
               <i className="fa-solid fa-bed"></i>
               <span className="text-[10px] uppercase tracking-widest font-bold">POB/Leitos</span>
             </button>
@@ -179,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {user.isAdmin ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-800 p-6 rounded-[32px] shadow-xl text-white relative overflow-hidden">
+            <div className="bg-blue-600 p-6 rounded-[32px] shadow-md text-white relative overflow-hidden">
                 <div className="relative z-10 flex flex-col justify-between h-full">
                   <div>
                     <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/70 mb-1.5">MUSTER TOTAL (CONTABILIZADO)</h4>
@@ -236,10 +235,10 @@ const Dashboard: React.FC<DashboardProps> = ({
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {MANUAL_CATEGORIES.map(category => (
-                <div key={category} className={`bg-white p-4 rounded-[28px] border transition-all ${category === 'LIBERADOS' ? 'border-amber-200 bg-amber-50/30' : 'border-slate-100 shadow-sm'}`}>
+                <div key={category} className={`bg-white p-4 rounded-[28px] border transition-all ${category === 'LIBERADOS' ? 'border-amber-200 bg-amber-50/30 shadow-sm' : 'border-slate-100 shadow-sm'}`}>
                   <p className="text-[9px] font-black text-slate-400 uppercase text-center mb-3 truncate">{category}</p>
                   <div className="flex items-center justify-between gap-1">
-                    <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600">
+                    <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 active:scale-95">
                       <i className="fa-solid fa-minus text-[8px]"></i>
                     </button>
                     <input 
@@ -249,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       readOnly={category === 'LIBERADOS'}
                       className="w-10 text-center font-black text-lg bg-transparent border-none outline-none focus:ring-0"
                     />
-                    <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600">
+                    <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 active:scale-95">
                       <i className="fa-solid fa-plus text-[8px]"></i>
                     </button>
                   </div>
@@ -263,7 +262,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               const status = fleetStatus[lb];
               const isActive = status?.isActive;
               return (
-                <div key={lb} onClick={() => isActive && onViewLifeboat(lb)} className={`p-4 rounded-2xl border transition-all ${isActive ? 'bg-blue-50 border-blue-200 cursor-pointer shadow-md' : 'bg-white border-slate-100 opacity-60'}`}>
+                <div key={lb} onClick={() => isActive && onViewLifeboat(lb)} className={`p-4 rounded-2xl border transition-all ${isActive ? 'bg-blue-50 border-blue-100 cursor-pointer shadow-sm' : 'bg-white border-slate-100 opacity-60 shadow-sm'}`}>
                   <div className="flex items-center justify-between mb-4">
                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
                       <i className={`fa-solid fa-ship ${isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300'}`}></i>
@@ -284,7 +283,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </>
       ) : (
         <div className="flex-1 flex items-center justify-center py-10">
-            <button onClick={activeSession ? onResumeTraining : onStartTraining} className="w-64 h-64 bg-blue-600 rounded-full shadow-2xl shadow-blue-600/30 text-white flex flex-col items-center justify-center gap-4 hover:scale-105 active:scale-95 transition-all">
+            <button onClick={activeSession ? onResumeTraining : onStartTraining} className="w-64 h-64 bg-blue-600 rounded-full shadow-md shadow-blue-600/20 text-white flex flex-col items-center justify-center gap-4 hover:scale-105 active:scale-95 transition-all">
                 <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : 'fa-play'} text-4xl`}></i>
                 <div className="text-center">
                     <div className="font-bold text-lg uppercase">{activeSession ? 'Retomar Sessão' : 'Novo Embarque'}</div>
@@ -297,15 +296,15 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Modais de LIBERADOS */}
       {isReleaseModalOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[32px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col max-h-[80vh]">
+          <div className="bg-white rounded-[32px] max-w-lg w-full p-8 shadow-md animate-in zoom-in duration-300 flex flex-col max-h-[80vh]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-black text-slate-900 uppercase">Liberar Tripulante</h3>
-              <button onClick={() => { setIsReleaseModalOpen(false); setSearchTerm(''); }} className="w-10 h-10 bg-slate-50 rounded-full text-slate-400"><i className="fa-solid fa-xmark"></i></button>
+              <button onClick={() => { setIsReleaseModalOpen(false); setSearchTerm(''); }} className="w-10 h-10 bg-slate-50 rounded-full text-slate-400 active:scale-95"><i className="fa-solid fa-xmark"></i></button>
             </div>
-            <input type="text" placeholder="BUSCAR POR NOME..." className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase mb-4" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="BUSCAR POR NOME..." className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase mb-4 focus:ring-1 focus:ring-blue-100 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
               {availableToRelease.filter(b => b.crewName?.toUpperCase().includes(searchTerm.toUpperCase())).map(b => (
-                <button key={b.id} onClick={() => handleToggleRelease(b.id)} className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-amber-50 rounded-2xl transition-all group">
+                <button key={b.id} onClick={() => handleToggleRelease(b.id)} className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-amber-50 rounded-2xl transition-all group shadow-sm">
                   <div className="text-left">
                     <p className="text-xs font-black text-slate-800 uppercase leading-none mb-1">{b.crewName}</p>
                     <p className="text-[9px] font-bold text-slate-400 uppercase">{b.id} • {b.role}</p>
@@ -320,14 +319,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {isReturnModalOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[32px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col max-h-[80vh]">
+          <div className="bg-white rounded-[32px] max-w-lg w-full p-8 shadow-md animate-in zoom-in duration-300 flex flex-col max-h-[80vh]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-black text-slate-900 uppercase">Tripulantes Liberados</h3>
-              <button onClick={() => setIsReturnModalOpen(false)} className="w-10 h-10 bg-slate-50 rounded-full text-slate-400"><i className="fa-solid fa-xmark"></i></button>
+              <button onClick={() => setIsReturnModalOpen(false)} className="w-10 h-10 bg-slate-50 rounded-full text-slate-400 active:scale-95"><i className="fa-solid fa-xmark"></i></button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
               {releasedCrew.map(b => (
-                <button key={b.id} onClick={() => handleToggleRelease(b.id)} className="w-full flex items-center justify-between p-4 bg-amber-50 rounded-2xl hover:bg-rose-50 transition-all group">
+                <button key={b.id} onClick={() => handleToggleRelease(b.id)} className="w-full flex items-center justify-between p-4 bg-amber-50 rounded-2xl hover:bg-rose-50 transition-all group shadow-sm">
                   <div className="text-left">
                     <p className="text-xs font-black text-amber-800 group-hover:text-rose-800 uppercase leading-none mb-1">{b.crewName}</p>
                     <p className="text-[9px] font-bold text-amber-600 uppercase">STATUS: LIBERADO</p>

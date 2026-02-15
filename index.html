@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Lifesafe ODN1(NS-41) - Controle de Embarque</title>
+    <title>LIFEBOAT MUSTER - Controle de Embarque</title>
     <!-- Tailwind Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -14,8 +13,19 @@
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
             },
+            boxShadow: { // Define softer, more minimalist shadows
+              'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+              'DEFAULT': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+              'md': '0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03)',
+              'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.03), 0 4px 6px -4px rgba(0, 0, 0, 0.03)',
+              'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 10px -6px rgba(0, 0, 0, 0.03)',
+              '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.03)',
+              'inner': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.03)',
+            },
             animation: {
               'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              // Add a slightly faster pulse for specific elements without being too aggressive
+              'pulse-fast': 'pulse-fast 1s ease-in-out infinite',
             }
           }
         }
@@ -29,19 +39,23 @@
       }
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #f1f5f9;
+        background-color: #f8fafc; /* Lighter background */
         color: #1e293b;
         overflow-x: hidden;
       }
       .custom-scrollbar::-webkit-scrollbar {
-        width: 4px;
+        width: 6px; /* Slightly wider for better visibility on a light theme */
       }
       .custom-scrollbar::-webkit-scrollbar-track {
-        background: #f1f5f9;
+        background: #f1f5f9; /* Light track */
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
+        background: #cbd5e1; /* Light thumb */
         border-radius: 10px;
+      }
+      @keyframes pulse-fast {
+        0%, 100% { transform: scale(1.0); }
+        50% { transform: scale(1.02); opacity: 0.95; }
       }
     </style>
     <script type="importmap">

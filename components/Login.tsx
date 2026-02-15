@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { cloudService } from '../services/cloudService';
@@ -70,15 +69,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-12 px-6 bg-slate-100 min-h-screen">
-      <div className="w-full max-w-md bg-white rounded-[32px] shadow-xl p-8 md:p-10 border border-slate-200 animate-in fade-in zoom-in duration-500">
+      <div className="w-full max-w-md bg-white rounded-[32px] shadow-md p-8 md:p-10 border border-slate-100 animate-in fade-in zoom-in duration-500">
         <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6 shadow-xl shadow-blue-600/20">LS</div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{isRegisterMode ? 'SOLICITAR ACESSO' : 'LIFESAFE ODN1'}</h2>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">Plataforma de Monitoramento</p>
+          {/* Logo container updated to be square with rounded corners as requested */}
+          <div className="w-20 h-20 bg-[#f8fafc] rounded-2xl flex items-center justify-center text-blue-600 text-4xl mx-auto mb-8 shadow-sm border border-slate-100">
+            <i className="fa-solid fa-shield-halved"></i>
+          </div>
+          
+          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-1">
+            {isRegisterMode ? 'SOLICITAR ACESSO' : 'LIFEBOAT MUSTER'}
+          </h2>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">Sistema de Gerenciamento</p>
         </div>
 
         {successMsg ? (
-          <div className="bg-green-50 border border-green-200 p-8 rounded-3xl text-center">
+          <div className="bg-green-50 border border-green-100 p-8 rounded-3xl text-center shadow-sm">
             <i className="fa-solid fa-circle-check text-green-500 text-4xl mb-4"></i>
             <p className="text-green-700 text-sm font-bold uppercase tracking-wide">{successMsg}</p>
           </div>
@@ -88,24 +93,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none focus:border-blue-500" placeholder="NOME COMPLETO" />
+                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" placeholder="NOME COMPLETO" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Função / Cargo</label>
-                  <input type="text" value={role} onChange={(e) => setRole(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none focus:border-blue-500" placeholder="EX: RADIO OPERADOR" />
+                  <input type="text" value={role} onChange={(e) => setRole(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" placeholder="EX: RADIO OPERADOR" />
                 </div>
               </>
             )}
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Usuário</label>
-              <input type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500" placeholder="LOGIN ID" />
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">LOGIN / USUÁRIO</label>
+              <input type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" placeholder="LOGIN ID" />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">SENHA DE ACESSO</label>
               <div className="relative">
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500" placeholder="••••••••" />
+                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" placeholder="••••••••" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"><i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i></button>
               </div>
             </div>
@@ -122,14 +127,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             {isRegisterMode && (
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirmar Senha</label>
-                <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none" placeholder="••••••••" />
+                <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" placeholder="••••••••" />
               </div>
             )}
 
-            {error && <div className="text-red-500 text-[10px] font-bold text-center bg-red-50 p-4 rounded-xl border border-red-100 uppercase">{error}</div>}
+            {error && <div className="text-red-500 text-[10px] font-bold text-center bg-red-50 p-4 rounded-xl border border-red-100 uppercase shadow-sm">{error}</div>}
 
             <div className="pt-6 flex flex-col gap-3">
-              <button type="submit" disabled={isLoading} className="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg active:scale-95 transition-all text-xs uppercase tracking-widest">
+              <button type="submit" disabled={isLoading} className="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-md active:scale-95 transition-all text-xs uppercase tracking-widest">
                 {isLoading ? 'AUTENTICANDO...' : isRegisterMode ? 'CRIAR CONTA' : 'ACESSAR SISTEMA'}
               </button>
               <button type="button" onClick={() => setIsRegisterMode(!isRegisterMode)} className="text-blue-600 text-[10px] font-bold uppercase tracking-wider hover:underline">

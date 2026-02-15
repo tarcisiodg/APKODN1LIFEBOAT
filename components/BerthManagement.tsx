@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Berth, LifeboatType } from '../types';
 import { cloudService } from '../services/cloudService';
@@ -139,7 +138,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
     <div className="flex-1 flex flex-col p-4 md:p-6 max-w-7xl mx-auto w-full pb-40 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 shadow-sm active:scale-90">
+          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-600 shadow-sm active:scale-90">
             <i className="fa-solid fa-chevron-left"></i>
           </button>
           <div>
@@ -149,14 +148,14 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
         </div>
 
         <div className="flex flex-wrap gap-2">
-           <button onClick={() => { setIsEditing(false); setNewBerth({ id: '', tagId1: '', tagId2: '', tagId3: '', crewName: '', role: '', company: '', lifeboat: 'Lifeboat 1', secondaryLifeboat: 'Lifeboat 2' }); setIsModalOpen(true); }} className="flex-1 md:flex-none bg-emerald-600 text-white px-4 py-3 rounded-xl text-[9px] font-bold uppercase shadow-lg active:scale-95"><i className="fa-solid fa-plus"></i> Novo</button>
-           <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none bg-blue-600 text-white px-4 py-3 rounded-xl text-[9px] font-bold uppercase shadow-lg active:scale-95"><i className="fa-solid fa-file-excel"></i> Importar</button>
+           <button onClick={() => { setIsEditing(false); setNewBerth({ id: '', tagId1: '', tagId2: '', tagId3: '', crewName: '', role: '', company: '', lifeboat: 'Lifeboat 1', secondaryLifeboat: 'Lifeboat 2' }); setIsModalOpen(true); }} className="flex-1 md:flex-none bg-emerald-600 text-white px-4 py-3 rounded-xl text-[9px] font-bold uppercase shadow-sm active:scale-95"><i className="fa-solid fa-plus"></i> Novo</button>
+           <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none bg-blue-600 text-white px-4 py-3 rounded-xl text-[9px] font-bold uppercase shadow-sm active:scale-95"><i className="fa-solid fa-file-excel"></i> Importar</button>
            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".csv, .xlsx, .xlsm" className="hidden" />
-           <button onClick={() => setIsConfirmingClear(true)} className="flex-1 md:flex-none bg-rose-50 text-rose-600 px-4 py-3 rounded-xl text-[9px] font-bold uppercase border border-rose-100 active:scale-95"><i className="fa-solid fa-user-minus"></i> Limpar</button>
+           <button onClick={() => setIsConfirmingClear(true)} className="flex-1 md:flex-none bg-rose-50 text-rose-600 px-4 py-3 rounded-xl text-[9px] font-bold uppercase border border-rose-100 active:scale-95 shadow-sm"><i className="fa-solid fa-user-minus"></i> Limpar</button>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-[400px]">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col flex-1 min-h-[400px]">
         <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
           <i className="fa-solid fa-magnifying-glass text-slate-400"></i>
           <input type="text" placeholder="Filtrar leitos ou nomes..." className="bg-transparent border-none outline-none text-xs font-bold w-full uppercase" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -188,11 +187,11 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                 {filteredBerths.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-4">
-                      <button onClick={() => handleEditClick(b)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all">
+                      <button onClick={() => handleEditClick(b)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all shadow-sm">
                         <i className="fa-solid fa-pencil text-[10px]"></i>
                       </button>
                     </td>
-                    <td className="p-4"><span className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold">{b.id}</span></td>
+                    <td className="p-4"><span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm">{b.id}</span></td>
                     <td className="p-4"><span className={`text-xs font-bold uppercase tracking-tight ${b.crewName ? 'text-slate-800' : 'text-slate-200 italic opacity-50'}`}>{b.crewName || 'VAZIO'}</span></td>
                     <td className="p-4 text-[10px] font-medium text-slate-500 uppercase">{b.role || '-'}</td>
                     <td className="p-4 text-[10px] font-bold text-blue-600 uppercase">{b.company || '-'}</td>
@@ -211,79 +210,79 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] max-w-2xl w-full p-8 shadow-2xl animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh] custom-scrollbar">
+          <div className="bg-white rounded-[32px] max-w-2xl w-full p-8 shadow-md animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh] custom-scrollbar">
             {isScanning && (
               <div className="absolute inset-0 bg-blue-600/95 backdrop-blur-md z-[120] flex flex-col items-center justify-center p-10 text-center text-white">
                 <i className="fa-solid fa-wifi text-5xl mb-6 animate-pulse"></i>
                 <h4 className="text-xl font-bold uppercase mb-2">Aproxime a TAG</h4>
                 <p className="text-xs font-bold text-blue-100 uppercase mb-8">Campo: {isScanning.toUpperCase()}</p>
-                <button onClick={stopNfcScan} className="px-8 py-3 bg-white text-blue-600 rounded-xl font-bold uppercase text-[10px]">Cancelar</button>
+                <button onClick={stopNfcScan} className="px-8 py-3 bg-white text-blue-600 rounded-xl font-bold uppercase text-[10px] shadow-sm">Cancelar</button>
               </div>
             )}
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-slate-900 uppercase">EDITAR LEITO</h3>
-              <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400"><i className="fa-solid fa-xmark text-lg"></i></button>
+              <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 active:scale-95"><i className="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <form onSubmit={handleAddManual} className="space-y-4">
               <div className="grid grid-cols-1">
                 <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">ID DO LEITO</label>
-                <input type="text" required disabled={isEditing} value={newBerth.id} onChange={e => setNewBerth({...newBerth, id: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500" placeholder="301-A" />
+                <input type="text" required disabled={isEditing} value={newBerth.id} onChange={e => setNewBerth({...newBerth, id: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-blue-100" placeholder="301-A" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">TAG HELIDECK</label>
                   <div className="flex gap-2">
-                    <input type="text" value={newBerth.tagId1 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-mono font-bold uppercase" />
-                    <button type="button" onClick={() => handleScanTag('tagId1')} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg active:scale-90"><i className="fa-solid fa-wifi"></i></button>
+                    <input type="text" value={newBerth.tagId1 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase" />
+                    <button type="button" onClick={() => handleScanTag('tagId1')} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-wifi"></i></button>
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">TAG PROA</label>
                   <div className="flex gap-2">
-                    <input type="text" value={newBerth.tagId2 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-mono font-bold uppercase" />
-                    <button type="button" onClick={() => handleScanTag('tagId2')} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center active:scale-90"><i className="fa-solid fa-wifi"></i></button>
+                    <input type="text" value={newBerth.tagId2 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase" />
+                    <button type="button" onClick={() => handleScanTag('tagId2')} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center active:scale-90 shadow-sm"><i className="fa-solid fa-wifi"></i></button>
                   </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">TRIPULANTE</label>
-                  <input type="text" value={newBerth.crewName} onChange={e => setNewBerth({...newBerth, crewName: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none" placeholder="NOME COMPLETO" />
+                  <input type="text" value={newBerth.crewName} onChange={e => setNewBerth({...newBerth, crewName: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-blue-100" placeholder="NOME COMPLETO" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">TAG POPA</label>
                   <div className="flex gap-2">
-                    <input type="text" value={newBerth.tagId3 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-mono font-bold uppercase" />
-                    <button type="button" onClick={() => handleScanTag('tagId3')} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center active:scale-90"><i className="fa-solid fa-wifi"></i></button>
+                    <input type="text" value={newBerth.tagId3 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase" />
+                    <button type="button" onClick={() => handleScanTag('tagId3')} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center active:scale-90 shadow-sm"><i className="fa-solid fa-wifi"></i></button>
                   </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">FUNÇÃO</label>
-                  <input type="text" value={newBerth.role} onChange={e => setNewBerth({...newBerth, role: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none" />
+                  <input type="text" value={newBerth.role} onChange={e => setNewBerth({...newBerth, role: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-blue-100" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">EMPRESA</label>
-                  <input type="text" value={newBerth.company} onChange={e => setNewBerth({...newBerth, company: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase outline-none" />
+                  <input type="text" value={newBerth.company} onChange={e => setNewBerth({...newBerth, company: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-blue-100" />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">BALEIRA PRIMÁRIA</label>
-                  <select value={newBerth.lifeboat} onChange={e => setNewBerth({...newBerth, lifeboat: e.target.value as LifeboatType})} className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold uppercase">
+                  <select value={newBerth.lifeboat} onChange={e => setNewBerth({...newBerth, lifeboat: e.target.value as LifeboatType})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold uppercase focus:ring-1 focus:ring-blue-100">
                     {LIFEBOATS.map(lb => <option key={lb} value={lb}>{lb}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">BALEIRA SECUNDÁRIA</label>
-                  <select value={newBerth.secondaryLifeboat} onChange={e => setNewBerth({...newBerth, secondaryLifeboat: e.target.value as LifeboatType})} className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold uppercase">
+                  <select value={newBerth.secondaryLifeboat} onChange={e => setNewBerth({...newBerth, secondaryLifeboat: e.target.value as LifeboatType})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-bold uppercase focus:ring-1 focus:ring-blue-100">
                     {LIFEBOATS.map(lb => <option key={lb} value={lb}>{lb}</option>)}
                   </select>
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-4 border-t border-slate-100">
-                <button type="submit" disabled={isLoading} className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl text-[10px] uppercase shadow-lg active:scale-95">{isLoading ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}</button>
+                <button type="submit" disabled={isLoading} className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl text-[10px] uppercase shadow-sm active:scale-95">{isLoading ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}</button>
                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-4 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase">CANCELAR</button>
               </div>
             </form>
@@ -293,11 +292,11 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
 
       {isConfirmingClear && (
         <div className="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[32px] max-sm w-full p-8 shadow-2xl animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[32px] max-sm w-full p-8 shadow-md animate-in zoom-in duration-300">
             <h3 className="text-xl font-bold text-slate-900 mb-4 uppercase">Limpar Tripulantes?</h3>
             <p className="text-slate-500 text-[10px] font-bold uppercase mb-8 leading-relaxed">Removerá nomes e funções de todos os leitos, mantendo apenas o mapeamento básico.</p>
             <div className="grid gap-3">
-              <button onClick={async () => { await cloudService.clearBerthNames(); await loadBerths(); setIsConfirmingClear(false); }} className="w-full py-4 bg-rose-600 text-white font-bold rounded-xl text-xs uppercase active:scale-95">Sim, Limpar</button>
+              <button onClick={async () => { await cloudService.clearBerthNames(); await loadBerths(); setIsConfirmingClear(false); }} className="w-full py-4 bg-rose-600 text-white font-bold rounded-xl text-xs uppercase active:scale-95 shadow-sm">Sim, Limpar</button>
               <button onClick={() => setIsConfirmingClear(false)} className="w-full py-4 bg-slate-100 text-slate-400 font-bold rounded-xl text-xs uppercase">Cancelar</button>
             </div>
           </div>

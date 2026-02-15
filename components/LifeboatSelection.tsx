@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LifeboatType, LifeboatStatus } from '../types';
 
@@ -37,7 +36,7 @@ const LifeboatSelection: React.FC<LifeboatSelectionProps> = ({ onSelect, onBack,
       <div className="flex items-center gap-4 mb-8">
         <button 
           onClick={onBack}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition-colors shadow-sm active:scale-95"
         >
           <i className="fa-solid fa-chevron-left"></i>
         </button>
@@ -57,10 +56,10 @@ const LifeboatSelection: React.FC<LifeboatSelectionProps> = ({ onSelect, onBack,
               key={lb}
               onClick={() => handleInitialClick(lb)}
               disabled={isBusy}
-              className={`relative overflow-hidden p-6 rounded-3xl border transition-all text-left group ${
+              className={`relative overflow-hidden p-6 rounded-3xl border transition-all text-left group shadow-sm ${
                 isBusy 
-                ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' 
-                : 'bg-white border-slate-200 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/5 cursor-pointer'
+                ? 'bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed' 
+                : 'bg-white border-slate-100 hover:border-blue-200 hover:shadow-md cursor-pointer'
               }`}
             >
               {isBusy && (
@@ -92,7 +91,7 @@ const LifeboatSelection: React.FC<LifeboatSelectionProps> = ({ onSelect, onBack,
 
       {confirmingLb && (
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-8 shadow-md animate-in fade-in zoom-in duration-200">
             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
               <i className="fa-solid fa-circle-info text-3xl"></i>
             </div>
@@ -104,7 +103,7 @@ const LifeboatSelection: React.FC<LifeboatSelectionProps> = ({ onSelect, onBack,
             <div className="grid gap-3">
               <button 
                 onClick={handleConfirm}
-                className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 text-[11px] uppercase tracking-widest"
+                className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-colors shadow-sm text-[11px] uppercase tracking-widest"
               >
                 Sim, Prosseguir
               </button>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface NfcEnrollmentProps {
@@ -46,7 +45,7 @@ const NfcEnrollment: React.FC<NfcEnrollmentProps> = ({ onBack }) => {
   return (
     <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-40 animate-in fade-in duration-500">
       <div className="flex items-center gap-4 mb-8">
-        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95">
+        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95">
           <i className="fa-solid fa-chevron-left"></i>
         </button>
         <div>
@@ -55,7 +54,7 @@ const NfcEnrollment: React.FC<NfcEnrollmentProps> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl shadow-slate-200/50 p-8 space-y-8">
+      <div className="bg-white rounded-[40px] border border-slate-100 shadow-md p-8 space-y-8">
         <div className="text-center">
           <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-[28px] flex items-center justify-center mx-auto mb-6 shadow-inner">
             <i className={`fa-solid ${status === 'waiting' ? 'fa-spinner animate-spin' : status === 'success' ? 'fa-check-double text-emerald-500' : 'fa-pen-to-square'} text-3xl`}></i>
@@ -76,7 +75,7 @@ const NfcEnrollment: React.FC<NfcEnrollmentProps> = ({ onBack }) => {
               value={textToGrave}
               disabled={status === 'waiting'}
               onChange={(e) => setTextToGrave(e.target.value)}
-              className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold focus:border-blue-500 outline-none transition-all uppercase"
+              className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:border-blue-500 focus:ring-1 focus:ring-blue-100 outline-none transition-all uppercase"
               placeholder="DIGITE O NOME AQUI..."
             />
           </div>
@@ -84,8 +83,8 @@ const NfcEnrollment: React.FC<NfcEnrollmentProps> = ({ onBack }) => {
           <button 
             onClick={handleWriteTag}
             disabled={status === 'waiting' || !textToGrave}
-            className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-[11px] text-white shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
-              status === 'waiting' ? 'bg-slate-400' : status === 'success' ? 'bg-emerald-600' : 'bg-blue-600 shadow-blue-600/20'
+            className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-[11px] text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-3 ${
+              status === 'waiting' ? 'bg-slate-400' : status === 'success' ? 'bg-emerald-600' : 'bg-blue-600 shadow-blue-600/10'
             }`}
           >
             <i className="fa-solid fa-bolt"></i>
@@ -94,13 +93,13 @@ const NfcEnrollment: React.FC<NfcEnrollmentProps> = ({ onBack }) => {
         </div>
 
         {status === 'error' && (
-          <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-[10px] font-black uppercase text-center animate-in shake duration-300">
+          <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-[10px] font-black uppercase text-center animate-in shake duration-300 shadow-sm">
             {errorMsg}
           </div>
         )}
       </div>
 
-      <div className="mt-8 bg-blue-50/50 p-6 rounded-3xl border border-blue-100/50">
+      <div className="mt-8 bg-blue-50/50 p-6 rounded-3xl border border-blue-100/50 shadow-sm">
         <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
           <i className="fa-solid fa-circle-info"></i> Instruções
         </h4>
