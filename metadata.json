@@ -1,6 +1,6 @@
 {
-  "name": "Lifesafe ODN1(NS-41)",
-  "short_name": "Lifesafe",
+  "name": "LIFEBOAT MUSTER",
+  "short_name": "Muster",
   "description": "Sistema de Monitoramento Offshore.",
   "requestFramePermissions": [
     "geolocation",

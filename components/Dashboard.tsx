@@ -23,7 +23,8 @@ const LIFEBOATS: LifeboatType[] = [
 
 const MANUAL_CATEGORIES = [
   'PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 
-  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS'
+  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS',
+  'BALEEIRA 1', 'BALEEIRA 2', 'BALEEIRA 3'
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -132,6 +133,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const overallMusterTotal = useMemo(() => totalPeopleInFleet + totalManualGroups, [totalPeopleInFleet, totalManualGroups]);
 
+  const currentPendingMuster = useMemo(() => Math.max(0, berthStats.occupied - overallMusterTotal), [berthStats.occupied, overallMusterTotal]);
+
+  // Fix: Added capacityPercentage computation using useMemo to resolve undefined reference error
+  const capacityPercentage = useMemo(() => {
+    if (berthStats.total === 0) return 0;
+    return Math.round((berthStats.occupied / berthStats.total) * 100);
+  }, [berthStats.occupied, berthStats.total]);
+
   const handleStartGeneralTraining = async () => {
     const now = new Date();
     const startTimeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -235,15 +244,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const availableToRelease = useMemo(() => allBerths.filter(b => b.crewName && !releasedIds.includes(b.id)), [allBerths, releasedIds]);
   const releasedCrew = useMemo(() => allBerths.filter(b => releasedIds.includes(b.id)), [allBerths, releasedIds]);
 
-  const musterStatus = useMemo(() => {
-    const diff = berthStats.occupied - overallMusterTotal;
-    if (diff === 0) return { label: 'CONTATO OK', color: 'bg-emerald-100 text-emerald-700' };
-    else if (diff > 0) return { label: `${diff} ${diff === 1 ? 'PENDENTE' : 'PENDENTES'}`, color: 'bg-rose-100 text-rose-700' };
-    else return { label: `${Math.abs(diff)} EXCEDIDO`, color: 'bg-amber-100 text-amber-700' };
-  }, [overallMusterTotal, berthStats.occupied]);
-
-  const capacityPercentage = useMemo(() => berthStats.total === 0 ? 0 : Math.min(100, Math.round((berthStats.occupied / berthStats.total) * 100)), [berthStats.occupied, berthStats.total]);
-
   if (!user) return null;
 
   return (
@@ -315,7 +315,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </button>
                     )}
 
-                    {/* BALÃO DE TEMPO POSICIONADO ABSOLUTAMENTE */}
+                    {/* BALÃO DE TEMPO POSICIONADO ABSOLUTAMENTE PARA NÃO INTERFERIR NO LAYOUT */}
                     {(generalTraining.isActive || generalTraining.duration) && (
                       <div className="absolute top-[100%] right-0 mt-3 bg-black/40 backdrop-blur-xl rounded-[24px] p-4 border border-white/20 flex flex-col items-end gap-2 min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
                         {generalTraining.isActive ? (
@@ -347,31 +347,29 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* CONTEÚDO CENTRAL - LIMPO E CENTRALIZADO */}
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[85px] font-black tabular-nums tracking-tighter leading-none drop-shadow-lg">{overallMusterTotal}</span>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Pessoas Bordo</span>
+              {/* CONTEÚDO CENTRAL - ESTÁVEL */}
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="flex items-baseline gap-6">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[85px] font-black tabular-nums tracking-tighter leading-none drop-shadow-lg">{overallMusterTotal}</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Pessoas Bordo</span>
+                  </div>
                 </div>
               </div>
 
-              {/* BASE DO CARD - COM O BALÃO DE STATUS ALINHADO ÀS EQUIPES */}
-              <div className="mt-auto pt-4 border-t border-white/10 flex items-end justify-between gap-6">
-                <div className="flex gap-x-12">
-                  <div className="group cursor-default">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">LIFEBOATS</span>
-                    <span className="text-3xl font-black tabular-nums">{totalPeopleInFleet}</span>
-                  </div>
-                  <div className="group cursor-default">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">EQUIPES RESPOSTA</span>
-                    <span className="text-3xl font-black tabular-nums">{totalManualGroups}</span>
-                  </div>
+              {/* BASE DO CARD - SEMPRE VISÍVEL */}
+              <div className="mt-auto pt-4 border-t border-white/10 flex gap-x-12">
+                <div className="group cursor-default">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">LIFEBOATS</span>
+                  <span className="text-3xl font-black tabular-nums">{totalPeopleInFleet}</span>
                 </div>
-
-                <div className="pb-1">
-                   <span className={`text-[12px] font-black uppercase px-6 py-2 rounded-2xl shadow-xl animate-in fade-in zoom-in duration-500 ring-2 ring-white/10 ${musterStatus.color}`}>
-                    {musterStatus.label}
-                  </span>
+                <div className="group cursor-default">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">EQUIPES RESPOSTA</span>
+                  <span className="text-3xl font-black tabular-nums">{totalManualGroups}</span>
+                </div>
+                <div className="group cursor-default">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5">PENDENTES</span>
+                  <span className={`text-3xl font-black tabular-nums ${currentPendingMuster > 0 ? 'text-rose-400' : 'text-white'}`}>{currentPendingMuster}</span>
                 </div>
               </div>
             </div>

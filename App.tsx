@@ -279,7 +279,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm md:text-base font-bold text-slate-800 leading-none uppercase tracking-tight">Lifesafe ODN1(NS-41)</h1>
+                <h1 className="text-sm md:text-base font-bold text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
                 {isSyncing && <i className="fa-solid fa-rotate animate-spin text-blue-400 text-[10px]"></i>}
               </div>
             </div>
