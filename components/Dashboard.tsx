@@ -147,7 +147,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     return allBerths.filter(b => releasedIds.includes(b.id));
   }, [allBerths, releasedIds]);
 
-  // Lógica de Status do Muster (Pendentes vs Excedidos)
   const musterStatus = useMemo(() => {
     const diff = berthStats.occupied - overallMusterTotal;
     
@@ -214,20 +213,22 @@ const Dashboard: React.FC<DashboardProps> = ({
       {user.isAdmin ? (
         <>
           <div className="mb-10">
-            <div className="bg-blue-600 p-8 rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl">
-              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="bg-blue-600 p-8 rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10">
+              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20 items-stretch">
                 
-                {/* LADO ESQUERDO: TOTAL CONTABILIZADO (Original) */}
-                <div className="flex flex-col justify-between h-full">
+                {/* LADO ESQUERDO: TOTAL CONTABILIZADO */}
+                <div className="flex flex-col justify-between">
                   <div>
-                    <div className="flex justify-between items-start mb-6">
-                      <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-blue-200">TOTAL CONTABILIZADO</h4>
+                    <div className="flex justify-between items-center mb-6 h-6">
+                      <div className="inline-flex items-center px-5 py-2 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-white">TOTAL CONTABILIZADO</h4>
+                      </div>
                       <span className={`text-[11px] font-black uppercase px-4 py-2 rounded-full shadow-lg animate-in fade-in zoom-in duration-500 ring-2 ring-white/10 ${musterStatus.color}`}>
                         {musterStatus.label}
                       </span>
                     </div>
                     <div className="flex items-baseline gap-3">
-                      <span className="text-7xl font-black tabular-nums tracking-tighter">{overallMusterTotal}</span>
+                      <span className="text-7xl font-black tabular-nums tracking-tighter leading-none">{overallMusterTotal}</span>
                       <span className="text-xs font-bold uppercase tracking-widest opacity-60">Pessoas</span>
                     </div>
                   </div>
@@ -243,55 +244,58 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* LADO DIREITO: POB E CAPACIDADE (Integrado) */}
-                <div className="lg:border-l lg:border-white/10 lg:pl-16 h-full flex flex-col justify-center">
-                  <div className="mb-6">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full mb-4">
-                      <div className="w-1.5 h-1.5 bg-blue-300 rounded-full animate-pulse"></div>
-                      <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-100">OCUPAÇÃO DO POB</h4>
+                {/* LADO DIREITO: POB E CAPACIDADE (ALINHADO AO CENTRO) */}
+                <div className="lg:border-l lg:border-white/10 lg:pl-16 flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-center items-center mb-6 h-6">
+                      <div className="inline-flex items-center px-5 py-2 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-white">POB VIGENTE</h4>
+                      </div>
                     </div>
                     
-                    <div className="flex items-baseline gap-4">
+                    {/* Alinhamento horizontal centralizado com a barra abaixo */}
+                    <div className="flex items-baseline justify-center gap-3">
                         <span className="text-7xl font-black text-white tabular-nums tracking-tighter leading-none">
                           {berthStats.occupied}
                         </span>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-4xl font-light text-blue-300/40">/</span>
-                          <span className="text-4xl font-bold text-blue-200/60 tabular-nums tracking-tighter leading-none">
-                            {berthStats.total}
-                          </span>
-                        </div>
+                        <span className="text-6xl font-extralight text-blue-200/50">/</span>
+                        <span className="text-6xl font-black text-blue-100/70 tabular-nums tracking-tighter leading-none">
+                          {berthStats.total}
+                        </span>
                     </div>
                   </div>
                   
-                  <div className="w-full h-10 bg-black/20 rounded-full overflow-hidden relative shadow-inner p-1 border border-white/5">
-                    <div 
-                      className="h-full transition-all duration-1000 flex items-center justify-center rounded-full shadow-lg" 
-                      style={{ 
-                        width: `${capacityPercentage}%`,
-                        backgroundColor: capacityColor
-                      }}
-                    >
-                      {capacityPercentage > 20 && (
-                        <span className={`text-[12px] font-black uppercase tracking-tighter drop-shadow-md ${berthStats.occupied > 150 && berthStats.occupied <= 170 ? 'text-slate-900' : 'text-white'}`}>
-                          {capacityPercentage}% CAPACIDADE
-                        </span>
+                  <div className="mt-8 w-full">
+                    <div className="w-full h-11 bg-black/20 rounded-full overflow-hidden relative shadow-inner p-1 border border-white/5">
+                      <div 
+                        className="h-full transition-all duration-1000 flex items-center justify-center rounded-full shadow-lg" 
+                        style={{ 
+                          width: `${capacityPercentage}%`,
+                          backgroundColor: capacityColor
+                        }}
+                      >
+                        {capacityPercentage > 25 && (
+                          <span className={`text-[12px] font-black uppercase tracking-tighter drop-shadow-md ${berthStats.occupied > 150 && berthStats.occupied <= 170 ? 'text-slate-900' : 'text-white'}`}>
+                            {capacityPercentage}% CAPACIDADE
+                          </span>
+                        )}
+                      </div>
+                      {capacityPercentage <= 25 && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-[11px] font-black text-blue-100/60 uppercase tracking-tighter">
+                            {capacityPercentage}% CAPACIDADE
+                          </span>
+                        </div>
                       )}
                     </div>
-                    {capacityPercentage <= 20 && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-[11px] font-black text-blue-200/70 uppercase tracking-tighter">
-                          {capacityPercentage}% CAPACIDADE
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
-              <i className="fa-solid fa-clipboard-check absolute right-[-20px] bottom-[-20px] text-[180px] text-white/5 -rotate-12 pointer-events-none"></i>
+              
+              <i className="fa-solid fa-clipboard-check absolute right-[-10px] bottom-[-20px] text-[200px] text-white/5 -rotate-12 pointer-events-none"></i>
             </div>
           </div>
-
+          
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
