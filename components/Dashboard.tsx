@@ -213,75 +213,82 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {user.isAdmin ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-            <div className="bg-blue-600 p-6 rounded-[32px] shadow-md text-white relative overflow-hidden">
-                <div className="relative z-10 flex flex-col justify-between h-full">
+          <div className="mb-10">
+            <div className="bg-blue-600 p-8 rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl">
+              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+                
+                {/* LADO ESQUERDO: TOTAL CONTABILIZADO (Original) */}
+                <div className="flex flex-col justify-between h-full">
                   <div>
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/80 mb-1.5">TOTAL CONTABILIZADO</h4>
+                    <div className="flex justify-between items-start mb-6">
+                      <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-blue-200">TOTAL CONTABILIZADO</h4>
                       <span className={`text-[11px] font-black uppercase px-4 py-2 rounded-full shadow-lg animate-in fade-in zoom-in duration-500 ring-2 ring-white/10 ${musterStatus.color}`}>
                         {musterStatus.label}
                       </span>
                     </div>
-                    <div className="flex items-baseline gap-2.5">
-                      <span className="text-6xl font-black tabular-nums tracking-tighter">{overallMusterTotal}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Pessoas</span>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-7xl font-black tabular-nums tracking-tighter">{overallMusterTotal}</span>
+                      <span className="text-xs font-bold uppercase tracking-widest opacity-60">Pessoas</span>
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-white/20 flex gap-x-12">
+                  <div className="mt-8 pt-6 border-t border-white/10 flex gap-x-12">
                     <div>
-                      <span className="text-[11px] font-black uppercase tracking-[0.15em] text-white/60 block mb-1">LIFEBOATS</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-300/60 block mb-1.5">LIFEBOATS</span>
                       <span className="text-4xl font-black tabular-nums">{totalPeopleInFleet}</span>
                     </div>
                     <div>
-                      <span className="text-[11px] font-black uppercase tracking-[0.15em] text-white/60 block mb-1">EQUIPES</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-300/60 block mb-1.5">EQUIPES</span>
                       <span className="text-4xl font-black tabular-nums">{totalManualGroups}</span>
                     </div>
                   </div>
                 </div>
-                <i className="fa-solid fa-clipboard-check absolute right-[-20px] bottom-[-20px] text-[150px] text-white/5 -rotate-12"></i>
-            </div>
 
-            <div className="bg-white p-7 rounded-[32px] shadow-md border border-slate-100 flex flex-col justify-between relative overflow-hidden transition-all hover:shadow-lg">
-                <div className="relative z-10">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-3 flex items-center gap-2">
-                    TOTAL DE PESSOAS NO POB
-                  </h4>
-                  <div className="flex items-end gap-3 mt-1">
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">{berthStats.occupied}</span>
-                        <span className="text-2xl font-black text-blue-600/30 tabular-nums tracking-tighter leading-none bg-blue-50/50 px-2 py-1 rounded-xl">/ {berthStats.total}</span>
+                {/* LADO DIREITO: POB E CAPACIDADE (Integrado) */}
+                <div className="lg:border-l lg:border-white/10 lg:pl-16 h-full flex flex-col justify-center">
+                  <div className="mb-6">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full mb-4">
+                      <div className="w-1.5 h-1.5 bg-blue-300 rounded-full animate-pulse"></div>
+                      <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-100">OCUPAÇÃO DO POB</h4>
                     </div>
-                    <div className="pb-1.5">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Pessoas a bordo</span>
+                    
+                    <div className="flex items-baseline gap-4">
+                        <span className="text-7xl font-black text-white tabular-nums tracking-tighter leading-none">
+                          {berthStats.occupied}
+                        </span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-4xl font-light text-blue-300/40">/</span>
+                          <span className="text-4xl font-bold text-blue-200/60 tabular-nums tracking-tighter leading-none">
+                            {berthStats.total}
+                          </span>
+                        </div>
                     </div>
                   </div>
-                </div>
-                <div className="relative z-10 mt-6">
-                  <div className="w-full h-9 bg-slate-100 rounded-full overflow-hidden relative shadow-inner border border-slate-200 p-0.5">
+                  
+                  <div className="w-full h-10 bg-black/20 rounded-full overflow-hidden relative shadow-inner p-1 border border-white/5">
                     <div 
-                      className="h-full transition-all duration-1000 flex items-center justify-center rounded-full" 
+                      className="h-full transition-all duration-1000 flex items-center justify-center rounded-full shadow-lg" 
                       style={{ 
                         width: `${capacityPercentage}%`,
                         backgroundColor: capacityColor
                       }}
                     >
-                      {capacityPercentage > 15 && (
-                        <span className={`text-[12px] font-black uppercase tracking-tighter drop-shadow-sm ${berthStats.occupied > 150 && berthStats.occupied <= 170 ? 'text-slate-900' : 'text-white'}`}>
+                      {capacityPercentage > 20 && (
+                        <span className={`text-[12px] font-black uppercase tracking-tighter drop-shadow-md ${berthStats.occupied > 150 && berthStats.occupied <= 170 ? 'text-slate-900' : 'text-white'}`}>
                           {capacityPercentage}% CAPACIDADE
                         </span>
                       )}
                     </div>
-                    {capacityPercentage <= 15 && (
+                    {capacityPercentage <= 20 && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tighter">
+                        <span className="text-[11px] font-black text-blue-200/70 uppercase tracking-tighter">
                           {capacityPercentage}% CAPACIDADE
                         </span>
                       </div>
                     )}
                   </div>
                 </div>
-                <i className="fa-solid fa-users absolute right-[-15px] top-[-15px] text-[100px] text-slate-50/50 -rotate-12 pointer-events-none"></i>
+              </div>
+              <i className="fa-solid fa-clipboard-check absolute right-[-20px] bottom-[-20px] text-[180px] text-white/5 -rotate-12 pointer-events-none"></i>
             </div>
           </div>
 
