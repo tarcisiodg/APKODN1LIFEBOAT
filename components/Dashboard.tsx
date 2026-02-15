@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth } from '../types';
+import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth, TrainingRecord } from '../types';
 import { cloudService } from '../services/cloudService';
+import { generateTrainingSummary } from '../services/geminiService';
 
 interface DashboardProps {
   onStartTraining: () => void;
@@ -45,10 +47,25 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Estados para o cronômetro de treinamento geral (Muster Geral)
+  const [generalTraining, setGeneralTraining] = useState<{
+    isActive: boolean;
+    isFinished: boolean;
+    startTime: string;
+    endTime: string;
+    duration: string;
+    startTimestamp?: number;
+    finalTotal?: number;
+  }>({ isActive: false, isFinished: false, startTime: '', endTime: '', duration: '' });
+  
+  const [liveDuration, setLiveDuration] = useState('00:00:00');
 
   useEffect(() => {
     let unsubscribeCounters: () => void;
     let unsubscribeReleased: () => void;
+    let unsubscribeGeneralTraining: () => void;
 
     if (user?.isAdmin) {
       const fetchData = async () => {
@@ -75,13 +92,105 @@ const Dashboard: React.FC<DashboardProps> = ({
         setReleasedIds(ids);
       });
 
+      unsubscribeGeneralTraining = cloudService.subscribeToGeneralMusterTraining((data) => {
+        if (data) setGeneralTraining(data);
+      });
+
       return () => {
         clearInterval(interval);
         if (unsubscribeCounters) unsubscribeCounters();
         if (unsubscribeReleased) unsubscribeReleased();
+        if (unsubscribeGeneralTraining) unsubscribeGeneralTraining();
       };
     }
   }, [user]);
+
+  // Timer ao vivo para o treinamento geral
+  useEffect(() => {
+    let timer: number;
+    if (generalTraining.isActive && generalTraining.startTimestamp) {
+      timer = window.setInterval(() => {
+        const elapsed = Math.floor((Date.now() - (generalTraining.startTimestamp || 0)) / 1000);
+        const h = Math.floor(elapsed / 3600);
+        const m = Math.floor((elapsed % 3600) / 60);
+        const s = elapsed % 60;
+        setLiveDuration(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [generalTraining.isActive, generalTraining.startTimestamp]);
+
+  const totalPeopleInFleet = useMemo(() => {
+    return (Object.values(fleetStatus) as LifeboatStatus[]).reduce((sum: number, status: LifeboatStatus) => {
+      return sum + (status?.isActive ? (status.count || 0) : 0);
+    }, 0);
+  }, [fleetStatus]);
+
+  const totalManualGroups = useMemo(() => {
+    return (Object.values(manualCounts) as number[]).reduce((sum: number, val: number) => sum + (val || 0), 0);
+  }, [manualCounts]);
+
+  const overallMusterTotal = useMemo(() => totalPeopleInFleet + totalManualGroups, [totalPeopleInFleet, totalManualGroups]);
+
+  const handleStartGeneralTraining = async () => {
+    const now = new Date();
+    const startTimeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const newState = {
+      isActive: true,
+      isFinished: false,
+      startTime: startTimeStr,
+      endTime: '',
+      duration: '',
+      startTimestamp: Date.now()
+    };
+    await cloudService.updateGeneralMusterTraining(newState);
+  };
+
+  const handleFinishGeneralTraining = async () => {
+    const now = new Date();
+    const endTimeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const elapsed = Math.floor((Date.now() - (generalTraining.startTimestamp || 0)) / 1000);
+    const h = Math.floor(elapsed / 3600);
+    const m = Math.floor((elapsed % 3600) / 60);
+    const s = elapsed % 60;
+    const durationStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    
+    const newState = {
+      ...generalTraining,
+      isActive: false,
+      isFinished: true,
+      endTime: endTimeStr,
+      duration: durationStr,
+      finalTotal: overallMusterTotal
+    };
+    await cloudService.updateGeneralMusterTraining(newState);
+  };
+
+  const handleSaveAndClearEverything = async () => {
+    setIsSaving(true);
+    try {
+      const record: TrainingRecord = {
+        id: crypto.randomUUID(),
+        date: new Date().toLocaleString('pt-BR'),
+        lifeboat: 'FROTA COMPLETA',
+        leaderName: user?.name || 'Operador',
+        trainingType: 'Muster Geral',
+        isRealScenario: false,
+        crewCount: generalTraining.finalTotal || overallMusterTotal,
+        duration: generalTraining.duration,
+        summary: await generateTrainingSummary('FROTA COMPLETA', generalTraining.finalTotal || overallMusterTotal, generalTraining.duration),
+        operator: user?.name || 'Sistema',
+        tags: []
+      };
+      await cloudService.saveTrainingRecord(record);
+      await cloudService.finalizeEverythingGlobally();
+      setGeneralTraining({ isActive: false, isFinished: false, startTime: '', endTime: '', duration: '' });
+    } catch (e) {
+      alert("Erro ao encerrar muster geral.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const updateManualCount = async (category: string, delta: number) => {
     if (category === 'LIBERADOS') {
@@ -105,10 +214,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     } else {
       newReleased.push(berthId);
     }
-    
     setReleasedIds(newReleased);
     await cloudService.updateReleasedCrew(newReleased);
-    
     const updatedManual = { ...manualCounts, 'LIBERADOS': newReleased.length };
     setManualCounts(updatedManual);
     await cloudService.updateManualCounters(updatedManual);
@@ -116,10 +223,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const setManualCountAbsolute = async (category: string, value: string) => {
     if (category === 'LIBERADOS') return;
-
     const numValue = value === '' ? 0 : parseInt(value, 10);
     const validValue = isNaN(numValue) ? 0 : Math.max(0, numValue);
-    
     setManualCounts(prev => {
       const updated = { ...prev, [category]: validValue };
       cloudService.updateManualCounters(updated).catch(console.error);
@@ -127,60 +232,17 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   };
 
-  const totalPeopleInFleet = useMemo(() => {
-    return (Object.values(fleetStatus) as LifeboatStatus[]).reduce((sum: number, status: LifeboatStatus) => {
-      return sum + (status?.isActive ? (status.count || 0) : 0);
-    }, 0);
-  }, [fleetStatus]);
-
-  const totalManualGroups = useMemo(() => {
-    return (Object.values(manualCounts) as number[]).reduce((sum: number, val: number) => sum + (val || 0), 0);
-  }, [manualCounts]);
-
-  const overallMusterTotal = useMemo(() => totalPeopleInFleet + totalManualGroups, [totalPeopleInFleet, totalManualGroups]);
-
-  const availableToRelease = useMemo(() => {
-    return allBerths.filter(b => b.crewName && !releasedIds.includes(b.id));
-  }, [allBerths, releasedIds]);
-
-  const releasedCrew = useMemo(() => {
-    return allBerths.filter(b => releasedIds.includes(b.id));
-  }, [allBerths, releasedIds]);
+  const availableToRelease = useMemo(() => allBerths.filter(b => b.crewName && !releasedIds.includes(b.id)), [allBerths, releasedIds]);
+  const releasedCrew = useMemo(() => allBerths.filter(b => releasedIds.includes(b.id)), [allBerths, releasedIds]);
 
   const musterStatus = useMemo(() => {
     const diff = berthStats.occupied - overallMusterTotal;
-    
-    if (diff === 0) {
-      return { 
-        label: 'MUSTER OK', 
-        color: 'bg-emerald-100 text-emerald-700' 
-      };
-    } else if (diff > 0) {
-      return { 
-        label: `${diff} ${diff === 1 ? 'PENDENTE' : 'PENDENTES'}`, 
-        color: 'bg-rose-100 text-rose-700' 
-      };
-    } else {
-      const absDiff = Math.abs(diff);
-      return { 
-        label: `${absDiff} ${absDiff === 1 ? 'EXCEDIDO' : 'EXCEDIDOS'}`, 
-        color: 'bg-amber-100 text-amber-700' 
-      };
-    }
+    if (diff === 0) return { label: 'MUSTER OK', color: 'bg-emerald-100 text-emerald-700' };
+    else if (diff > 0) return { label: `${diff} ${diff === 1 ? 'PENDENTE' : 'PENDENTES'}`, color: 'bg-rose-100 text-rose-700' };
+    else return { label: `${Math.abs(diff)} EXCEDIDO`, color: 'bg-amber-100 text-amber-700' };
   }, [overallMusterTotal, berthStats.occupied]);
 
-  const capacityPercentage = useMemo(() => {
-    if (berthStats.total === 0) return 0;
-    return Math.min(100, Math.round((berthStats.occupied / berthStats.total) * 100));
-  }, [berthStats.occupied, berthStats.total]);
-
-  const capacityColor = useMemo(() => {
-    const occupied = berthStats.occupied;
-    if (occupied <= 150) return '#10b981'; // Verde (Emerald 500)
-    if (occupied <= 170) return '#fde047'; // Amarelo Claro (Yellow 300)
-    if (occupied <= 179) return '#f97316'; // Laranja (Orange 500)
-    return '#ef4444'; // Vermelho (Red 500)
-  }, [berthStats.occupied]);
+  const capacityPercentage = useMemo(() => berthStats.total === 0 ? 0 : Math.min(100, Math.round((berthStats.occupied / berthStats.total) * 100)), [berthStats.occupied, berthStats.total]);
 
   if (!user) return null;
 
@@ -197,9 +259,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         {user.isAdmin && (
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-            {/* GRUPO DE BALÕES UNIFORMES (INFO + AÇÃO) */}
             <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
-              {/* BALÃO POB VIGENTE */}
               <div className="flex-1 sm:flex-none bg-white border border-slate-200 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-sm">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">POB VIGENTE</span>
                 <div className="flex items-baseline gap-1.5">
@@ -208,123 +268,124 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className="text-sm font-black text-slate-400 leading-none">{berthStats.total}</span>
                 </div>
               </div>
-
-              {/* BALÃO CAPACIDADE */}
               <div className="flex-1 sm:flex-none bg-white border border-slate-200 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-sm">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 text-center">CAPACIDADE</span>
-                <span className={`text-2xl font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  {capacityPercentage}%
-                </span>
+                <span className={`text-2xl font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-600' : 'text-emerald-600'}`}>{capacityPercentage}%</span>
               </div>
-
-              {/* BALÃO/BOTÃO POB/LEITOS - ESTILO EDIÇÃO AZUL */}
-              <button 
-                onClick={onOpenBerthManagement} 
-                className="flex-1 sm:flex-none bg-blue-600 border border-blue-700 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group"
-              >
+              <button onClick={onOpenBerthManagement} className="flex-1 sm:flex-none bg-blue-600 border border-blue-700 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group">
                 <span className="text-[9px] font-black text-blue-100 uppercase tracking-widest leading-none mb-2 opacity-80">CONTROLE</span>
                 <div className="flex items-center gap-2">
                   <i className="fa-solid fa-bed text-white"></i>
                   <span className="text-[10px] text-white font-black uppercase tracking-tight">LEITOS</span>
                 </div>
               </button>
-
-              {/* BALÃO/BOTÃO GESTÃO - ESTILO SISTEMA DARK */}
-              <button 
-                onClick={onOpenUserManagement} 
-                className="flex-1 sm:flex-none bg-slate-800 border border-slate-900 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative"
-              >
+              <button onClick={onOpenUserManagement} className="flex-1 sm:flex-none bg-slate-800 border border-slate-900 rounded-2xl px-5 py-3 flex flex-col items-center justify-center min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 opacity-80">SISTEMA</span>
                 <div className="flex items-center gap-2">
                   <i className="fa-solid fa-users-gear text-white"></i>
                   <span className="text-[10px] text-white font-black uppercase tracking-tight">GESTÃO</span>
                 </div>
-                {pendingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[8px] font-bold shadow-sm animate-bounce">
-                    {pendingCount}
-                  </span>
-                )}
+                {pendingCount > 0 && <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[8px] font-bold shadow-sm animate-bounce">{pendingCount}</span>}
               </button>
             </div>
           </div>
         )}
       </div>
 
+      {user.isAdmin && (
+        <div className="mb-10">
+          <div className="bg-blue-600 p-5 rounded-[32px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[190px] flex flex-col">
+            <div className="relative z-10 flex flex-col flex-1">
+              {/* TOPO DO CARD */}
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex flex-col gap-2">
+                  <div className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
+                    <h4 className="text-[9px] font-black uppercase tracking-widest text-white">MUSTER GERAL</h4>
+                  </div>
+                  <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full shadow-md animate-in fade-in zoom-in duration-500 ring-2 ring-white/10 ${musterStatus.color}`}>
+                    {musterStatus.label}
+                  </span>
+                </div>
+                
+                <div className="flex flex-col items-end gap-2">
+                   {generalTraining.isFinished ? (
+                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
+                        {isSaving ? <i className="fa-solid fa-rotate animate-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
+                        Limpar e Salvar
+                      </button>
+                    ) : (
+                      <button onClick={generalTraining.isActive ? handleFinishGeneralTraining : handleStartGeneralTraining} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-500 border-rose-400/30 text-white animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
+                        <i className={`fa-solid ${generalTraining.isActive ? 'fa-stop' : 'fa-play'}`}></i>
+                        {generalTraining.isActive ? 'Finalizar' : 'Iniciar Treino'}
+                      </button>
+                    )}
+                    
+                    {(generalTraining.isActive || generalTraining.duration) && (
+                      <div className="bg-black/30 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex flex-col items-end gap-1 min-w-[140px] shadow-inner">
+                        {generalTraining.isActive ? (
+                          <>
+                            <div className="flex items-center gap-2 w-full justify-between">
+                              <span className="text-[8px] font-bold text-blue-200 uppercase tracking-widest">DURAÇÃO</span>
+                              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]"></div>
+                            </div>
+                            <span className="text-2xl font-mono font-black tabular-nums tracking-tighter leading-none text-white drop-shadow-md">{liveDuration}</span>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-end w-full">
+                            <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">TREINO CONCLUÍDO</span>
+                            <span className="text-lg font-mono font-black tabular-nums tracking-tighter leading-none text-emerald-400">{generalTraining.duration}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                </div>
+              </div>
+
+              {/* CONTEÚDO CENTRAL */}
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-6xl font-black tabular-nums tracking-tighter leading-none">{overallMusterTotal}</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60">Pessoas Bordo</span>
+                </div>
+              </div>
+
+              {/* BASE DO CARD */}
+              <div className="mt-2 pt-3 border-t border-white/10 flex gap-x-8">
+                <div className="group cursor-default">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-blue-300/60 block mb-0.5">LIFEBOATS</span>
+                  <span className="text-2xl font-black tabular-nums">{totalPeopleInFleet}</span>
+                </div>
+                <div className="group cursor-default">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-blue-300/60 block mb-0.5">EQUIPES</span>
+                  <span className="text-2xl font-black tabular-nums">{totalManualGroups}</span>
+                </div>
+              </div>
+            </div>
+            
+            <i className="fa-solid fa-clipboard-check absolute right-[-10px] bottom-[-20px] text-[150px] text-white/5 -rotate-12 pointer-events-none"></i>
+          </div>
+        </div>
+      )}
+      
       {user.isAdmin ? (
         <>
           <div className="mb-10">
-            <div className="bg-blue-600 p-8 rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10">
-              <div className="relative z-10 grid grid-cols-1 gap-10 lg:gap-20 items-stretch">
-                
-                {/* LADO ÚNICO: TOTAL CONTABILIZADO */}
-                <div className="flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-center mb-6 h-6">
-                      <div className="inline-flex items-center px-5 py-2 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
-                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-white">TOTAL CONTABILIZADO</h4>
-                      </div>
-                      <span className={`text-[11px] font-black uppercase px-4 py-2 rounded-full shadow-lg animate-in fade-in zoom-in duration-500 ring-2 ring-white/10 ${musterStatus.color}`}>
-                        {musterStatus.label}
-                      </span>
-                    </div>
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-7xl font-black tabular-nums tracking-tighter leading-none">{overallMusterTotal}</span>
-                      <span className="text-xs font-bold uppercase tracking-widest opacity-60">Pessoas</span>
-                    </div>
-                  </div>
-                  <div className="mt-8 pt-6 border-t border-white/10 flex gap-x-12">
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-300/60 block mb-1.5">LIFEBOATS</span>
-                      <span className="text-4xl font-black tabular-nums">{totalPeopleInFleet}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-300/60 block mb-1.5">EQUIPES</span>
-                      <span className="text-4xl font-black tabular-nums">{totalManualGroups}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <i className="fa-solid fa-clipboard-check absolute right-[-10px] bottom-[-20px] text-[200px] text-white/5 -rotate-12 pointer-events-none"></i>
-            </div>
-          </div>
-          
-          <div className="mb-10">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
-              <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">
-                EQUIPES DE RESPOSTA A EMERGÊNCIAS
-              </h3>
+              <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">EQUIPES DE RESPOSTA A EMERGÊNCIAS</h3>
               <div className="flex-1 h-px bg-slate-100"></div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {MANUAL_CATEGORIES.map(category => {
                 const count = manualCounts[category] || 0;
                 const hasValue = count > 0;
-                
                 return (
                   <div key={category} className={`bg-white p-4 rounded-[28px] border-2 transition-all duration-300 ${category === 'LIBERADOS' ? 'border-amber-400 bg-amber-50/30 shadow-sm' : hasValue ? 'border-blue-500 bg-blue-50/20 shadow-md ring-1 ring-blue-50' : 'border-slate-300 shadow-sm'}`}>
                     <p className={`text-[10px] font-black uppercase text-center mb-3 truncate tracking-tight transition-colors ${hasValue ? 'text-blue-700' : 'text-slate-600'}`}>{category}</p>
                     <div className="flex items-center justify-between gap-1">
-                      <button 
-                        onClick={() => updateManualCount(category, -1)} 
-                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"
-                      >
-                        <i className="fa-solid fa-minus text-[8px]"></i>
-                      </button>
-                      <input 
-                        type="number" 
-                        value={count === 0 ? '' : count} 
-                        onChange={(e) => setManualCountAbsolute(category, e.target.value)}
-                        readOnly={category === 'LIBERADOS'}
-                        className={`w-12 text-center font-black text-2xl bg-transparent border-none outline-none focus:ring-0 transition-colors ${hasValue ? 'text-blue-900' : 'text-slate-800'}`}
-                      />
-                      <button 
-                        onClick={() => updateManualCount(category, 1)} 
-                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"
-                      >
-                        <i className="fa-solid fa-plus text-[8px]"></i>
-                      </button>
+                      <button onClick={() => updateManualCount(category, -1)} className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-minus text-[8px]"></i></button>
+                      <input type="number" value={count === 0 ? '' : count} onChange={(e) => setManualCountAbsolute(category, e.target.value)} readOnly={category === 'LIBERADOS'} className={`w-12 text-center font-black text-2xl bg-transparent border-none outline-none focus:ring-0 transition-colors ${hasValue ? 'text-blue-900' : 'text-slate-800'}`} />
+                      <button onClick={() => updateManualCount(category, 1)} className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-plus text-[8px]"></i></button>
                     </div>
                   </div>
                 );

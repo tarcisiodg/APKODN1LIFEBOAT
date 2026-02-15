@@ -1,4 +1,3 @@
-
 import { db } from './firebaseConfig';
 import { 
   collection, 
@@ -19,6 +18,9 @@ const NATIVE_USER_DATA: Record<string, { name: string, role: string, pass: strin
   'odn1radiooperator': { name: 'Radio Operator', role: 'ADMINISTRADOR', pass: '1234', isAdmin: true },
   'admtarcisiodias': { name: 'Tarcisio Dias', role: 'RADIO OPERATOR', pass: '70866833', isAdmin: true }
 };
+
+const LIFEBOATS: LifeboatType[] = ['Lifeboat 1', 'Lifeboat 2', 'Lifeboat 3', 'Lifeboat 4', 'Lifeboat 5', 'Lifeboat 6'];
+const MANUAL_CATEGORIES = ['PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS'];
 
 export const cloudService = {
   async login(loginId: string, pass: string): Promise<User> {
@@ -218,5 +220,34 @@ export const cloudService = {
     return onSnapshot(fleetRef, (doc) => {
       if (doc.exists()) callback(doc.data() as Record<string, LifeboatStatus>);
     });
+  },
+
+  // Gerenciamento global de Muster Geral no Dashboard
+  async updateGeneralMusterTraining(data: any): Promise<void> {
+    const ref = doc(db, "config", "general_muster_training");
+    await setDoc(ref, data);
+  },
+
+  subscribeToGeneralMusterTraining(callback: (data: any) => void) {
+    const ref = doc(db, "config", "general_muster_training");
+    return onSnapshot(ref, (doc) => {
+      if (doc.exists()) callback(doc.data());
+      else callback(null);
+    });
+  },
+
+  async finalizeEverythingGlobally(): Promise<void> {
+    const resetFleet: any = {};
+    LIFEBOATS.forEach(lb => { 
+      resetFleet[lb] = { count: 0, isActive: false, tags: [], seconds: 0 }; 
+    });
+    const resetCounters = Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]));
+    
+    await Promise.all([
+      this.updateFleetStatus(resetFleet),
+      this.updateManualCounters(resetCounters),
+      this.updateReleasedCrew([]),
+      this.updateGeneralMusterTraining({ isActive: false, startTime: '', endTime: '', duration: '' })
+    ]);
   }
 };
