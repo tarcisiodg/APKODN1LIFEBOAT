@@ -170,6 +170,19 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [overallMusterTotal, berthStats.occupied]);
 
+  const capacityPercentage = useMemo(() => {
+    if (berthStats.total === 0) return 0;
+    return Math.min(100, Math.round((berthStats.occupied / berthStats.total) * 100));
+  }, [berthStats.occupied, berthStats.total]);
+
+  const capacityColor = useMemo(() => {
+    const occupied = berthStats.occupied;
+    if (occupied <= 150) return '#10b981'; // Verde (Emerald 500)
+    if (occupied <= 170) return '#fde047'; // Amarelo Claro (Yellow 300)
+    if (occupied <= 179) return '#f97316'; // Laranja (Orange 500)
+    return '#ef4444'; // Vermelho (Red 500)
+  }, [berthStats.occupied]);
+
   if (!user) return null;
 
   return (
@@ -205,8 +218,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="relative z-10 flex flex-col justify-between h-full">
                   <div>
                     <div className="flex justify-between items-start">
-                      <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-white/70 mb-1.5">MUSTER TOTAL (CONTABILIZADO)</h4>
-                      <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full shadow-sm animate-in fade-in zoom-in duration-500 ${musterStatus.color}`}>
+                      <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/80 mb-1.5">TOTAL CONTABILIZADO</h4>
+                      <span className={`text-[11px] font-black uppercase px-4 py-2 rounded-full shadow-lg animate-in fade-in zoom-in duration-500 ring-2 ring-white/10 ${musterStatus.color}`}>
                         {musterStatus.label}
                       </span>
                     </div>
@@ -217,12 +230,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <div className="mt-4 pt-4 border-t border-white/20 flex gap-x-12">
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 block mb-1">Baleeras</span>
-                      <span className="text-3xl font-black tabular-nums">{totalPeopleInFleet}</span>
+                      <span className="text-[11px] font-black uppercase tracking-[0.15em] text-white/60 block mb-1">LIFEBOATS</span>
+                      <span className="text-4xl font-black tabular-nums">{totalPeopleInFleet}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 block mb-1">Manual</span>
-                      <span className="text-3xl font-black tabular-nums">{totalManualGroups}</span>
+                      <span className="text-[11px] font-black uppercase tracking-[0.15em] text-white/60 block mb-1">Manual</span>
+                      <span className="text-4xl font-black tabular-nums">{totalManualGroups}</span>
                     </div>
                   </div>
                 </div>
@@ -244,11 +257,27 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
                 <div className="relative z-10 mt-4">
-                  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-slate-900 transition-all duration-1000" style={{ width: `${berthStats.total > 0 ? (berthStats.occupied / berthStats.total) * 100 : 0}%` }}></div>
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{berthStats.total > 0 ? Math.round((berthStats.occupied / berthStats.total) * 100) : 0}% CAPACIDADE</span>
+                  <div className="w-full h-8 bg-slate-100 rounded-full overflow-hidden relative shadow-inner border border-slate-200">
+                    <div 
+                      className="h-full transition-all duration-1000 flex items-center justify-center" 
+                      style={{ 
+                        width: `${capacityPercentage}%`,
+                        backgroundColor: capacityColor
+                      }}
+                    >
+                      {capacityPercentage > 15 && (
+                        <span className={`text-[11px] font-black uppercase tracking-tighter drop-shadow-sm ${berthStats.occupied > 150 && berthStats.occupied <= 170 ? 'text-slate-900' : 'text-white'}`}>
+                          {capacityPercentage}% CAPACIDADE
+                        </span>
+                      )}
+                    </div>
+                    {capacityPercentage <= 15 && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-tighter">
+                          {capacityPercentage}% CAPACIDADE
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
             </div>
@@ -256,7 +285,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
           <div className="mb-10">
             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-sliders text-blue-600"></i> Controle de Grupos
+              <i className="fa-solid fa-sliders text-blue-600"></i> EQUIPES DE RESPOSTA A EMERGÊNCIAS
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {MANUAL_CATEGORIES.map(category => {
