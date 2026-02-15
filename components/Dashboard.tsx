@@ -147,6 +147,29 @@ const Dashboard: React.FC<DashboardProps> = ({
     return allBerths.filter(b => releasedIds.includes(b.id));
   }, [allBerths, releasedIds]);
 
+  // Lógica de Status do Muster (Pendentes vs Excedidos)
+  const musterStatus = useMemo(() => {
+    const diff = berthStats.occupied - overallMusterTotal;
+    
+    if (diff === 0) {
+      return { 
+        label: 'MUSTER OK', 
+        color: 'bg-emerald-100 text-emerald-700' 
+      };
+    } else if (diff > 0) {
+      return { 
+        label: `${diff} ${diff === 1 ? 'PENDENTE' : 'PENDENTES'}`, 
+        color: 'bg-rose-100 text-rose-700' 
+      };
+    } else {
+      const absDiff = Math.abs(diff);
+      return { 
+        label: `${absDiff} ${absDiff === 1 ? 'EXCEDIDO' : 'EXCEDIDOS'}`, 
+        color: 'bg-amber-100 text-amber-700' 
+      };
+    }
+  }, [overallMusterTotal, berthStats.occupied]);
+
   if (!user) return null;
 
   return (
@@ -221,8 +244,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{berthStats.total > 0 ? Math.round((berthStats.occupied / berthStats.total) * 100) : 0}% CAPACIDADE</span>
-                    <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${overallMusterTotal === berthStats.occupied ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {overallMusterTotal === berthStats.occupied ? 'MUSTER OK' : 'PENDENTE'}
+                    <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${musterStatus.color}`}>
+                      {musterStatus.label}
                     </span>
                   </div>
                 </div>
@@ -243,7 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </button>
                     <input 
                       type="number" 
-                      value={manualCounts[category] || 0} 
+                      value={manualCounts[category] === 0 ? '' : (manualCounts[category] || '')} 
                       onChange={(e) => setManualCountAbsolute(category, e.target.value)}
                       readOnly={category === 'LIBERADOS'}
                       className="w-10 text-center font-black text-lg bg-transparent border-none outline-none focus:ring-0"

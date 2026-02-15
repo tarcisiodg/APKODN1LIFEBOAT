@@ -57,6 +57,19 @@
         0%, 100% { transform: scale(1.0); }
         50% { transform: scale(1.02); opacity: 0.95; }
       }
+
+      /* Hide native number input arrows (spin buttons) */
+      /* Chrome, Safari, Edge, Opera */
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      /* Firefox */
+      input[type=number] {
+        -moz-appearance: textfield;
+      }
     </style>
     <script type="importmap">
     {
