@@ -1,7 +1,7 @@
 {
   "name": "LIFEBOAT MUSTER",
   "short_name": "Muster",
-  "description": "Sistema de Monitoramento Offshore ODN1.",
+  "description": "Sistema de Monitoramento Offshore do Navio Sonda ODN I.",
   "requestFramePermissions": [
     "geolocation",
     "camera",
