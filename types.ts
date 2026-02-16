@@ -33,6 +33,8 @@ export interface Berth {
 export interface LifeboatStatus {
   count: number;
   isActive: boolean;
+  isManualMode?: boolean; 
+  manualCount?: number;   
   startTime?: number;
   accumulatedSeconds?: number;
   operatorName?: string; 

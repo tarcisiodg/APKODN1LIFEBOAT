@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth, TrainingRecord, ScannedTag } from '../types';
 import { cloudService } from '../services/cloudService';
@@ -132,6 +133,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const totalPeopleInFleet = useMemo(() => {
     return (Object.values(fleetStatus) as LifeboatStatus[]).reduce((sum: number, status: LifeboatStatus) => {
+      if (status?.isManualMode) {
+        return sum + (status.manualCount || 0);
+      }
       return sum + (status?.isActive ? (status.count || 0) : 0);
     }, 0);
   }, [fleetStatus]);
@@ -205,7 +209,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       LIFEBOATS.forEach(lb => {
         const status = fleetStatus[lb];
-        if (status?.tags && status.tags.length > 0) {
+        if (status?.isManualMode) {
+          // Em modo manual não temos as tags individuais da auditoria em tempo real, 
+          // apenas a contagem bruta reportada.
+          lbBreakdown[lb] = { count: status.manualCount || 0, tags: [] };
+        } else if (status?.tags && status.tags.length > 0) {
           allTags = [...allTags, ...status.tags];
           lbBreakdown[lb] = {
             count: status.tags.length,
@@ -257,6 +265,34 @@ const Dashboard: React.FC<DashboardProps> = ({
       cloudService.updateManualCounters(updated).catch(console.error);
       return updated;
     });
+  };
+
+  const toggleLifeboatManualMode = async (lb: LifeboatType) => {
+    const status = fleetStatus[lb];
+    const isNowManual = !status?.isManualMode;
+    const updatedFleet = {
+      ...fleetStatus,
+      [lb]: {
+        ...status,
+        isManualMode: isNowManual,
+        manualCount: isNowManual ? (status?.count || 0) : 0
+      }
+    };
+    await cloudService.updateFleetStatus(updatedFleet);
+  };
+
+  const updateLifeboatManualCount = async (lb: LifeboatType, delta: number) => {
+    const status = fleetStatus[lb];
+    if (!status?.isManualMode) return;
+    
+    const updatedFleet = {
+      ...fleetStatus,
+      [lb]: {
+        ...status,
+        manualCount: Math.max(0, (status.manualCount || 0) + delta)
+      }
+    };
+    await cloudService.updateFleetStatus(updatedFleet);
   };
 
   const handleToggleRelease = async (berthId: string) => {
@@ -513,20 +549,53 @@ const Dashboard: React.FC<DashboardProps> = ({
             {LIFEBOATS.map(lb => {
               const status = fleetStatus[lb];
               const isActive = status?.isActive;
+              const isManual = status?.isManualMode;
+              const countToDisplay = isManual ? (status.manualCount || 0) : (status?.count || 0);
+              
               return (
-                <div key={lb} onClick={() => isActive && onViewLifeboat(lb)} className={`p-4 rounded-2xl border-2 transition-all ${isActive ? 'bg-blue-50 border-blue-600 cursor-pointer shadow-sm' : 'bg-white border-slate-300 opacity-60 shadow-sm'}`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm">
-                      <i className={`fa-solid fa-ship ${isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300'}`}></i>
+                <div key={lb} className={`p-5 rounded-[32px] border-2 transition-all flex flex-col gap-4 relative ${isManual ? 'bg-amber-50 border-amber-500 shadow-md' : isActive ? 'bg-blue-50 border-blue-600 shadow-sm' : 'bg-white border-slate-300 opacity-70 shadow-sm'}`}>
+                  {/* Seção Superior: Ícone e Contagem */}
+                  <div className="flex items-start justify-between">
+                    <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm ${isActive && !isManual ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'}`}>
+                      <i className={`fa-solid ${isManual ? 'fa-triangle-exclamation text-amber-500' : 'fa-ship ' + (isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300')} text-xl`}></i>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">{status?.count || 0}</span>
-                      <p className="text-right text-[8px] font-black text-slate-700 uppercase tracking-widest">Pessoas</p>
+                    
+                    {isManual ? (
+                      <div className="flex items-center gap-2 bg-white/50 p-1 rounded-full border border-amber-200">
+                         <button onClick={() => updateLifeboatManualCount(lb, -1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-minus text-[10px]"></i></button>
+                         <span className="text-2xl font-black text-amber-900 tabular-nums w-10 text-center">{countToDisplay}</span>
+                         <button onClick={() => updateLifeboatManualCount(lb, 1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-plus text-[10px]"></i></button>
+                      </div>
+                    ) : (
+                      <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`text-right ${isActive ? 'cursor-pointer' : 'cursor-default'}`}>
+                        <span className="text-3xl font-black text-slate-900 tabular-nums leading-none">{countToDisplay}</span>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">PESSOAS</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informações da Baleeira */}
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight mb-1">{lb}</h4>
+                    <div className={`text-[9px] font-black uppercase transition-colors ${isManual ? 'text-amber-700' : isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {isManual ? 'COMANDO MANUAL ATIVO' : isActive ? `Líder: ${status.leaderName || '-'}` : 'STANDBY'}
                     </div>
                   </div>
-                  <h4 className="text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-tight transition-colors">{lb}</h4>
-                  <div className={`text-[8px] font-black uppercase mt-1 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-600'}`}>
-                    {isActive ? `Líder: ${status.leaderName || '-'}` : 'STANDBY'}
+
+                  {/* Seção Inferior: Toggle de Modo Manual/Online */}
+                  <div className="mt-auto pt-4 border-t border-slate-100/50">
+                    <button 
+                      onClick={() => toggleLifeboatManualMode(lb)}
+                      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm border ${
+                        isManual 
+                        ? 'bg-amber-600 text-white border-amber-700 shadow-amber-600/20' 
+                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                      }`}
+                      title={isManual ? "Voltar para Automático" : "Assumir Comando Manual"}
+                    >
+                      <i className={`fa-solid ${isManual ? 'fa-toggle-on' : 'fa-toggle-off'} text-xs`}></i>
+                      {isManual ? 'MODO OFFLINE' : 'MODO ONLINE'}
+                    </button>
                   </div>
                 </div>
               );
