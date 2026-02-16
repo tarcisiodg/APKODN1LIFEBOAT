@@ -634,7 +634,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </>
       )}
 
-      {/* Modal de Consulta de POB (Para Operadores) - Responsivo */}
+      {/* Modal de Consulta de POB (Para Operadores) - Responsivo Otimizado */}
       {isPobConsultOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
           <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-7xl w-full p-3 sm:p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
@@ -658,14 +658,14 @@ const Dashboard: React.FC<DashboardProps> = ({
               <i className="fa-solid fa-magnifying-glass absolute left-6 sm:left-8 top-1/2 -translate-y-1/2 text-slate-300 text-xs sm:text-sm"></i>
               <input 
                 type="text" 
-                placeholder="BUSCAR NOME, FUNÇÃO OU LEITO..." 
+                placeholder="BUSCAR NOME, FUNÇÃO, LEITO OU EMPRESA..." 
                 className="w-full pl-11 sm:pl-14 pr-6 py-4 sm:py-4.5 bg-slate-50 border border-slate-100 rounded-xl sm:rounded-2xl text-[10px] sm:text-[11px] font-black uppercase focus:ring-2 focus:ring-blue-100 focus:bg-white outline-none transition-all shadow-inner" 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
               />
             </div>
 
-            {/* Container da Lista (Responsivo: Tabela no Desktop, Cards no Mobile) */}
+            {/* Container da Lista (Responsivo: Tabela no Desktop, Grid de Cards em Tablets/Mobile) */}
             <div className="flex-1 overflow-y-auto custom-scrollbar px-1 sm:px-2 pb-6">
               {sortedPobList.length === 0 ? (
                 <div className="py-24 text-center text-slate-300 bg-slate-50/30 rounded-2xl">
@@ -674,38 +674,52 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               ) : (
                 <>
-                  {/* Visão de CARDS (Apenas Mobile < 640px) */}
-                  <div className="grid grid-cols-1 gap-3 sm:hidden pb-4">
-                    {sortedPobList.map((b) => (
-                      <div key={b.id} className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm space-y-3">
-                        <div className="flex justify-between items-start gap-3">
-                           <div className="min-w-0">
-                             <h4 className="text-[11px] font-black text-slate-800 uppercase leading-tight truncate">{b.crewName || '--- VAZIO ---'}</h4>
-                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-1 truncate">{b.role || '-'} • {b.company || '-'}</p>
-                           </div>
-                           <span className="bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm flex-shrink-0">{b.id}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
-                          <div className="flex-1 flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-slate-300 uppercase tracking-wider">Primária</span>
-                            <span className={`text-[10px] font-black py-1 rounded-lg border text-center uppercase tracking-tighter ${b.lifeboat ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
-                              {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '-'}
-                            </span>
+                  {/* Visão de CARDS (Mobile e Tablets < 1024px) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:hidden pb-4">
+                    {sortedPobList.map((b) => {
+                      const isOccupied = b.crewName && b.crewName.trim() !== '';
+                      return (
+                        <div key={b.id} className={`bg-white border p-4 rounded-2xl shadow-sm space-y-3 transition-all ${isOccupied ? 'border-blue-100 bg-blue-50/10' : 'border-slate-100 opacity-60'}`}>
+                          <div className="flex justify-between items-start gap-3">
+                             <div className="min-w-0">
+                               <div className="flex items-center gap-2 mb-1">
+                                 <h4 className={`text-[11px] font-black uppercase leading-tight truncate ${isOccupied ? 'text-slate-800' : 'text-slate-400'}`}>
+                                   {isOccupied ? b.crewName : '--- VAZIO ---'}
+                                 </h4>
+                               </div>
+                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate">
+                                 {isOccupied ? `${b.role || '-'} • ${b.company || '-'}` : 'Leito disponível para alocação'}
+                               </p>
+                             </div>
+                             <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                               <span className="bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm">{b.id}</span>
+                               <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${isOccupied ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                 {isOccupied ? 'Ocupado' : 'Livre'}
+                               </span>
+                             </div>
                           </div>
-                          <div className="flex-1 flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-slate-300 uppercase tracking-wider">Secundária</span>
-                            <span className={`text-[10px] font-black py-1 rounded-lg border text-center uppercase tracking-tighter ${b.secondaryLifeboat ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
-                              {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '-'}
-                            </span>
+                          
+                          <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
+                            <div className="flex-1 flex flex-col gap-1">
+                              <span className="text-[8px] font-black text-slate-300 uppercase tracking-wider">Primária</span>
+                              <span className={`text-[10px] font-black py-1.5 rounded-lg border text-center uppercase tracking-tighter shadow-sm ${b.lifeboat ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
+                                {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '-'}
+                              </span>
+                            </div>
+                            <div className="flex-1 flex flex-col gap-1">
+                              <span className="text-[8px] font-black text-slate-300 uppercase tracking-wider">Secundária</span>
+                              <span className={`text-[10px] font-black py-1.5 rounded-lg border text-center uppercase tracking-tighter shadow-sm ${b.secondaryLifeboat ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
+                                {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '-'}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
-                  {/* Visão de TABELA (Tablet e Desktop >= 640px) */}
-                  <div className="hidden sm:block min-w-full bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                  {/* Visão de TABELA (Desktop >= 1024px) */}
+                  <div className="hidden lg:block min-w-full bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-md z-20 border-b border-slate-200">
                         <tr>
@@ -760,7 +774,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                  </div>
                  <div className="flex items-center gap-2">
                    <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 bg-emerald-500 rounded-full shadow-sm"></div>
-                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">A Bordo: {sortedPobList.filter(x => x.crewName).length}</span>
+                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">A Bordo: {sortedPobList.filter(x => x.crewName && x.crewName.trim() !== '').length}</span>
                  </div>
               </div>
               <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100 self-center sm:self-auto">
