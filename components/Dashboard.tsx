@@ -407,7 +407,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsTestNfcOpen(false);
     setTestTagResult(null);
     setNfcTestState('idle');
-    // Abort signal if needed, but simplest is to just close the UI
   };
 
   if (!user) return null;
@@ -580,26 +579,26 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       {!user.isAdmin ? (
         <div className="flex-1 flex flex-col items-center justify-center py-10 gap-8">
-            <div className="relative">
+            <div className="relative w-full max-w-[640px]">
               {!generalTraining.isActive && !activeSession && (
-                <div className="absolute inset-0 bg-white/90 backdrop-blur-[6px] z-10 rounded-[48px] flex flex-col items-center justify-center border-4 border-dashed border-blue-200/50 shadow-inner group/standby overflow-hidden">
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-[6px] z-10 rounded-[40px] sm:rounded-[48px] flex flex-row items-center justify-center gap-6 sm:gap-10 border-4 border-dashed border-blue-200/50 shadow-inner group/standby overflow-hidden px-6 sm:px-12">
                   <div className="absolute -inset-[100%] bg-gradient-to-tr from-transparent via-blue-50/30 to-transparent animate-[shimmer_4s_infinite] pointer-events-none"></div>
                   
-                  <div className="relative mb-6">
+                  <div className="relative">
                     <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-20"></div>
-                    <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-blue-500 shadow-[0_10px_25px_rgba(59,130,246,0.1)] border border-blue-50/50 relative z-10">
-                      <i className="fa-solid fa-clock-rotate-left text-3xl animate-[spin_10s_linear_infinite]"></i>
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-3xl flex items-center justify-center text-blue-500 shadow-[0_10px_25px_rgba(59,130,246,0.1)] border border-blue-50/50 relative z-10">
+                      <i className="fa-solid fa-clock-rotate-left text-2xl sm:text-3xl animate-[spin_10s_linear_infinite]"></i>
                     </div>
                   </div>
                   
-                  <div className="text-center px-10 relative z-10">
-                    <h3 className="text-[14px] font-black text-slate-900 uppercase tracking-tight mb-2">Sistema em Standby</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-relaxed max-w-[200px] mx-auto opacity-80">
+                  <div className="text-left relative z-10 flex-1">
+                    <h3 className="text-[12px] sm:text-[16px] font-black text-slate-900 uppercase tracking-tight mb-1">Sistema em Standby</h3>
+                    <p className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-relaxed opacity-80">
                       Aguardando início da contagem pelo <span className="text-blue-600 font-black">Administrador</span>
                     </p>
                   </div>
                   
-                  <div className="mt-8 flex gap-1.5">
+                  <div className="flex flex-col gap-1.5 flex-shrink-0">
                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                     <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                     <div className="w-1.5 h-1.5 bg-blue-300 rounded-full animate-bounce"></div>
@@ -610,14 +609,14 @@ const Dashboard: React.FC<DashboardProps> = ({
               <button 
                 onClick={activeSession ? onResumeTraining : onStartTraining} 
                 disabled={!generalTraining.isActive && !activeSession}
-                className={`w-64 h-64 sm:w-80 sm:h-80 rounded-[48px] shadow-[0_35px_60px_-15px_rgba(37,99,235,0.4)] text-white flex flex-col items-center justify-center gap-5 hover:scale-105 active:scale-95 transition-all group border-8 border-white/90 ring-1 ring-blue-100 ${generalTraining.isRealScenario && generalTraining.isActive ? 'bg-rose-600 shadow-rose-600/40' : 'bg-blue-600'}`}
+                className={`w-full py-10 sm:py-14 rounded-[40px] sm:rounded-[48px] shadow-[0_35px_60px_-15px_rgba(37,99,235,0.4)] text-white flex flex-row items-center justify-center gap-6 sm:gap-10 hover:scale-[1.02] active:scale-95 transition-all group border-8 border-white/90 ring-1 ring-blue-100 ${generalTraining.isRealScenario && generalTraining.isActive ? 'bg-rose-600 shadow-rose-600/40' : 'bg-blue-600'}`}
               >
-                  <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : (generalTraining.isRealScenario && generalTraining.isActive ? 'fa-triangle-exclamation animate-bounce' : 'fa-play')} text-6xl group-hover:rotate-12 transition-transform drop-shadow-lg`}></i>
-                  <div className="text-center px-6">
-                      <div className="font-black text-2xl sm:text-3xl uppercase tracking-tighter drop-shadow-md leading-tight">
+                  <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : (generalTraining.isRealScenario && generalTraining.isActive ? 'fa-triangle-exclamation animate-bounce' : 'fa-play')} text-5xl sm:text-6xl group-hover:rotate-12 transition-transform drop-shadow-lg`}></i>
+                  <div className="text-left">
+                      <div className="font-black text-2xl sm:text-4xl uppercase tracking-tighter drop-shadow-md leading-tight">
                         {activeSession ? 'Retomar Sessão' : (generalTraining.isRealScenario && generalTraining.isActive ? 'EMERGÊNCIA: INICIAR' : 'Iniciar Embarque')}
                       </div>
-                      <div className="text-[11px] sm:text-[12px] opacity-80 uppercase font-black tracking-[0.2em] mt-2">
+                      <div className="text-[11px] sm:text-[14px] opacity-80 uppercase font-black tracking-[0.2em] mt-1">
                         {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFESAFE ODN1')}
                       </div>
                   </div>
