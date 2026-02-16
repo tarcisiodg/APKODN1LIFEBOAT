@@ -51,14 +51,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estados para o Wizard de Início de Contagem Geral
   const [isGeneralSetupOpen, setIsGeneralSetupOpen] = useState(false);
   const [generalSetupStep, setGeneralSetupStep] = useState<1 | 2>(1);
   const [gsIsReal, setGsIsReal] = useState(false);
   const [gsType, setGsType] = useState<'Gás' | 'Fogo/Abandono'>('Fogo/Abandono');
   const [gsDescription, setGsDescription] = useState('');
 
-  // Estados para o cronômetro de treinamento geral (Contagem Geral)
   const [generalTraining, setGeneralTraining] = useState<{
     isActive: boolean;
     isFinished: boolean;
@@ -97,7 +95,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     fetchData();
     const interval = setInterval(fetchData, 30000);
     
-    // Inscreve no estado da contagem geral (obrigatório para admins e operadores)
     unsubscribeGeneralTraining = cloudService.subscribeToGeneralMusterTraining((data) => {
       if (data) setGeneralTraining(data);
     });
@@ -120,7 +117,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [user]);
 
-  // Timer ao vivo para o treinamento geral
   useEffect(() => {
     let timer: number;
     if (generalTraining.isActive && generalTraining.startTimestamp) {
@@ -271,13 +267,36 @@ const Dashboard: React.FC<DashboardProps> = ({
   const toggleLifeboatManualMode = async (lb: LifeboatType) => {
     const status = fleetStatus[lb];
     const isNowManual = !status?.isManualMode;
+    
+    let updatedStatus = { ...status };
+    
+    if (isNowManual) {
+      let currentSeconds = status.seconds || 0;
+      if (!status.isPaused && status.startTime) {
+        const elapsed = Math.floor((Date.now() - status.startTime) / 1000);
+        currentSeconds = (status.accumulatedSeconds || 0) + elapsed;
+      }
+      
+      updatedStatus = {
+        ...status,
+        isManualMode: true,
+        manualCount: status.count || 0,
+        isPaused: true,
+        accumulatedSeconds: currentSeconds,
+        seconds: currentSeconds
+      };
+    } else {
+      updatedStatus = {
+        ...status,
+        isManualMode: false,
+        isPaused: false,
+        startTime: Date.now()
+      };
+    }
+
     const updatedFleet = {
       ...fleetStatus,
-      [lb]: {
-        ...status,
-        isManualMode: isNowManual,
-        manualCount: isNowManual ? (status?.count || 0) : 0
-      }
+      [lb]: updatedStatus
     };
     await cloudService.updateFleetStatus(updatedFleet);
   };
@@ -530,7 +549,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {activeSession ? 'Retomar Sessão' : (generalTraining.isRealScenario && generalTraining.isActive ? 'EMERGÊNCIA: INICIAR' : 'Iniciar Embarque')}
                       </div>
                       <div className="text-[11px] sm:text-[12px] opacity-80 uppercase font-black tracking-[0.25em] mt-2">
-                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFEBOAT MUSTER')}
+                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFESAFE ODN1')}
                       </div>
                   </div>
               </button>
@@ -625,12 +644,10 @@ const Dashboard: React.FC<DashboardProps> = ({
         </>
       )}
 
-      {/* Modal de Consulta de POB (Para Operadores) - Responsivo Otimizado */}
       {isPobConsultOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
           <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-7xl w-full p-3 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
             
-            {/* Cabeçalho do Modal */}
             <div className="flex justify-between items-center mb-4 sm:mb-6 px-1 sm:px-2">
               <div className="min-w-0">
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tighter truncate">Consulta de POB</h3>
@@ -644,7 +661,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
             
-            {/* Barra de Busca */}
             <div className="relative mb-5 sm:mb-8 px-1 sm:px-2">
               <div className="absolute left-6 sm:left-9 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-blue-500 bg-blue-50 rounded-lg">
                 <i className="fa-solid fa-magnifying-glass text-xs"></i>
@@ -658,7 +674,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               />
             </div>
 
-            {/* Container da Lista (Grid de Cards em Tablets/Mobile) */}
             <div className="flex-1 overflow-y-auto custom-scrollbar px-1 sm:px-2 pb-6">
               {sortedPobList.length === 0 ? (
                 <div className="py-24 text-center text-slate-300 bg-slate-50/30 rounded-3xl border-2 border-dashed border-slate-100">
@@ -667,7 +682,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               ) : (
                 <>
-                  {/* Visão de CARDS (Mobile e Tablets < 1024px) - 2 colunas para tablets */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:hidden pb-4">
                     {sortedPobList.map((b) => {
                       const isOccupied = b.crewName && b.crewName.trim() !== '';
@@ -720,7 +734,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                     })}
                   </div>
 
-                  {/* Visão de TABELA (Desktop >= 1024px) */}
                   <div className="hidden lg:block min-w-full bg-white rounded-[32px] border-2 border-slate-100 shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-md z-20 border-b-2 border-slate-200">
@@ -767,7 +780,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               )}
             </div>
             
-            {/* Rodapé do Modal */}
             <div className="mt-auto pt-4 sm:pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between px-1 sm:px-2 gap-4 sm:gap-0">
               <div className="flex gap-5 sm:gap-8 w-full sm:w-auto justify-center sm:justify-start">
                  <div className="flex items-center gap-2.5">
@@ -784,7 +796,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* Outros Modais (Setup, Finish, Release, etc) - Mantidos do Dashboard original */}
       {isGeneralSetupOpen && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
           <div className="bg-white rounded-[40px] max-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">

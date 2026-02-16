@@ -96,10 +96,8 @@ const App: React.FC = () => {
 
       await loadHistoryData();
 
-      // Inscrição para monitorar o fim do treinamento global pelo administrador
       unsubscribeGeneralMuster = cloudService.subscribeToGeneralMusterTraining((data) => {
         const localActiveSession = activeSessionRef.current;
-        // Se o administrador desativar o treinamento (isActive: false) e houver uma sessão de operador ativa
         if (data && data.isActive === false && localActiveSession && !localActiveSession.isAdminView) {
           finishSession();
         }
@@ -111,17 +109,47 @@ const App: React.FC = () => {
         
         if (localActiveSession && !isInitializingRef.current) {
           const remoteStatus = mergedStatus[localActiveSession.lifeboat];
-          // Se a baleeira específica for desativada remotamente
+          
           if (!remoteStatus?.isActive) {
             setActiveSession(null);
             setCurrentPage(AppState.DASHBOARD);
-          } else if (localActiveSession.isAdminView) {
-            let currentSeconds = remoteStatus.seconds || 0;
-            if (!remoteStatus.isPaused && remoteStatus.startTime) {
-              const elapsed = Math.floor((Date.now() - remoteStatus.startTime) / 1000);
-              currentSeconds = (remoteStatus.accumulatedSeconds || 0) + elapsed;
-            }
-            setActiveSession(prev => prev ? { ...prev, tags: remoteStatus.tags || [], seconds: currentSeconds, isPaused: remoteStatus.isPaused || false } : null);
+          } else {
+            setActiveSession(prev => {
+              if (!prev) return null;
+              
+              if (remoteStatus.isManualMode) {
+                return {
+                  ...prev,
+                  isPaused: true,
+                  seconds: remoteStatus.seconds || 0,
+                  accumulatedSeconds: remoteStatus.accumulatedSeconds || 0,
+                  tags: remoteStatus.tags || prev.tags,
+                  isManualMode: true
+                };
+              } 
+              
+              if (!remoteStatus.isManualMode && prev.isPaused && !remoteStatus.isPaused) {
+                return {
+                  ...prev,
+                  isPaused: false,
+                  startTime: remoteStatus.startTime || Date.now(),
+                  accumulatedSeconds: remoteStatus.accumulatedSeconds || 0,
+                  tags: remoteStatus.tags || prev.tags,
+                  isManualMode: false
+                };
+              }
+
+              if (prev.isAdminView) {
+                let currentSeconds = remoteStatus.seconds || 0;
+                if (!remoteStatus.isPaused && remoteStatus.startTime) {
+                  const elapsed = Math.floor((Date.now() - remoteStatus.startTime) / 1000);
+                  currentSeconds = (remoteStatus.accumulatedSeconds || 0) + elapsed;
+                }
+                return { ...prev, tags: remoteStatus.tags || [], seconds: currentSeconds, isPaused: remoteStatus.isPaused || false };
+              }
+              
+              return prev;
+            });
           }
         }
         setFleetStatus(mergedStatus);
@@ -155,7 +183,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const syncToCloud = async () => {
-      if (!activeSession || activeSession.isAdminView || isInitializingRef.current) return;
+      if (!activeSession || activeSession.isAdminView || isInitializingRef.current || activeSession.isManualMode) return;
+      
       const currentStatusUpdate = {
         ...fleetStatus,
         [activeSession.lifeboat]: {
@@ -181,7 +210,7 @@ const App: React.FC = () => {
   const processNewScan = useCallback((tagId: string, tagData: string) => {
     if (!tagId) return;
     setActiveSession(prev => {
-      if (!prev || prev.isPaused || prev.isAdminView) return prev;
+      if (!prev || prev.isPaused || prev.isAdminView || prev.isManualMode) return prev;
       if (prev.tags.some(t => t.id === tagId)) return prev;
 
       const matchedBerth = prev.expectedCrew?.find(b => 
@@ -213,7 +242,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let timerInterval: number | undefined;
-    if (activeSession && !activeSession.isPaused && !activeSession.isAdminView) {
+    if (activeSession && !activeSession.isPaused && !activeSession.isAdminView && !activeSession.isManualMode) {
       timerInterval = window.setInterval(() => {
         setActiveSession(prev => {
           if (!prev || prev.isPaused) return prev;
@@ -223,7 +252,7 @@ const App: React.FC = () => {
       }, 1000);
     }
     return () => clearInterval(timerInterval);
-  }, [activeSession?.isPaused, activeSession?.startTime]);
+  }, [activeSession?.isPaused, activeSession?.startTime, activeSession?.isManualMode]);
 
   const startTrainingSession = async (lb: LifeboatType) => {
     setIsSyncing(true);
@@ -237,7 +266,8 @@ const App: React.FC = () => {
       isRealScenario: tempConfig?.isRealScenario || false, 
       tags: [], seconds: 0, startTime: Date.now(), 
       accumulatedSeconds: 0, isPaused: false,
-      expectedCrew: expectedCrew
+      expectedCrew: expectedCrew,
+      isManualMode: fleetStatus[lb]?.isManualMode || false
     };
     setActiveSession(ns);
     setCurrentPage(AppState.TRAINING);
@@ -297,7 +327,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
+                <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFESAFE ODN1 (NS-41)</h1>
                 {isSyncing && <i className="fa-solid fa-rotate animate-spin text-blue-400 text-[10px]"></i>}
               </div>
             </div>

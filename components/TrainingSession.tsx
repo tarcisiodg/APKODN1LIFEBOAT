@@ -4,7 +4,7 @@ import { ActiveSession, TrainingRecord, ScannedTag, LifeboatType } from '../type
 import { cloudService } from '../services/cloudService';
 
 interface TrainingSessionProps {
-  session: ActiveSession;
+  session: ActiveSession & { isManualMode?: boolean };
   onFinish: () => void;
   onMinimize: () => void;
   onScanTag: (id: string, data: string) => void;
@@ -83,7 +83,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       setNfcState('active');
       reader.addEventListener("reading", async ({ message, serialNumber }: any) => {
         const tagId = serialNumber || "";
-        if (!tagId) return;
+        if (!tagId || session.isManualMode) return;
 
         const matchedBerth = session.expectedCrew?.find(b => 
           (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
@@ -138,10 +138,25 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     } catch (error: any) { setNfcState('error'); }
   };
 
-  useEffect(() => { if (!session.isAdminView) startNFC(); }, [session.isAdminView]);
+  useEffect(() => { if (!session.isAdminView) startNFC(); }, [session.isAdminView, session.isManualMode]);
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pb-32">
+      {/* Aviso de Modo Manual */}
+      {session.isManualMode && (
+        <div className="mb-6 animate-in slide-in-from-top-4 duration-500">
+          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex items-center gap-4 shadow-sm">
+            <div className="w-10 h-10 bg-amber-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 animate-pulse">
+              <i className="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Modo Offline Ativo</h4>
+              <p className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">O cronômetro e a contagem estão sendo controlados via Dashboard.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notificações */}
       {lastScannedText && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-10 fade-in">
@@ -183,8 +198,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           </div>
         </div>
         
-        <div className="bg-[#111827] text-white p-3 px-6 rounded-[24px] shadow-sm flex flex-col items-center min-w-[140px]">
-             <span className="text-[8px] font-black opacity-50 uppercase tracking-[0.25em]">CRONÔMETRO</span>
+        <div className={`text-white p-3 px-6 rounded-[24px] shadow-sm flex flex-col items-center min-w-[140px] transition-colors ${session.isManualMode ? 'bg-amber-600' : 'bg-[#111827]'}`}>
+             <span className="text-[8px] font-black opacity-50 uppercase tracking-[0.25em]">{session.isManualMode ? 'MODO MANUAL' : 'CRONÔMETRO'}</span>
              <span className="text-2xl font-mono font-black mt-1 tracking-tighter tabular-nums">{formatTime(session.seconds)}</span>
         </div>
       </div>
@@ -274,12 +289,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         )}
       </div>
 
-      {/* Botões de Ação - Apenas Minimizar agora disponível */}
       <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/60 backdrop-blur-xl border-t border-slate-100 flex gap-4 justify-center z-50 shadow-sm">
         <button onClick={onMinimize} className="w-full max-w-md py-5 bg-[#2563eb] text-white font-black rounded-[24px] text-[11px] uppercase shadow-lg shadow-blue-600/20 active:scale-95 transition-all tracking-[0.2em]">MINIMIZAR OPERAÇÃO</button>
       </div>
 
-      {/* Modal de Exclusão de Tag */}
       {tagToDelete && (
         <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white rounded-[48px] max-sm w-full p-10 shadow-md text-center">
