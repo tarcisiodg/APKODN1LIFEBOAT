@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth, TrainingRecord } from '../types';
+import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth, TrainingRecord, ScannedTag } from '../types';
 import { cloudService } from '../services/cloudService';
 import { generateTrainingSummary } from '../services/geminiService';
 
@@ -200,6 +200,21 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleSaveAndClearEverything = async () => {
     setIsSaving(true);
     try {
+      // Coletar todos os tripulantes lidos em todas as baleeiras
+      let allTags: ScannedTag[] = [];
+      const lbBreakdown: Record<string, { count: number; tags: ScannedTag[] }> = {};
+      
+      LIFEBOATS.forEach(lb => {
+        const status = fleetStatus[lb];
+        if (status?.tags && status.tags.length > 0) {
+          allTags = [...allTags, ...status.tags];
+          lbBreakdown[lb] = {
+            count: status.tags.length,
+            tags: status.tags
+          };
+        }
+      });
+
       const record: TrainingRecord = {
         id: crypto.randomUUID(),
         date: new Date().toLocaleString('pt-BR'),
@@ -211,8 +226,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         duration: generalTraining.duration,
         summary: `${generalTraining.description ? `MOTIVO/LOCAL: ${generalTraining.description}. ` : ''}${await generateTrainingSummary('FROTA COMPLETA', generalTraining.finalTotal || overallMusterTotal, generalTraining.duration)}`,
         operator: user?.name || 'Sistema',
-        tags: []
+        tags: allTags,
+        ertCounts: manualCounts,
+        lifeboatBreakdown: lbBreakdown
       };
+
       await cloudService.saveTrainingRecord(record);
       await cloudService.finalizeEverythingGlobally();
       setGeneralTraining({ isActive: false, isFinished: false, startTime: '', endTime: '', duration: '' });

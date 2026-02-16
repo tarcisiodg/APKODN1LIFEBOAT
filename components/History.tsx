@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { TrainingRecord, LifeboatType } from '../types';
+import { TrainingRecord, LifeboatType, ScannedTag } from '../types';
 import { cloudService } from '../services/cloudService';
 
 interface HistoryProps {
@@ -75,7 +75,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
       await cloudService.deleteHistoryRecord(recordToDelete.id);
       if (onRefresh) onRefresh();
       setRecordToDelete(null);
-      // Remove da seleção se estivesse lá
       const next = new Set(selectedIds);
       next.delete(recordToDelete.id);
       setSelectedIds(next);
@@ -114,87 +113,100 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
     document.body.removeChild(link);
   };
 
-  const exportFilteredToCSV = () => {
-    if (filteredRecords.length === 0) return;
-
-    const rows = [
-      ["Relatório Geral de Tripulação - LIFEBOAT MUSTER"],
-      ["Filtro Baleeira", lifeboatFilter.toUpperCase()],
-      ["Filtro Data", dateFilter || "Todas"],
-      ["Gerado em", new Date().toLocaleString('pt-BR')],
-      [""],
-      ["ID (Tag)", "Nome", "Data", "Hora", "Baleeira", "Líder", "Tipo", "Duração Sessão", "Operador"]
-    ];
-
-    filteredRecords.forEach(record => {
-      const dateParts = record.date.split(', ');
-      const dateOnly = dateParts[0] || record.date;
-      const timeOnly = dateParts[1] || "";
-
-      if (record.tags && record.tags.length > 0) {
-        record.tags.forEach(tag => {
-          rows.push([
-            tag.id,
-            tag.name || "N/A",
-            dateOnly,
-            timeOnly,
-            record.lifeboat.toUpperCase(),
-            record.leaderName,
-            record.trainingType,
-            record.duration,
-            record.operator
-          ]);
-        });
-      } else {
-        rows.push([
-          "Sem Tags",
-          "N/A",
-          dateOnly,
-          timeOnly,
-          record.lifeboat.toUpperCase(),
-          record.leaderName,
-          record.trainingType,
-          record.duration,
-          record.operator
-        ]);
-      }
-    });
-
-    const dateStr = dateFilter ? `_${dateFilter}` : '';
-    const lbStr = lifeboatFilter !== 'Todas' ? `_${lifeboatFilter.replace(/\s+/g, '_').toUpperCase()}` : '_Geral';
-    downloadCSV(rows, `LIFEBOAT_MUSTER${lbStr}${dateStr}.csv`);
-  };
-
   const exportSingleRecordToCSV = (record: TrainingRecord) => {
     const dateParts = record.date.split(', ');
     const dateOnly = dateParts[0] || record.date;
     const timeOnly = dateParts[1] || "";
 
     const rows = [
-      ["Relatório de Treinamento - LIFEBOAT MUSTER"],
+      ["RELATÓRIO DE TREINAMENTO / EMERGÊNCIA - LIFESAFE ODN1"],
       ["Data", dateOnly],
       ["Hora", timeOnly],
-      ["Baleeira", record.lifeboat.toUpperCase()],
-      ["Líder", record.leaderName],
-      ["Tipo", record.trainingType],
+      ["Unidade", record.lifeboat.toUpperCase()],
+      ["Líder / Responsável", record.leaderName],
+      ["Tipo de Evento", record.trainingType],
       ["Duração Total", record.duration],
-      ["Total de Tripulantes", record.crewCount.toString()],
-      ["Operador Responsável", record.operator],
+      ["Total Geral de POB Lidos", record.crewCount.toString()],
+      ["Operador do Sistema", record.operator],
+      ["Resumo Gemini IA", record.summary],
       [""],
     ];
 
-    if (record.tags && record.tags.length > 0) {
-      rows.push(["LISTA DE TRIPULANTES"]);
-      rows.push(["ID (Tag)", "Nome", "Hora de Registro"]);
-      record.tags.forEach(tag => {
-        rows.push([tag.id, tag.name || "", tag.timestamp]);
+    // Se for Contagem Geral, listar ERT
+    if (record.lifeboat === 'FROTA COMPLETA' && record.ertCounts) {
+      rows.push(["EQUIPES DE RESPOSTA A EMERGÊNCIAS (ERT)"]);
+      rows.push(["Categoria", "Quantidade"]);
+      Object.entries(record.ertCounts).forEach(([cat, val]) => {
+        rows.push([cat, val.toString()]);
       });
-    } else {
-      rows.push(["LISTA DE TRIPULANTES NÃO DISPONÍVEL"]);
+      rows.push([""]);
     }
 
-    const fileName = `Treinamento_${record.lifeboat.replace(/\s+/g, '_').toUpperCase()}_${record.id.slice(0, 8)}.csv`;
+    // Listagem por Baleeira (Breakdown)
+    if (record.lifeboatBreakdown) {
+      rows.push(["DETALHAMENTO POR BALEEIRA"]);
+      Object.entries(record.lifeboatBreakdown).forEach(([lb, data]) => {
+        rows.push([`${lb.toUpperCase()} (Total: ${data.count})`]);
+        rows.push(["Nome", "Função", "Empresa", "Tag / ID", "Hora de Registro"]);
+        data.tags.forEach(tag => {
+          rows.push([
+            tag.name || "N/A",
+            tag.role || "N/A",
+            tag.company || "N/A",
+            tag.id,
+            tag.timestamp
+          ]);
+        });
+        rows.push([""]);
+      });
+    } else if (record.tags && record.tags.length > 0) {
+      // Caso seja uma baleeira individual
+      rows.push(["LISTA DE TRIPULANTES EMBARCADOS"]);
+      rows.push(["Nome", "Função", "Empresa", "Tag / ID", "Hora de Registro"]);
+      record.tags.forEach(tag => {
+        rows.push([
+          tag.name || "N/A",
+          tag.role || "N/A",
+          tag.company || "N/A",
+          tag.id,
+          tag.timestamp
+        ]);
+      });
+    }
+
+    const fileName = `Relatorio_${record.lifeboat.replace(/\s+/g, '_').toUpperCase()}_${record.id.slice(0, 8)}.csv`;
     downloadCSV(rows, fileName);
+  };
+
+  const exportFilteredToCSV = () => {
+    if (filteredRecords.length === 0) return;
+
+    const rows = [
+      ["Resumo Geral do Histórico - LIFESAFE ODN1"],
+      ["Filtro Baleeira", lifeboatFilter.toUpperCase()],
+      ["Filtro Data", dateFilter || "Todas"],
+      ["Gerado em", new Date().toLocaleString('pt-BR')],
+      [""],
+      ["Data", "Hora", "Baleeira", "Líder", "Tipo", "Duração", "Total Lidos", "Operador"]
+    ];
+
+    filteredRecords.forEach(record => {
+      const dateParts = record.date.split(', ');
+      rows.push([
+        dateParts[0] || record.date,
+        dateParts[1] || "",
+        record.lifeboat.toUpperCase(),
+        record.leaderName,
+        record.trainingType,
+        record.duration,
+        record.crewCount.toString(),
+        record.operator
+      ]);
+    });
+
+    const dateStr = dateFilter ? `_${dateFilter}` : '';
+    const lbStr = lifeboatFilter !== 'Todas' ? `_${lifeboatFilter.replace(/\s+/g, '_').toUpperCase()}` : '_Geral';
+    downloadCSV(rows, `LOG_HISTORICO${lbStr}${dateStr}.csv`);
   };
 
   return (
@@ -208,7 +220,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
             <i className="fa-solid fa-chevron-left"></i>
           </button>
           <div>
-            <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">Histórico</h2>
+            <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">Histórico de Eventos</h2>
           </div>
         </div>
       </div>
@@ -217,14 +229,13 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
             <i className="fa-solid fa-filter"></i>
-            Filtros de Busca
+            Filtros
           </div>
           {(lifeboatFilter !== 'Todas' || dateFilter !== '') && (
             <button 
               onClick={clearFilters}
-              className="text-[10px] font-bold text-blue-600 uppercase tracking-wider hover:text-blue-800 transition-colors flex items-center gap-1.5"
+              className="text-[10px] font-bold text-blue-600 uppercase tracking-wider hover:text-blue-800 transition-colors"
             >
-              <i className="fa-solid fa-eraser"></i>
               Limpar Filtros
             </button>
           )}
@@ -232,7 +243,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Baleeira</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Baleeira / Grupo</label>
             <select 
               value={lifeboatFilter}
               onChange={(e) => setLifeboatFilter(e.target.value as any)}
@@ -241,6 +252,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
               {LIFEBOATS.map(lb => (
                 <option key={lb} value={lb}>{lb.toUpperCase()}</option>
               ))}
+              <option value="FROTA COMPLETA">FROTA COMPLETA</option>
             </select>
           </div>
           <div className="space-y-1">
@@ -258,10 +270,10 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
           <div className="flex justify-center border-t border-slate-100 pt-6">
             <button 
               onClick={exportFilteredToCSV}
-              className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md shadow-green-600/10 flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-wider"
+              className="px-6 py-2 bg-slate-800 hover:bg-black text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-wider"
             >
-              <i className="fa-solid fa-file-excel text-sm"></i>
-              Exportar
+              <i className="fa-solid fa-file-csv"></i>
+              Exportar Log Filtrado
             </button>
           </div>
         )}
@@ -270,35 +282,18 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
       {filteredRecords.length === 0 ? (
         <div className="bg-white border-2 border-dashed border-slate-100 rounded-[32px] p-12 text-center flex flex-col items-center shadow-sm">
           <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
-             <i className="fa-solid fa-magnifying-glass text-2xl"></i>
+             <i className="fa-solid fa-clock-rotate-left text-2xl"></i>
           </div>
-          <p className="text-slate-400 font-medium">Nenhum registro para esta data.</p>
+          <p className="text-slate-400 font-medium">Nenhum registro encontrado para estes filtros.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between mb-2 px-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Mostrando {filteredRecords.length} {filteredRecords.length === 1 ? 'registro' : 'registros'}
-              </span>
-            </div>
-            {isAdmin && (
-              <button 
-                onClick={handleSelectAll}
-                className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800"
-              >
-                {selectedIds.size === filteredRecords.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
-              </button>
-            )}
-          </div>
-          
           {filteredRecords.map((record) => {
             const isSelected = selectedIds.has(record.id);
             return (
               <div 
                 key={record.id} 
-                className={`bg-white rounded-3xl border transition-all p-6 shadow-sm hover:shadow-md group relative flex items-start gap-4 ${isSelected ? 'border-blue-500 ring-1 ring-blue-50' : 'border-slate-100'}`}
+                className={`bg-white rounded-3xl border transition-all p-6 shadow-sm hover:shadow-md group flex items-start gap-4 ${isSelected ? 'border-blue-500 ring-1 ring-blue-50' : 'border-slate-100'}`}
               >
                 {isAdmin && (
                   <button 
@@ -312,13 +307,13 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
                 <div className="flex-1">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                        <i className="fa-solid fa-anchor"></i>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${record.lifeboat === 'FROTA COMPLETA' ? 'bg-slate-900 text-white' : 'bg-blue-50 text-blue-600'}`}>
+                        <i className={`fa-solid ${record.lifeboat === 'FROTA COMPLETA' ? 'fa-tower-observation' : 'fa-anchor'}`}></i>
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 uppercase tracking-tight">{record.lifeboat}</h3>
                         <div className="flex items-center gap-2">
-                           <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase text-white ${record.trainingType === 'Gás' ? 'bg-blue-600' : 'bg-red-600'}`}>
+                           <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase text-white ${record.trainingType.includes('EMERGÊNCIA') ? 'bg-rose-600' : 'bg-blue-600'}`}>
                             {record.trainingType}
                           </span>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{record.date}</p>
@@ -328,40 +323,32 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
                     <div className="flex items-center gap-2">
                       <div className="text-right mr-2">
                         <div className="text-sm font-black text-slate-800">
-                          {record.crewCount} {record.crewCount === 1 ? 'Tripulante' : 'Tripulantes'}
+                          {record.crewCount} Lidos
                         </div>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Líder: {record.leaderName}</div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Duração: {record.duration}</div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => exportSingleRecordToCSV(record)}
+                        className="w-10 h-10 bg-green-100 text-green-700 hover:bg-green-600 hover:text-white rounded-xl flex items-center justify-center transition-all active:scale-90 shadow-sm"
+                        title="Exportar Relatório Detalhado"
+                      >
+                        <i className="fa-solid fa-file-excel text-lg"></i>
+                      </button>
+                      
+                      {isAdmin && (
                         <button 
-                          onClick={() => exportSingleRecordToCSV(record)}
-                          title="Exportar CSV"
-                          className="w-10 h-10 bg-green-100 text-green-700 hover:bg-green-600 hover:text-white rounded-xl flex items-center justify-center transition-all active:scale-90"
+                          onClick={() => setRecordToDelete(record)}
+                          className="w-10 h-10 bg-rose-50 text-rose-500 hover:bg-rose-600 hover:text-white rounded-xl flex items-center justify-center transition-all active:scale-90 shadow-sm"
                         >
-                          <i className="fa-solid fa-file-excel text-lg"></i>
+                          <i className="fa-solid fa-trash-can text-lg"></i>
                         </button>
-                        
-                        {isAdmin && (
-                          <button 
-                            onClick={() => setRecordToDelete(record)}
-                            title="Excluir Registro"
-                            className="w-10 h-10 bg-rose-50 text-rose-500 hover:bg-rose-600 hover:text-white rounded-xl flex items-center justify-center transition-all active:scale-90"
-                          >
-                            <i className="fa-solid fa-trash-can text-lg"></i>
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    <div className="flex items-center gap-2">
-                      <i className="fa-solid fa-user-pen"></i>
-                      Operador: {record.operator}
-                    </div>
-                    <div className="text-slate-400 font-mono">Duração: {record.duration}</div>
-                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 italic font-medium">
+                    {record.summary}
+                  </p>
                 </div>
               </div>
             );
@@ -369,90 +356,26 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
         </div>
       )}
 
-      {/* Barra de Ação de Seleção em Massa */}
-      {isAdmin && selectedIds.size > 0 && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] w-[calc(100%-3rem)] max-w-lg bg-slate-900 text-white p-4 rounded-3xl shadow-2xl animate-in slide-in-from-bottom-10 flex items-center justify-between px-6 border border-slate-700 backdrop-blur-md bg-opacity-95">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-lg">
-              {selectedIds.size}
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest">Itens Selecionados</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setSelectedIds(new Set())}
-              className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white px-4 py-2"
-            >
-              Cancelar
-            </button>
-            <button 
-              onClick={() => setShowBulkConfirm(true)}
-              className="bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center gap-2"
-            >
-              <i className="fa-solid fa-trash-can"></i>
-              Excluir Tudo
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Confirmação de Exclusão Individual */}
+      {/* Modal de Exclusão Individual */}
       {recordToDelete && (
         <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
           <div className="bg-white rounded-[32px] max-w-sm w-full p-8 shadow-md animate-in zoom-in duration-300">
             <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <i className="fa-solid fa-trash-can text-2xl"></i>
             </div>
-            <h3 className="text-xl font-bold mb-2">Excluir Registro?</h3>
+            <h3 className="text-xl font-bold mb-2 uppercase">Excluir Relatório?</h3>
             <p className="text-slate-500 text-xs mb-8 leading-relaxed font-medium">
-              Deseja remover permanentemente o registro de <span className="font-bold text-slate-900 uppercase">{recordToDelete.lifeboat}</span> do dia <span className="font-bold text-slate-900">{recordToDelete.date}</span>?
+              Esta ação removerá permanentemente o relatório de auditoria do dia {recordToDelete.date}.
             </p>
             <div className="grid gap-3">
               <button 
                 onClick={handleDeleteRecord} 
                 disabled={isDeleting}
-                className="w-full py-4 bg-rose-600 text-white font-bold rounded-xl text-xs uppercase shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 bg-rose-600 text-white font-bold rounded-xl text-xs uppercase shadow-sm"
               >
-                {isDeleting ? <i className="fa-solid fa-rotate animate-spin"></i> : "Sim, Excluir"}
+                {isDeleting ? "Excluindo..." : "Confirmar Exclusão"}
               </button>
-              <button 
-                onClick={() => setRecordToDelete(null)} 
-                disabled={isDeleting}
-                className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs uppercase"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Confirmação de Exclusão em Massa */}
-      {showBulkConfirm && (
-        <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[32px] max-w-sm w-full p-8 shadow-md animate-in zoom-in duration-300">
-            <div className="w-16 h-16 bg-rose-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-              <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-bold mb-2">Excluir em Massa?</h3>
-            <p className="text-slate-500 text-xs mb-8 leading-relaxed font-medium">
-              Você está prestes a excluir <span className="font-bold text-slate-900">{selectedIds.size} registros</span> permanentemente. Esta ação não poderá ser desfeita.
-            </p>
-            <div className="grid gap-3">
-              <button 
-                onClick={handleBulkDelete} 
-                disabled={isBulkDeleting}
-                className="w-full py-4 bg-rose-600 text-white font-bold rounded-xl text-xs uppercase shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                {isBulkDeleting ? <i className="fa-solid fa-rotate animate-spin"></i> : "Confirmar Exclusão Total"}
-              </button>
-              <button 
-                onClick={() => setShowBulkConfirm(false)} 
-                disabled={isBulkDeleting}
-                className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs uppercase"
-              >
-                Cancelar
-              </button>
+              <button onClick={() => setRecordToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs uppercase">Cancelar</button>
             </div>
           </div>
         </div>
