@@ -294,30 +294,30 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {user.isAdmin && (
         <div className="mb-10">
-          <div className="bg-blue-600 p-6 sm:p-8 rounded-[32px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[260px] flex flex-col">
+          <div className="bg-blue-600 p-4 sm:p-5 rounded-[32px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[180px] flex flex-col">
             <div className="relative z-10 flex flex-col flex-1 h-full">
               {/* TOPO DO CARD */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
                 <div className="inline-flex items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
                   <h4 className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white">CONTAGEM GERAL</h4>
                 </div>
                 
                 <div className="relative flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                    {generalTraining.isFinished ? (
-                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
+                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
                         {isSaving ? <i className="fa-solid fa-rotate animate-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
                         Limpar e Salvar
                       </button>
                     ) : (
-                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralTraining} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-500 border-rose-400/30 text-white animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
+                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralTraining} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-500 border-rose-400/30 text-white animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
                         <i className={`fa-solid ${generalTraining.isActive ? 'fa-stop' : 'fa-play'}`}></i>
                         {generalTraining.isActive ? 'Finalizar' : 'Iniciar'}
                       </button>
                     )}
 
-                    {/* BALÃO DE TEMPO - Ajustado para ser relativo em mobile para evitar sobreposição */}
+                    {/* BALÃO DE TEMPO */}
                     {(generalTraining.isActive || generalTraining.duration) && (
-                      <div className="relative sm:absolute sm:top-[100%] sm:right-0 mt-3 sm:mt-3 bg-black/40 backdrop-blur-xl rounded-[20px] sm:rounded-[24px] p-3 sm:p-4 border border-white/20 flex flex-col items-end gap-2 min-w-[160px] sm:min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
+                      <div className="relative sm:absolute sm:top-[100%] sm:right-0 mt-3 sm:mt-2 bg-black/40 backdrop-blur-xl rounded-[20px] sm:rounded-[24px] p-3 sm:p-4 border border-white/20 flex flex-col items-end gap-2 min-w-[160px] sm:min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
                         {generalTraining.isActive ? (
                           <>
                             <div className="flex items-center gap-3 w-full justify-between mb-0.5">
@@ -347,11 +347,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* CONTEÚDO CENTRAL - ESTÁVEL */}
-              <div className="flex-1 flex flex-col justify-center py-4">
+              {/* CONTEÚDO CENTRAL */}
+              <div className="flex-1 flex flex-col justify-center py-2">
                 <div className="flex items-baseline gap-4 sm:gap-6">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-6xl sm:text-7xl md:text-[85px] font-black tabular-nums tracking-tighter leading-none drop-shadow-lg">{overallMusterTotal}</span>
+                    <span className="text-6xl sm:text-7xl md:text-[80px] font-black tabular-nums tracking-tighter leading-none drop-shadow-lg">{overallMusterTotal}</span>
                     <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] opacity-80">
                       {overallMusterTotal === 1 ? 'Pessoa' : 'Pessoas'}
                     </span>
@@ -359,27 +359,26 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* BASE DO CARD - SEMPRE VISÍVEL */}
-              <div className="mt-auto pt-4 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-2 sm:gap-x-12">
+              {/* BASE DO CARD */}
+              <div className="mt-auto pt-3 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-2 sm:gap-x-12">
                 <div className="group cursor-default">
                   <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">LIFEBOATS</span>
-                  <span className="text-xl sm:text-3xl font-black tabular-nums leading-none">{totalPeopleInFleet}</span>
+                  <span className="text-xl sm:text-2xl font-black tabular-nums leading-none">{totalPeopleInFleet}</span>
                 </div>
                 <div className="group cursor-default">
                   <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">RESPOSTA</span>
-                  <span className="text-xl sm:text-3xl font-black tabular-nums leading-none">{totalManualGroups}</span>
+                  <span className="text-xl sm:text-2xl font-black tabular-nums leading-none">{totalManualGroups}</span>
                 </div>
-                {/* Conditionally render PENDENTES based on generalTraining.isActive */}
                 {generalTraining.isActive && (
                   <div className="group cursor-default animate-in fade-in zoom-in duration-500">
                     <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">PENDENTES</span>
-                    <span className={`text-xl sm:text-3xl font-black tabular-nums leading-none ${currentPendingMuster > 0 ? 'text-rose-400' : 'text-white'}`}>{currentPendingMuster}</span>
+                    <span className={`text-xl sm:text-2xl font-black tabular-nums leading-none ${currentPendingMuster > 0 ? 'text-rose-400' : 'text-white'}`}>{currentPendingMuster}</span>
                   </div>
                 )}
               </div>
             </div>
             
-            <i className="fa-solid fa-clipboard-check absolute right-[-20px] bottom-[-40px] text-[150px] sm:text-[200px] text-white/5 -rotate-12 pointer-events-none"></i>
+            <i className="fa-solid fa-clipboard-check absolute right-[-15px] bottom-[-25px] text-[90px] sm:text-[130px] text-white/5 -rotate-12 pointer-events-none"></i>
           </div>
         </div>
       )}
