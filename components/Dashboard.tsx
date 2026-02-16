@@ -218,45 +218,13 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleToggleRelease = async (berthId: string) => {
     let newReleased = [...releasedIds];
-    const isAddingToReleased = !newReleased.includes(berthId);
-
-    if (isAddingToReleased) {
-      // 1. Adiciona à lista de liberados
-      newReleased.push(berthId);
-
-      // 2. SINCRONIZAÇÃO REVERSA: Remover do status das baleeiras caso esteja presente
-      const updatedFleet = { ...fleetStatus };
-      let fleetChanged = false;
-
-      LIFEBOATS.forEach(lb => {
-        if (updatedFleet[lb]?.isActive && updatedFleet[lb].tags) {
-          const originalLength = updatedFleet[lb].tags.length;
-          updatedFleet[lb].tags = updatedFleet[lb].tags.filter(tag => tag.leito !== berthId);
-          
-          if (updatedFleet[lb].tags.length !== originalLength) {
-            updatedFleet[lb].count = updatedFleet[lb].tags.length;
-            fleetChanged = true;
-          }
-        }
-      });
-
-      if (fleetChanged) {
-        try {
-          await cloudService.updateFleetStatus(updatedFleet);
-        } catch (e) {
-          console.error("Erro ao remover tripulante da baleeira:", e);
-        }
-      }
-    } else {
-      // Remove da lista de liberados
+    if (newReleased.includes(berthId)) {
       newReleased = newReleased.filter(id => id !== berthId);
+    } else {
+      newReleased.push(berthId);
     }
-
-    // 3. Salva a nova lista de IDs liberados
     setReleasedIds(newReleased);
     await cloudService.updateReleasedCrew(newReleased);
-
-    // 4. Atualiza o contador manual de 'LIBERADOS'
     const updatedManual = { ...manualCounts, 'LIBERADOS': newReleased.length };
     setManualCounts(updatedManual);
     await cloudService.updateManualCounters(updatedManual);
