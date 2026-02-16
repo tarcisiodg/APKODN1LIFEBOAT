@@ -133,7 +133,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const overallMusterTotal = useMemo(() => totalPeopleInFleet + totalManualGroups, [totalPeopleInFleet, totalManualGroups]);
 
-  const currentPendingMuster = useMemo(() => Math.max(0, berthStats.occupied - overallMusterTotal), [berthStats.occupied, overallMusterTotal]);
+  // Diferença para o Muster (Pendente se > 0, Muster se = 0, Excedente se < 0)
+  const musterDiff = useMemo(() => berthStats.occupied - overallMusterTotal, [berthStats.occupied, overallMusterTotal]);
 
   const capacityPercentage = useMemo(() => {
     if (berthStats.total === 0) return 0;
@@ -403,8 +404,32 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 {generalTraining.isActive && (
                   <div className="group cursor-default animate-in fade-in zoom-in duration-500">
-                    <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">PENDENTES</span>
-                    <span className={`text-xl sm:text-2xl font-black tabular-nums leading-none ${currentPendingMuster > 0 ? 'text-rose-400' : 'text-white'}`}>{currentPendingMuster}</span>
+                    {musterDiff > 0 ? (
+                      <>
+                        <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">
+                          {musterDiff === 1 ? 'PENDENTE' : 'PENDENTES'}
+                        </span>
+                        <span className="text-xl sm:text-2xl font-black tabular-nums leading-none text-rose-400">
+                          {musterDiff}
+                        </span>
+                      </>
+                    ) : musterDiff === 0 ? (
+                      <>
+                        <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-emerald-400 block mb-0.5 leading-none drop-shadow-sm">STATUS</span>
+                        <span className="text-xl sm:text-2xl font-black leading-none text-emerald-400 animate-pulse drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">
+                          MUSTER
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-300/80 block mb-0.5 leading-none">
+                          {Math.abs(musterDiff) === 1 ? 'EXCEDENTE' : 'EXCEDENTES'}
+                        </span>
+                        <span className="text-xl sm:text-2xl font-black tabular-nums leading-none text-amber-400">
+                          {Math.abs(musterDiff)}
+                        </span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
