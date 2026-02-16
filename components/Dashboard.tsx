@@ -634,89 +634,138 @@ const Dashboard: React.FC<DashboardProps> = ({
         </>
       )}
 
-      {/* Modal de Consulta de POB (Para Operadores) */}
+      {/* Modal de Consulta de POB (Para Operadores) - Responsivo */}
       {isPobConsultOpen && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6">
-          <div className="bg-white rounded-[32px] sm:rounded-[40px] max-w-7xl w-full p-4 sm:p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col max-h-[95vh] border border-slate-100">
-            <div className="flex justify-between items-center mb-6 px-2">
-              <div>
-                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Consulta de POB</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lista Geral Ordenada por Nome</p>
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
+          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-7xl w-full p-3 sm:p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
+            
+            {/* Cabeçalho do Modal */}
+            <div className="flex justify-between items-center mb-4 sm:mb-6 px-1 sm:px-2">
+              <div className="min-w-0">
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 uppercase tracking-tight truncate">Consulta de POB</h3>
+                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 truncate">Lista Geral Ordenada por Nome</p>
               </div>
-              <button onClick={() => { setIsPobConsultOpen(false); setSearchTerm(''); }} className="w-12 h-12 bg-slate-50 rounded-2xl text-slate-400 active:scale-95 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm"><i className="fa-solid fa-xmark text-lg"></i></button>
+              <button 
+                onClick={() => { setIsPobConsultOpen(false); setSearchTerm(''); }} 
+                className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 rounded-xl sm:rounded-2xl text-slate-400 active:scale-95 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm flex-shrink-0"
+              >
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
             </div>
             
-            <div className="relative mb-6 px-2">
-              <i className="fa-solid fa-magnifying-glass absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-              <input type="text" placeholder="BUSCAR POR NOME, FUNÇÃO, LEITO OU EMPRESA..." className="w-full pl-12 pr-6 py-4.5 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase focus:ring-2 focus:ring-blue-100 focus:bg-white outline-none transition-all shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            {/* Barra de Busca */}
+            <div className="relative mb-4 sm:mb-6 px-1 sm:px-2">
+              <i className="fa-solid fa-magnifying-glass absolute left-6 sm:left-8 top-1/2 -translate-y-1/2 text-slate-300 text-xs sm:text-sm"></i>
+              <input 
+                type="text" 
+                placeholder="BUSCAR NOME, FUNÇÃO OU LEITO..." 
+                className="w-full pl-11 sm:pl-14 pr-6 py-4 sm:py-4.5 bg-slate-50 border border-slate-100 rounded-xl sm:rounded-2xl text-[10px] sm:text-[11px] font-black uppercase focus:ring-2 focus:ring-blue-100 focus:bg-white outline-none transition-all shadow-inner" 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+              />
             </div>
 
-            <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar px-2 pb-6">
-              <div className="min-w-[1000px] bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
-                {sortedPobList.length === 0 ? (
-                  <div className="py-24 text-center text-slate-300 bg-slate-50/30">
-                    <i className="fa-solid fa-users-slash text-5xl mb-4 block opacity-20"></i>
-                    <p className="text-[10px] font-black uppercase tracking-widest">Nenhum tripulante encontrado</p>
+            {/* Container da Lista (Responsivo: Tabela no Desktop, Cards no Mobile) */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-1 sm:px-2 pb-6">
+              {sortedPobList.length === 0 ? (
+                <div className="py-24 text-center text-slate-300 bg-slate-50/30 rounded-2xl">
+                  <i className="fa-solid fa-users-slash text-4xl sm:text-5xl mb-4 block opacity-20"></i>
+                  <p className="text-[10px] font-black uppercase tracking-widest">Nenhum tripulante encontrado</p>
+                </div>
+              ) : (
+                <>
+                  {/* Visão de CARDS (Apenas Mobile < 640px) */}
+                  <div className="grid grid-cols-1 gap-3 sm:hidden pb-4">
+                    {sortedPobList.map((b) => (
+                      <div key={b.id} className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm space-y-3">
+                        <div className="flex justify-between items-start gap-3">
+                           <div className="min-w-0">
+                             <h4 className="text-[11px] font-black text-slate-800 uppercase leading-tight truncate">{b.crewName || '--- VAZIO ---'}</h4>
+                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-1 truncate">{b.role || '-'} • {b.company || '-'}</p>
+                           </div>
+                           <span className="bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm flex-shrink-0">{b.id}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
+                          <div className="flex-1 flex flex-col gap-1">
+                            <span className="text-[8px] font-black text-slate-300 uppercase tracking-wider">Primária</span>
+                            <span className={`text-[10px] font-black py-1 rounded-lg border text-center uppercase tracking-tighter ${b.lifeboat ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
+                              {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '-'}
+                            </span>
+                          </div>
+                          <div className="flex-1 flex flex-col gap-1">
+                            <span className="text-[8px] font-black text-slate-300 uppercase tracking-wider">Secundária</span>
+                            <span className={`text-[10px] font-black py-1 rounded-lg border text-center uppercase tracking-tighter ${b.secondaryLifeboat ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
+                              {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '-'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-md z-20 border-b border-slate-200">
-                      <tr>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Leito</th>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</th>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</th>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</th>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">PRIMÁRIA</th>
-                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">SECUNDÁRIA</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {sortedPobList.map((b) => (
-                        <tr key={b.id} className="hover:bg-blue-50/40 transition-colors group/row">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm inline-block group-hover/row:scale-105 transition-transform">{b.id}</span>
-                          </td>
-                          <td className="px-6 py-4 min-w-0">
-                            <p className="text-[11px] font-black text-slate-800 uppercase leading-none group-hover/row:text-blue-700 transition-colors truncate">{b.crewName || '--- VAZIO ---'}</p>
-                          </td>
-                          <td className="px-6 py-4">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight truncate">{b.role || '-'}</p>
-                          </td>
-                          <td className="px-6 py-4">
-                            <p className="text-[10px] font-black text-blue-600/80 uppercase tracking-tighter truncate">{b.company || '-'}</p>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border uppercase tracking-tighter shadow-sm inline-block min-w-[50px] ${b.lifeboat ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
-                              {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '---'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border uppercase tracking-tighter shadow-sm inline-block min-w-[50px] ${b.secondaryLifeboat ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
-                              {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '---'}
-                            </span>
-                          </td>
+
+                  {/* Visão de TABELA (Tablet e Desktop >= 640px) */}
+                  <div className="hidden sm:block min-w-full bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-md z-20 border-b border-slate-200">
+                        <tr>
+                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Leito</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">PRIMÁRIA</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">SECUNDÁRIA</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {sortedPobList.map((b) => (
+                          <tr key={b.id} className="hover:bg-blue-50/40 transition-colors group/row">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm inline-block group-hover/row:scale-105 transition-transform">{b.id}</span>
+                            </td>
+                            <td className="px-6 py-4 min-w-0">
+                              <p className="text-[11px] font-black text-slate-800 uppercase leading-none group-hover/row:text-blue-700 transition-colors truncate">{b.crewName || '--- VAZIO ---'}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight truncate">{b.role || '-'}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-[10px] font-black text-blue-600/80 uppercase tracking-tighter truncate">{b.company || '-'}</p>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border uppercase tracking-tighter shadow-sm inline-block min-w-[50px] ${b.lifeboat ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                                {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '---'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border uppercase tracking-tighter shadow-sm inline-block min-w-[50px] ${b.secondaryLifeboat ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                                {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '---'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </div>
             
-            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between px-2">
-              <div className="flex gap-6">
+            {/* Rodapé do Modal */}
+            <div className="mt-auto pt-3 sm:pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between px-1 sm:px-2 gap-3 sm:gap-0">
+              <div className="flex gap-4 sm:gap-6 w-full sm:w-auto justify-center sm:justify-start">
                  <div className="flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 bg-blue-600 rounded-full shadow-sm"></div>
-                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total POB: {sortedPobList.length}</span>
+                   <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 bg-blue-600 rounded-full shadow-sm"></div>
+                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">POB Total: {sortedPobList.length}</span>
                  </div>
                  <div className="flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></div>
-                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">A Bordo: {sortedPobList.filter(x => x.crewName).length}</span>
+                   <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 bg-emerald-500 rounded-full shadow-sm"></div>
+                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">A Bordo: {sortedPobList.filter(x => x.crewName).length}</span>
                  </div>
               </div>
-              <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
-                <i className="fa-solid fa-shield-halved text-[10px] text-blue-400"></i>
-                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Lifesafe ODN1(NS-41)</span>
+              <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100 self-center sm:self-auto">
+                <i className="fa-solid fa-shield-halved text-[9px] sm:text-[10px] text-blue-400"></i>
+                <span className="text-[8px] sm:text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Lifesafe ODN1(NS-41)</span>
               </div>
             </div>
           </div>
