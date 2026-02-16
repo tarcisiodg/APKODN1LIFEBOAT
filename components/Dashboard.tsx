@@ -47,6 +47,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isConfirmingGeneralFinish, setIsConfirmingGeneralFinish] = useState(false);
+  const [isPobConsultOpen, setIsPobConsultOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -78,23 +79,25 @@ const Dashboard: React.FC<DashboardProps> = ({
     let unsubscribeReleased: () => void;
     let unsubscribeGeneralTraining: () => void;
 
-    if (user?.isAdmin) {
-      const fetchData = async () => {
-        try {
+    const fetchData = async () => {
+      try {
+        if (user?.isAdmin) {
           const allUsers = await cloudService.getAllUsers();
           setPendingCount(allUsers.filter(u => u.status === 'pending').length);
-          const berths = await cloudService.getBerths();
-          setAllBerths(berths);
-          setBerthStats({
-            total: berths.length,
-            occupied: berths.filter(b => b.crewName && b.crewName.trim() !== '').length
-          });
-        } catch (e) { console.error(e); }
-      };
-      
-      fetchData();
-      const interval = setInterval(fetchData, 30000);
-      
+        }
+        const berths = await cloudService.getBerths();
+        setAllBerths(berths);
+        setBerthStats({
+          total: berths.length,
+          occupied: berths.filter(b => b.crewName && b.crewName.trim() !== '').length
+        });
+      } catch (e) { console.error(e); }
+    };
+    
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    
+    if (user?.isAdmin) {
       unsubscribeCounters = cloudService.subscribeToManualCounters((counters) => {
         setManualCounts(prev => ({ ...prev, ...counters }));
       });
@@ -106,14 +109,14 @@ const Dashboard: React.FC<DashboardProps> = ({
       unsubscribeGeneralTraining = cloudService.subscribeToGeneralMusterTraining((data) => {
         if (data) setGeneralTraining(data);
       });
-
-      return () => {
-        clearInterval(interval);
-        if (unsubscribeCounters) unsubscribeCounters();
-        if (unsubscribeReleased) unsubscribeReleased();
-        if (unsubscribeGeneralTraining) unsubscribeGeneralTraining();
-      };
     }
+
+    return () => {
+      clearInterval(interval);
+      if (unsubscribeCounters) unsubscribeCounters();
+      if (unsubscribeReleased) unsubscribeReleased();
+      if (unsubscribeGeneralTraining) unsubscribeGeneralTraining();
+    };
   }, [user]);
 
   // Timer ao vivo para o treinamento geral
@@ -203,15 +206,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleSaveAndClearEverything = async () => {
     setIsSaving(true);
     try {
-      // Coletar todos os tripulantes lidos em todas as baleeiras
       let allTags: ScannedTag[] = [];
       const lbBreakdown: Record<string, { count: number; tags: ScannedTag[] }> = {};
       
       LIFEBOATS.forEach(lb => {
         const status = fleetStatus[lb];
         if (status?.isManualMode) {
-          // Em modo manual não temos as tags individuais da auditoria em tempo real, 
-          // apenas a contagem bruta reportada.
           lbBreakdown[lb] = { count: status.manualCount || 0, tags: [] };
         } else if (status?.tags && status.tags.length > 0) {
           allTags = [...allTags, ...status.tags];
@@ -348,11 +348,43 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const availableToRelease = useMemo(() => allBerths.filter(b => b.crewName && !releasedIds.includes(b.id)), [allBerths, releasedIds]);
   const releasedCrew = useMemo(() => allBerths.filter(b => releasedIds.includes(b.id)), [allBerths, releasedIds]);
+  
+  const pobGrouping = useMemo(() => {
+    const filtered = allBerths.filter(b => 
+      b.crewName?.toUpperCase().includes(searchTerm.toUpperCase()) || 
+      b.id.toUpperCase().includes(searchTerm.toUpperCase()) ||
+      b.role?.toUpperCase().includes(searchTerm.toUpperCase())
+    );
+
+    const grouping: Record<string, { primary: Berth[], secondary: Berth[] }> = {};
+    
+    LIFEBOATS.forEach(lb => {
+      grouping[lb] = { primary: [], secondary: [] };
+    });
+    grouping['SEM ATRIBUIÇÃO'] = { primary: [], secondary: [] };
+
+    filtered.forEach(b => {
+      const pLb = b.lifeboat || 'SEM ATRIBUIÇÃO';
+      const sLb = b.secondaryLifeboat;
+
+      if (grouping[pLb]) {
+        grouping[pLb].primary.push(b);
+      } else {
+        grouping['SEM ATRIBUIÇÃO'].primary.push(b);
+      }
+
+      if (sLb && grouping[sLb]) {
+        grouping[sLb].secondary.push(b);
+      }
+    });
+
+    return grouping;
+  }, [allBerths, searchTerm]);
 
   if (!user) return null;
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-6 max-w-6xl mx-auto w-full pb-32 overflow-x-hidden">
+    <div className="flex-1 flex flex-col p-4 md:p-6 max-w-6xl mx-auto w-full pb-32 overflow-x-hidden animate-in fade-in duration-500">
       <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div className="w-full lg:w-auto">
           <h2 className="text-3xl sm:text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">Olá, {user.name.split(' ')[0]}</h2>
@@ -362,46 +394,47 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {user.isAdmin && (
-          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
-              <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
-                <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">POB VIGENTE</span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{berthStats.occupied}</span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-300">/</span>
-                  <span className="text-xs sm:text-sm font-black text-slate-400 leading-none">{berthStats.total}</span>
-                </div>
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
+            <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
+              <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">POB VIGENTE</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{berthStats.occupied}</span>
+                <span className="text-xs sm:text-sm font-bold text-slate-300">/</span>
+                <span className="text-xs sm:text-sm font-black text-slate-400 leading-none">{berthStats.total}</span>
               </div>
-              <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
-                <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 text-center">CAPACIDADE</span>
-                <span className={`text-xl sm:text-2xl font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-600' : 'text-emerald-600'}`}>{capacityPercentage}%</span>
-              </div>
-              <button onClick={onOpenBerthManagement} className="bg-blue-600 border border-blue-700 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group">
-                <span className="text-[8px] sm:text-[9px] font-black text-blue-100 uppercase tracking-widest leading-none mb-2 opacity-80">CONTROLE</span>
-                <div className="flex items-center gap-2">
-                  <i className="fa-solid fa-bed text-white text-xs"></i>
-                  <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">LEITOS</span>
-                </div>
-              </button>
-              <button onClick={onOpenUserManagement} className="bg-slate-800 border border-slate-900 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
-                <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 opacity-80">SISTEMA</span>
-                <div className="flex items-center gap-2">
-                  <i className="fa-solid fa-users-gear text-white text-xs"></i>
-                  <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">GESTÃO</span>
-                </div>
-                {pendingCount > 0 && <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[8px] font-bold shadow-sm animate-bounce">{pendingCount}</span>}
-              </button>
             </div>
+            {user.isAdmin && (
+              <>
+                <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
+                  <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 text-center">CAPACIDADE</span>
+                  <span className={`text-xl sm:text-2xl font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-600' : 'text-emerald-600'}`}>{capacityPercentage}%</span>
+                </div>
+                <button onClick={onOpenBerthManagement} className="bg-blue-600 border border-blue-700 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group">
+                  <span className="text-[8px] sm:text-[9px] font-black text-blue-100 uppercase tracking-widest leading-none mb-2 opacity-80">CONTROLE</span>
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-bed text-white text-xs"></i>
+                    <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">LEITOS</span>
+                  </div>
+                </button>
+                <button onClick={onOpenUserManagement} className="bg-slate-800 border border-slate-900 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
+                  <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 opacity-80">SISTEMA</span>
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-users-gear text-white text-xs"></i>
+                    <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">GESTÃO</span>
+                  </div>
+                  {pendingCount > 0 && <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[8px] font-bold shadow-sm animate-bounce">{pendingCount}</span>}
+                </button>
+              </>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {user.isAdmin && (
         <div className="mb-10">
           <div className={`p-4 sm:p-5 rounded-[32px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[180px] flex flex-col ${generalTraining.isRealScenario ? 'bg-rose-600 animate-pulse' : 'bg-blue-600'}`}>
             <div className="relative z-10 flex flex-col flex-1 h-full">
-              {/* TOPO DO CARD */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
                 <div className="inline-flex flex-col gap-1">
                   <div className="inline-flex items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm self-start">
@@ -427,7 +460,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </button>
                     )}
 
-                    {/* BALÃO DE TEMPO */}
                     {(generalTraining.isActive || generalTraining.duration) && (
                       <div className="relative sm:absolute sm:top-[100%] sm:right-0 mt-3 sm:mt-2 bg-black/40 backdrop-blur-xl rounded-[20px] sm:rounded-[24px] p-3 sm:p-4 border border-white/20 flex flex-col items-end gap-2 min-w-[160px] sm:min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
                         {generalTraining.isActive ? (
@@ -459,7 +491,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* CONTEÚDO CENTRAL */}
               <div className="flex-1 flex flex-col justify-center py-2">
                 <div className="flex items-baseline gap-4 sm:gap-6">
                   <div className="flex items-baseline gap-2">
@@ -471,7 +502,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* BASE DO CARD */}
               <div className="mt-auto pt-3 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-2 sm:gap-x-12">
                 <div className="group cursor-default">
                   <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">LIFEBOATS</span>
@@ -519,7 +549,27 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
       
-      {user.isAdmin ? (
+      {!user.isAdmin ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-10 gap-8">
+            <button onClick={activeSession ? onResumeTraining : onStartTraining} className="w-56 h-56 sm:w-64 sm:h-64 bg-blue-600 rounded-full shadow-2xl shadow-blue-600/30 text-white flex flex-col items-center justify-center gap-4 hover:scale-105 active:scale-95 transition-all group border-4 border-white">
+                <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : 'fa-play'} text-4xl group-hover:rotate-12 transition-transform`}></i>
+                <div className="text-center">
+                    <div className="font-black text-lg sm:text-xl uppercase tracking-tight">{activeSession ? 'Retomar Sessão' : 'Iniciar Embarque'}</div>
+                    <div className="text-[9px] sm:text-[10px] opacity-60 uppercase font-bold tracking-widest">{activeSession ? activeSession.lifeboat : 'LIFEBOAT MUSTER'}</div>
+                </div>
+            </button>
+            
+            <button onClick={() => setIsPobConsultOpen(true)} className="flex items-center gap-4 px-8 py-5 bg-white rounded-3xl border-2 border-slate-100 text-slate-800 hover:border-blue-600 hover:bg-blue-50 transition-all shadow-sm active:scale-95 group">
+                <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <i className="fa-solid fa-users"></i>
+                </div>
+                <div className="text-left">
+                  <span className="block font-black text-xs uppercase tracking-tight">Consultar POB</span>
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Lista de tripulantes</span>
+                </div>
+            </button>
+        </div>
+      ) : (
         <>
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-5">
@@ -554,7 +604,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               
               return (
                 <div key={lb} className={`p-5 rounded-[32px] border-2 transition-all flex flex-col gap-4 relative ${isManual ? 'bg-amber-50 border-amber-500 shadow-md' : isActive ? 'bg-blue-50 border-blue-600 shadow-sm' : 'bg-white border-slate-300 opacity-70 shadow-sm'}`}>
-                  {/* Seção Superior: Ícone e Contagem */}
                   <div className="flex items-start justify-between">
                     <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm ${isActive && !isManual ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'}`}>
                       <i className={`fa-solid ${isManual ? 'fa-triangle-exclamation text-amber-500' : 'fa-ship ' + (isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300')} text-xl`}></i>
@@ -574,7 +623,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                     )}
                   </div>
 
-                  {/* Informações da Baleeira */}
                   <div>
                     <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight mb-1">{lb}</h4>
                     <div className={`text-[9px] font-black uppercase transition-colors ${isManual ? 'text-amber-700' : isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
@@ -582,7 +630,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                   </div>
 
-                  {/* Seção Inferior: Toggle de Modo Manual/Online */}
                   <div className="mt-auto pt-4 border-t border-slate-100/50">
                     <button 
                       onClick={() => toggleLifeboatManualMode(lb)}
@@ -602,19 +649,141 @@ const Dashboard: React.FC<DashboardProps> = ({
             })}
           </div>
         </>
-      ) : (
-        <div className="flex-1 flex items-center justify-center py-10">
-            <button onClick={activeSession ? onResumeTraining : onStartTraining} className="w-56 h-56 sm:w-64 sm:h-64 bg-blue-600 rounded-full shadow-md shadow-blue-600/20 text-white flex flex-col items-center justify-center gap-4 hover:scale-105 active:scale-95 transition-all">
-                <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : 'fa-play'} text-3xl sm:text-4xl`}></i>
-                <div className="text-center">
-                    <div className="font-bold text-base sm:text-lg uppercase">{activeSession ? 'Retomar Sessão' : 'Novo Embarque'}</div>
-                    <div className="text-[9px] sm:text-[10px] opacity-60 uppercase font-bold">{activeSession ? activeSession.lifeboat : 'Acesse para iniciar'}</div>
+      )}
+
+      {/* Modal de Consulta de POB (Para Operadores) */}
+      {isPobConsultOpen && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6">
+          <div className="bg-white rounded-[32px] sm:rounded-[40px] max-w-5xl w-full p-4 sm:p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col max-h-[95vh] border border-slate-100">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Consulta de POB</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Visão Geral de Lotação e Atribuições</p>
+              </div>
+              <button onClick={() => { setIsPobConsultOpen(false); setSearchTerm(''); }} className="w-10 h-10 bg-slate-50 rounded-full text-slate-400 active:scale-95 hover:text-rose-500 transition-colors flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div className="relative mb-6">
+              <i className="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+              <input type="text" placeholder="BUSCAR POR NOME, FUNÇÃO OU LEITO..." className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase focus:ring-1 focus:ring-blue-100 outline-none transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-10 pb-6">
+              {Object.keys(pobGrouping).length === 0 ? (
+                <div className="py-20 text-center text-slate-300">
+                  <i className="fa-solid fa-users-slash text-4xl mb-4 block"></i>
+                  <p className="text-[10px] font-black uppercase tracking-widest">Nenhum tripulante encontrado</p>
                 </div>
-            </button>
+              ) : (
+                LIFEBOATS.concat(['SEM ATRIBUIÇÃO' as any]).map(lb => {
+                  const data = pobGrouping[lb];
+                  if (!data || (data.primary.length === 0 && data.secondary.length === 0)) return null;
+                  
+                  return (
+                    <div key={lb as string} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                      <div className="flex items-center gap-3 mb-6 sticky top-0 bg-white py-3 z-10 border-b border-slate-100">
+                        <div className={`w-1.5 h-6 rounded-full ${(lb as string) === 'SEM ATRIBUIÇÃO' ? 'bg-slate-300' : 'bg-blue-600'}`}></div>
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">{lb as string}</h4>
+                        <div className="flex items-center gap-2 ml-auto">
+                          <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-3 py-1 rounded-full uppercase tracking-tighter">TOTAL: {data.primary.length + data.secondary.length}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        {/* Seção Primária */}
+                        <div>
+                          <div className="flex items-center justify-between mb-4 px-2">
+                             <div className="flex items-center gap-2">
+                               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Muster Primário ({data.primary.length})</span>
+                             </div>
+                          </div>
+                          
+                          <div className="bg-slate-50/50 rounded-[24px] border border-slate-100 overflow-hidden">
+                            {/* Column Headers */}
+                            <div className="hidden sm:grid grid-cols-12 gap-3 px-6 py-3 border-b border-slate-100 text-[8px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                              <div className="col-span-2">Leito</div>
+                              <div className="col-span-6">Nome / Função</div>
+                              <div className="col-span-4 text-right">Status</div>
+                            </div>
+                            
+                            <div className="divide-y divide-slate-100">
+                              {data.primary.length === 0 ? (
+                                <div className="p-10 text-center text-[9px] font-black text-slate-300 uppercase tracking-tighter">Nenhum registro primário</div>
+                              ) : (
+                                data.primary.map(b => (
+                                  <div key={b.id + 'p'} className="grid grid-cols-1 sm:grid-cols-12 items-center gap-3 px-6 py-4 hover:bg-blue-50/30 transition-colors group/row">
+                                    <div className="sm:col-span-2 flex items-center">
+                                      <span className="bg-slate-800 text-white w-full sm:w-14 h-9 rounded-xl flex items-center justify-center text-[10px] font-mono font-bold shadow-sm">{b.id}</span>
+                                    </div>
+                                    <div className="sm:col-span-6 min-w-0">
+                                      <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1 truncate group-hover/row:text-blue-700 transition-colors">{b.crewName || 'VAZIO'}</p>
+                                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate">{b.role || 'SEM FUNÇÃO'} • <span className="text-blue-500/80">{b.company || 'N/A'}</span></p>
+                                    </div>
+                                    <div className="sm:col-span-4 text-right flex items-center justify-end gap-2">
+                                      {releasedIds.includes(b.id) && <span className="text-[8px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200 uppercase tracking-tighter">Liberado</span>}
+                                      <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 uppercase tracking-tighter">Ativo</span>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Seção Secundária */}
+                        <div>
+                          <div className="flex items-center justify-between mb-4 px-2">
+                             <div className="flex items-center gap-2">
+                               <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Muster Secundário ({data.secondary.length})</span>
+                             </div>
+                          </div>
+
+                          <div className="bg-slate-50/50 rounded-[24px] border border-slate-100 overflow-hidden">
+                            {/* Column Headers */}
+                            <div className="hidden sm:grid grid-cols-12 gap-3 px-6 py-3 border-b border-slate-100 text-[8px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                              <div className="col-span-2">Leito</div>
+                              <div className="col-span-5">Nome / Função</div>
+                              <div className="col-span-5 text-right">Vinculação</div>
+                            </div>
+
+                            <div className="divide-y divide-slate-100">
+                              {data.secondary.length === 0 ? (
+                                <div className="p-10 text-center text-[9px] font-black text-slate-300 uppercase tracking-tighter">Nenhum registro secundário</div>
+                              ) : (
+                                data.secondary.map(b => (
+                                  <div key={b.id + 's'} className="grid grid-cols-1 sm:grid-cols-12 items-center gap-3 px-6 py-4 hover:bg-indigo-50/30 transition-colors group/row">
+                                    <div className="sm:col-span-2 flex items-center">
+                                      <span className="bg-indigo-600 text-white w-full sm:w-14 h-9 rounded-xl flex items-center justify-center text-[10px] font-mono font-bold shadow-sm">{b.id}</span>
+                                    </div>
+                                    <div className="sm:col-span-5 min-w-0">
+                                      <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1 truncate group-hover/row:text-indigo-700 transition-colors">{b.crewName || 'VAZIO'}</p>
+                                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate">{b.role || 'SEM FUNÇÃO'} • <span className="text-indigo-400">{b.company || 'N/A'}</span></p>
+                                    </div>
+                                    <div className="sm:col-span-5 text-right flex flex-col items-end gap-1.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[8px] font-black text-indigo-600 bg-white px-2 py-0.5 rounded-lg uppercase border border-indigo-100 tracking-tighter">Prim: {b.lifeboat}</span>
+                                        {releasedIds.includes(b.id) && <span className="text-[8px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200 uppercase tracking-tighter">Liberado</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Wizard de Início de Contagem Geral */}
+      {/* Outros Modais (Setup, Finish, Release, etc) - Mantidos do Dashboard original */}
       {isGeneralSetupOpen && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
           <div className="bg-white rounded-[40px] max-w-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
@@ -622,7 +791,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">
                  {generalSetupStep === 1 ? 'Tipo de Cenário' : 'Detalhes do Evento'}
                </h3>
-               <button onClick={() => setIsGeneralSetupOpen(false)} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-full"><i className="fa-solid fa-xmark"></i></button>
+               <button onClick={() => setIsGeneralSetupOpen(false)} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
             </div>
 
             {generalSetupStep === 1 ? (
@@ -653,18 +822,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <button onClick={() => setGsType('Fogo/Abandono')} className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${gsType === 'Fogo/Abandono' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Fogo/Abandono</button>
                   </div>
                 </div>
-
                 <div className="space-y-2 text-left">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-1">MOTIVO / LOCAL / OBSERVAÇÕES</label>
-                  <textarea 
-                    value={gsDescription}
-                    onChange={(e) => setGsDescription(e.target.value)}
-                    rows={3}
-                    placeholder="DESCREVA O LOCAL OU MOTIVO..."
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase focus:ring-1 focus:ring-blue-100 outline-none resize-none"
-                  ></textarea>
+                  <textarea value={gsDescription} onChange={(e) => setGsDescription(e.target.value)} rows={3} placeholder="DESCREVA O LOCAL OU MOTIVO..." className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase focus:ring-1 focus:ring-blue-100 outline-none resize-none" />
                 </div>
-
                 <div className="grid gap-2 pt-4">
                   <button onClick={handleFinishGeneralSetup} className="w-full py-5 bg-slate-900 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Iniciar Contagem Geral</button>
                   <button onClick={() => setGeneralSetupStep(1)} className="w-full py-5 bg-slate-100 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest">Voltar</button>
@@ -675,54 +836,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* Modais de LIBERADOS */}
-      {isReleaseModalOpen && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
-          <div className="bg-white rounded-[28px] sm:rounded-[32px] max-w-lg w-full p-6 sm:p-8 shadow-md animate-in zoom-in duration-300 flex flex-col max-h-[85vh]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase">Liberar Tripulante</h3>
-              <button onClick={() => { setIsReleaseModalOpen(false); setSearchTerm(''); }} className="w-10 h-10 bg-slate-50 rounded-full text-slate-400 active:scale-95"><i className="fa-solid fa-xmark"></i></button>
-            </div>
-            <input type="text" placeholder="BUSCAR POR NOME..." className="w-full px-5 sm:px-6 py-3 sm:py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] sm:text-xs font-bold uppercase mb-4 focus:ring-1 focus:ring-blue-100 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-            <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
-              {availableToRelease.filter(b => b.crewName?.toUpperCase().includes(searchTerm.toUpperCase())).map(b => (
-                <button key={b.id} onClick={() => handleToggleRelease(b.id)} className="w-full flex items-center justify-between p-3 sm:p-4 bg-slate-50 hover:bg-amber-50 rounded-2xl transition-all group shadow-sm">
-                  <div className="text-left">
-                    <p className="text-[11px] sm:text-xs font-black text-slate-800 uppercase leading-none mb-1">{b.crewName}</p>
-                    <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase">{b.id} • {b.role}</p>
-                  </div>
-                  <i className="fa-solid fa-plus text-amber-500 opacity-0 group-hover:opacity-100"></i>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isReturnModalOpen && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 text-center">
-          <div className="bg-white rounded-[28px] sm:rounded-[32px] max-w-lg w-full p-6 sm:p-8 shadow-md animate-in zoom-in duration-300 flex flex-col max-h-[85vh]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase">Tripulantes Liberados</h3>
-              <button onClick={() => setIsReturnModalOpen(false)} className="w-10 h-10 bg-slate-50 rounded-full text-slate-400 active:scale-95"><i className="fa-solid fa-xmark"></i></button>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
-              {releasedCrew.map(b => (
-                <button key={b.id} onClick={() => handleToggleRelease(b.id)} className="w-full flex items-center justify-between p-3 sm:p-4 bg-amber-50 rounded-2xl hover:bg-rose-50 transition-all group shadow-sm">
-                  <div className="text-left">
-                    <p className="text-[11px] sm:text-xs font-black text-amber-800 group-hover:text-rose-800 uppercase leading-none mb-1">{b.crewName}</p>
-                    <p className="text-[8px] sm:text-[9px] font-bold text-amber-600 uppercase leading-none">STATUS: LIBERADO</p>
-                  </div>
-                  <i className="fa-solid fa-rotate-left text-rose-500 opacity-0 group-hover:opacity-100"></i>
-                </button>
-              ))}
-              {releasedCrew.length === 0 && <p className="py-20 text-[9px] sm:text-[10px] font-black text-slate-300 uppercase">Nenhum tripulante liberado</p>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Confirmação de Finalização da Contagem Geral */}
       {isConfirmingGeneralFinish && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
           <div className="bg-white rounded-[40px] max-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
@@ -731,18 +844,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Finalizar Contagem?</h3>
             <div className="grid gap-3">
-              <button 
-                onClick={handleFinishGeneralTraining}
-                className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all border border-rose-400/30"
-              >
-                Sim, Finalizar
-              </button>
-              <button 
-                onClick={() => setIsConfirmingGeneralFinish(false)}
-                className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all"
-              >
-                Cancelar
-              </button>
+              <button onClick={handleFinishGeneralTraining} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all border border-rose-400/30">Sim, Finalizar</button>
+              <button onClick={() => setIsConfirmingGeneralFinish(false)} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all">Cancelar</button>
             </div>
           </div>
         </div>

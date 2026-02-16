@@ -205,6 +205,7 @@ const App: React.FC = () => {
     const allBerths = await cloudService.getBerths();
     const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb);
     
+    // Configuração padrão para operadores que pulam a tela de config
     const ns: ActiveSession = { 
       lifeboat: lb, 
       leaderName: user?.name || 'Operador', 
@@ -292,9 +293,9 @@ const App: React.FC = () => {
       )}
 
       <main className={`flex-1 flex flex-col ${currentPage !== AppState.TRAINING && currentPage !== AppState.LOGIN ? 'pb-24' : ''}`}>
-        {currentPage === AppState.DASHBOARD && <Dashboard onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} onResumeTraining={() => setCurrentPage(AppState.TRAINING)} onViewLifeboat={async (lb) => { if(user?.isAdmin) { const s = fleetStatus[lb]; if(s?.isActive) { setIsSyncing(true); const allBerths = await cloudService.getBerths(); const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb); setActiveSession({ lifeboat: lb, leaderName: s.leaderName || 'Líder', trainingType: s.trainingType as any || 'Fogo/Abandono', isRealScenario: s.isRealScenario || false, tags: s.tags || [], seconds: s.seconds || 0, startTime: s.startTime || Date.now(), accumulatedSeconds: s.accumulatedSeconds || 0, isPaused: s.isPaused || false, isAdminView: true, expectedCrew: expectedCrew }); setCurrentPage(AppState.TRAINING); setIsSyncing(false); } } }} onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} onOpenBerthManagement={() => setCurrentPage(AppState.BERTH_MANAGEMENT)} user={user} fleetStatus={fleetStatus} historyCount={history.length} activeSession={activeSession} />}
+        {currentPage === AppState.DASHBOARD && <Dashboard onStartTraining={() => setCurrentPage(AppState.SELECTION)} onResumeTraining={() => setCurrentPage(AppState.TRAINING)} onViewLifeboat={async (lb) => { if(user?.isAdmin) { const s = fleetStatus[lb]; if(s?.isActive) { setIsSyncing(true); const allBerths = await cloudService.getBerths(); const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb); setActiveSession({ lifeboat: lb, leaderName: s.leaderName || 'Líder', trainingType: s.trainingType as any || 'Fogo/Abandono', isRealScenario: s.isRealScenario || false, tags: s.tags || [], seconds: s.seconds || 0, startTime: s.startTime || Date.now(), accumulatedSeconds: s.accumulatedSeconds || 0, isPaused: s.isPaused || false, isAdminView: true, expectedCrew: expectedCrew }); setCurrentPage(AppState.TRAINING); setIsSyncing(false); } } }} onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} onOpenBerthManagement={() => setCurrentPage(AppState.BERTH_MANAGEMENT)} user={user} fleetStatus={fleetStatus} historyCount={history.length} activeSession={activeSession} />}
         {currentPage === AppState.TRAINING_CONFIG && <TrainingConfig onSubmit={(type, isReal) => { setTempConfig({trainingType: type, isRealScenario: isReal}); setCurrentPage(AppState.SELECTION); }} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
-        {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={startTrainingSession} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
+        {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={startTrainingSession} onBack={() => setCurrentPage(AppState.DASHBOARD)} fleetStatus={fleetStatus} />}
         {currentPage === AppState.HISTORY && <History records={history} onBack={() => setCurrentPage(AppState.DASHBOARD)} isAdmin={user?.isAdmin} onRefresh={loadHistoryData} />}
         {currentPage === AppState.USER_MANAGEMENT && <UserManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.NFC_ENROLLMENT && <NfcEnrollment onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
