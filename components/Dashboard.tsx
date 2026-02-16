@@ -318,6 +318,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     await cloudService.updateFleetStatus(updatedFleet);
   };
 
+  const setLifeboatManualCountAbsolute = async (lb: LifeboatType, value: string) => {
+    const status = fleetStatus[lb];
+    if (!status?.isManualMode) return;
+    const numValue = value === '' ? 0 : parseInt(value, 10);
+    const validValue = isNaN(numValue) ? 0 : Math.max(0, numValue);
+
+    const updatedFleet = {
+      ...fleetStatus,
+      [lb]: {
+        ...status,
+        manualCount: validValue
+      }
+    };
+    await cloudService.updateFleetStatus(updatedFleet);
+  };
+
   const setManualCountAbsolute = async (category: string, value: string) => {
     if (category === 'LIBERADOS') return;
     const numValue = value === '' ? 0 : parseInt(value, 10);
@@ -507,7 +523,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
             
-            <i className={`fa-solid ${generalTraining.isRealScenario ? 'fa-triangle-exclamation' : 'fa-clipboard-check'} absolute right-[-15px] bottom-[-25px] text-[90px] sm:text-[130px] text-white/5 -rotate-12 pointer-events-none`}></i>
+            <i className="fa-solid fa-clipboard-check absolute right-[-15px] bottom-[-25px] text-[90px] sm:text-[130px] text-white/5 -rotate-12 pointer-events-none"></i>
           </div>
         </div>
       )}
@@ -552,7 +568,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {activeSession ? 'Retomar Sessão' : (generalTraining.isRealScenario && generalTraining.isActive ? 'EMERGÊNCIA: INICIAR' : 'Iniciar Embarque')}
                       </div>
                       <div className="text-[11px] sm:text-[12px] opacity-80 uppercase font-black tracking-[0.25em] mt-2">
-                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFEBOAT MUSTER')}
+                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFESAFE ODN1')}
                       </div>
                   </div>
               </button>
@@ -608,7 +624,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                     {isManual ? (
                       <div className="flex items-center gap-2 bg-white/50 p-1 rounded-full border border-amber-200">
                          <button onClick={() => updateLifeboatManualCount(lb, -1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-minus text-[10px]"></i></button>
-                         <span className="text-2xl font-black text-amber-900 tabular-nums w-10 text-center">{countToDisplay}</span>
+                         <input 
+                            type="number" 
+                            value={countToDisplay === 0 ? '' : countToDisplay} 
+                            onChange={(e) => setLifeboatManualCountAbsolute(lb, e.target.value)}
+                            className="text-2xl font-black text-amber-900 tabular-nums w-12 text-center bg-transparent border-none outline-none focus:ring-0"
+                         />
                          <button onClick={() => updateLifeboatManualCount(lb, 1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-plus text-[10px]"></i></button>
                       </div>
                     ) : (
