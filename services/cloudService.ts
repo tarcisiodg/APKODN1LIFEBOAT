@@ -110,6 +110,12 @@ export const cloudService = {
     await updateDoc(userRef, updatePayload);
   },
 
+  async getManualCounters(): Promise<Record<string, number>> {
+    const countersRef = doc(db, "config", "manual_counters");
+    const snap = await getDoc(countersRef);
+    return snap.exists() ? (snap.data() as Record<string, number>) : {};
+  },
+
   async updateManualCounters(counters: Record<string, number>): Promise<void> {
     const countersRef = doc(db, "config", "manual_counters");
     await setDoc(countersRef, counters);

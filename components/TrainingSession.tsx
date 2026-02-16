@@ -98,11 +98,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         const tagId = serialNumber || "";
         if (!tagId) return;
 
-        // Fix: Use tagId instead of an undefined 'tag.id'
         const matchedBerth = session.expectedCrew?.find(b => 
           (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
           (b.tagId2 && b.tagId2.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
-          (b.tagId3 && tagId.trim().toLowerCase() === tagId.trim().toLowerCase())
+          (b.tagId3 && b.tagId3.trim().toLowerCase() === tagId.trim().toLowerCase())
         );
 
         if (!matchedBerth && !session.isAdminView) {
@@ -118,11 +117,19 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           return;
         }
 
-        // Caso a pessoa esteja na lista de LIBERADOS mas escaneou agora
+        // Lógica de transferência automática: Se for um LIBERADO escaneando no Lifeboat
         if (matchedBerth && releasedIds.includes(matchedBerth.id)) {
           const newReleased = releasedIds.filter(id => id !== matchedBerth.id);
+          
+          // Atualiza lista de IDs de liberados
           await cloudService.updateReleasedCrew(newReleased);
-          // O subscription irá atualizar o estado local automaticamente
+          
+          // Atualiza o contador manual de 'LIBERADOS' para o Dashboard
+          try {
+            const currentCounters = await cloudService.getManualCounters();
+            const updatedCounters = { ...currentCounters, 'LIBERADOS': newReleased.length };
+            await cloudService.updateManualCounters(updatedCounters);
+          } catch (e) { console.error("Erro ao sincronizar contadores:", e); }
         }
 
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
