@@ -23,9 +23,16 @@
               '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.03)',
               'inner': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.03)',
             },
+            keyframes: {
+              shimmer: {
+                '0%': { transform: 'translateX(-100%) rotate(45deg)' },
+                '100%': { transform: 'translateX(100%) rotate(45deg)' }
+              }
+            },
             animation: {
               'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
               'pulse-fast': 'pulse-fast 1s ease-in-out infinite',
+              'shimmer': 'shimmer 4s infinite linear'
             }
           }
         }
