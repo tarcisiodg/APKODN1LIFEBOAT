@@ -215,6 +215,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
       });
 
+      const endTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
       const record: TrainingRecord = {
         id: crypto.randomUUID(),
         date: new Date().toLocaleString('pt-BR'),
@@ -228,7 +230,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         operator: user?.name || 'Sistema',
         tags: allTags,
         ertCounts: manualCounts,
-        lifeboatBreakdown: lbBreakdown
+        lifeboatBreakdown: lbBreakdown,
+        startTime: generalTraining.startTime,
+        endTime: endTimeStr
       };
 
       await cloudService.saveTrainingRecord(record);

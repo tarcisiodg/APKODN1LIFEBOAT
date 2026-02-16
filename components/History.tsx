@@ -119,16 +119,15 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
     const timeOnly = dateParts[1] || "";
 
     const rows = [
-      ["RELATÓRIO DE TREINAMENTO / EMERGÊNCIA - LIFESAFE ODN1"],
+      ["RELATÓRIO DE TREINAMENTO / EMERGÊNCIA - ODN I"],
       ["Data", dateOnly],
-      ["Hora", timeOnly],
-      ["Unidade", record.lifeboat.toUpperCase()],
-      ["Líder / Responsável", record.leaderName],
+      ["Hora de Início", record.startTime || timeOnly],
+      ["Hora de Término", record.endTime || timeOnly],
+      ["Unidade", record.lifeboat === 'FROTA COMPLETA' ? 'ODN I - NS41' : record.lifeboat.toUpperCase()],
       ["Tipo de Evento", record.trainingType],
       ["Duração Total", record.duration],
-      ["Total Geral de POB Lidos", record.crewCount.toString()],
+      ["POB Total", record.crewCount.toString()],
       ["Operador do Sistema", record.operator],
-      ["Resumo Gemini IA", record.summary],
       [""],
     ];
 
@@ -182,7 +181,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
     if (filteredRecords.length === 0) return;
 
     const rows = [
-      ["Resumo Geral do Histórico - LIFESAFE ODN1"],
+      ["Resumo Geral do Histórico - ODN I"],
       ["Filtro Baleeira", lifeboatFilter.toUpperCase()],
       ["Filtro Data", dateFilter || "Todas"],
       ["Gerado em", new Date().toLocaleString('pt-BR')],
@@ -265,18 +264,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
             />
           </div>
         </div>
-
-        {filteredRecords.length > 0 && (
-          <div className="flex justify-center border-t border-slate-100 pt-6">
-            <button 
-              onClick={exportFilteredToCSV}
-              className="px-6 py-2 bg-slate-800 hover:bg-black text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-wider"
-            >
-              <i className="fa-solid fa-file-csv"></i>
-              Exportar Log Filtrado
-            </button>
-          </div>
-        )}
       </div>
 
       {filteredRecords.length === 0 ? (
@@ -305,13 +292,14 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
                 )}
 
                 <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-4 border-b border-slate-100">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-0">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${record.lifeboat === 'FROTA COMPLETA' ? 'bg-slate-900 text-white' : 'bg-blue-50 text-blue-600'}`}>
                         <i className={`fa-solid ${record.lifeboat === 'FROTA COMPLETA' ? 'fa-tower-observation' : 'fa-anchor'}`}></i>
                       </div>
                       <div>
-                        <h3 className="font-bold text-slate-900 uppercase tracking-tight">{record.lifeboat}</h3>
+                        {/* SUBSTITUIÇÃO SOLICITADA: FROTA COMPLETA POR RELATÓRIO NO TÍTULO DO CARD */}
+                        <h3 className="font-bold text-slate-900 uppercase tracking-tight">{record.lifeboat === 'FROTA COMPLETA' ? 'RELATÓRIO' : record.lifeboat}</h3>
                         <div className="flex items-center gap-2">
                            <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase text-white ${record.trainingType.includes('EMERGÊNCIA') ? 'bg-rose-600' : 'bg-blue-600'}`}>
                             {record.trainingType}
@@ -346,9 +334,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
                       )}
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 italic font-medium">
-                    {record.summary}
-                  </p>
                 </div>
               </div>
             );
@@ -359,7 +344,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
       {/* Modal de Exclusão Individual */}
       {recordToDelete && (
         <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[32px] max-w-sm w-full p-8 shadow-md animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[32px] max-sm w-full p-8 shadow-md animate-in zoom-in duration-300">
             <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <i className="fa-solid fa-trash-can text-2xl"></i>
             </div>

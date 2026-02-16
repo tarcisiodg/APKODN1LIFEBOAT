@@ -72,6 +72,8 @@ export interface TrainingRecord {
   tags?: ScannedTag[];
   ertCounts?: Record<string, number>;
   lifeboatBreakdown?: Record<string, { count: number; tags: ScannedTag[] }>;
+  startTime?: string;
+  endTime?: string;
 }
 
 export type LifeboatType = 'Lifeboat 1' | 'Lifeboat 2' | 'Lifeboat 3' | 'Lifeboat 4' | 'Lifeboat 5' | 'Lifeboat 6';

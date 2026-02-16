@@ -163,6 +163,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
     try {
       const durationStr = formatTime(session.seconds);
       const label = isGlobal ? 'FROTA COMPLETA' : session.lifeboat;
+
+      const now = new Date();
+      const endTimeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const startTimeStr = new Date(session.startTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       
       const summary = await generateTrainingSummary(label, session.tags.length, durationStr);
       await onSaveRecord({ 
@@ -173,7 +177,9 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         isRealScenario: session.isRealScenario, 
         crewCount: session.tags.length, 
         duration: durationStr, 
-        summary: summary 
+        summary: summary,
+        startTime: startTimeStr,
+        endTime: endTimeStr
       });
 
       if (isGlobal) {
