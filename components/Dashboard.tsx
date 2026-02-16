@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth, TrainingRecord, ScannedTag } from '../types';
 import { cloudService } from '../services/cloudService';
 import { generateTrainingSummary } from '../services/geminiService';
@@ -50,6 +49,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isPobConsultOpen, setIsPobConsultOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // NFC Test State
+  const [isTestNfcOpen, setIsTestNfcOpen] = useState(false);
+  const [testTagResult, setTestTagResult] = useState<{tagId: string, crewName?: string, role?: string, company?: string, berthId?: string} | null>(null);
+  const [nfcTestState, setNfcTestState] = useState<'idle' | 'scanning' | 'error'>('idle');
+  const nfcReaderRef = useRef<any>(null);
 
   const [isGeneralSetupOpen, setIsGeneralSetupOpen] = useState(false);
   const [generalSetupStep, setGeneralSetupStep] = useState<1 | 2>(1);
@@ -360,6 +365,51 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   }, [allBerths, searchTerm]);
 
+  // NFC Test Logic
+  const startNfcTest = async () => {
+    if (!('NDEFReader' in window)) {
+      alert("NFC não suportado neste dispositivo.");
+      return;
+    }
+    setNfcTestState('scanning');
+    setTestTagResult(null);
+    try {
+      const reader = new (window as any).NDEFReader();
+      nfcReaderRef.current = reader;
+      await reader.scan();
+      reader.addEventListener("reading", ({ serialNumber }: any) => {
+        const tagId = serialNumber || "";
+        if (tagId) {
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+          
+          const matchedBerth = allBerths.find(b => 
+            (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
+            (b.tagId2 && b.tagId2.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
+            (b.tagId3 && b.tagId3.trim().toLowerCase() === tagId.trim().toLowerCase())
+          );
+
+          setTestTagResult({
+            tagId: tagId,
+            crewName: matchedBerth?.crewName,
+            role: matchedBerth?.role,
+            company: matchedBerth?.company,
+            berthId: matchedBerth?.id
+          });
+        }
+      });
+    } catch (e) {
+      console.error(e);
+      setNfcTestState('error');
+    }
+  };
+
+  const closeNfcTest = () => {
+    setIsTestNfcOpen(false);
+    setTestTagResult(null);
+    setNfcTestState('idle');
+    // Abort signal if needed, but simplest is to just close the UI
+  };
+
   if (!user) return null;
 
   return (
@@ -529,7 +579,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
       
       {!user.isAdmin ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-10 gap-12">
+        <div className="flex-1 flex flex-col items-center justify-center py-10 gap-8">
             <div className="relative">
               {!generalTraining.isActive && !activeSession && (
                 <div className="absolute inset-0 bg-white/90 backdrop-blur-[6px] z-10 rounded-[48px] flex flex-col items-center justify-center border-4 border-dashed border-blue-200/50 shadow-inner group/standby overflow-hidden">
@@ -567,19 +617,28 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <div className="font-black text-2xl sm:text-3xl uppercase tracking-tighter drop-shadow-md leading-tight">
                         {activeSession ? 'Retomar Sessão' : (generalTraining.isRealScenario && generalTraining.isActive ? 'EMERGÊNCIA: INICIAR' : 'Iniciar Embarque')}
                       </div>
-                      <div className="text-[11px] sm:text-[12px] opacity-80 uppercase font-black tracking-[0.25em] mt-2">
+                      <div className="text-[11px] sm:text-[12px] opacity-80 uppercase font-black tracking-[0.2em] mt-2">
                         {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFESAFE ODN1')}
                       </div>
                   </div>
               </button>
             </div>
             
-            <button onClick={() => setIsPobConsultOpen(true)} className="flex items-center justify-center gap-6 px-12 py-8 bg-white rounded-[40px] border-4 border-slate-100 text-slate-900 hover:border-blue-600 hover:bg-blue-50 transition-all shadow-[0_30px_60px_rgba(0,0,0,0.12)] active:scale-95 group min-w-[320px]">
-                <div className="w-16 h-16 bg-slate-900 text-white rounded-[24px] flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-xl shadow-slate-900/10">
-                  <i className="fa-solid fa-users-viewfinder text-2xl"></i>
-                </div>
-                <span className="font-black text-2xl uppercase tracking-tighter">CONSULTAR POB</span>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-[640px]">
+              <button onClick={() => setIsPobConsultOpen(true)} className="flex items-center justify-center gap-4 px-8 py-6 bg-white rounded-[32px] border-4 border-slate-100 text-slate-900 hover:border-blue-600 hover:bg-blue-50 transition-all shadow-lg active:scale-95 group">
+                  <div className="w-12 h-12 bg-slate-900 text-white rounded-[18px] flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-md">
+                    <i className="fa-solid fa-users-viewfinder text-xl"></i>
+                  </div>
+                  <span className="font-black text-lg uppercase tracking-tighter">CONSULTAR POB</span>
+              </button>
+
+              <button onClick={() => { setIsTestNfcOpen(true); startNfcTest(); }} className="flex items-center justify-center gap-4 px-8 py-6 bg-white rounded-[32px] border-4 border-slate-100 text-slate-900 hover:border-emerald-600 hover:bg-emerald-50 transition-all shadow-lg active:scale-95 group">
+                  <div className="w-12 h-12 bg-emerald-600 text-white rounded-[18px] flex items-center justify-center group-hover:bg-emerald-700 transition-colors shadow-md">
+                    <i className="fa-solid fa-id-card text-xl"></i>
+                  </div>
+                  <span className="font-black text-lg uppercase tracking-tighter">LER/TESTAR CARTÃO</span>
+              </button>
+            </div>
         </div>
       ) : (
         <>
@@ -666,6 +725,92 @@ const Dashboard: React.FC<DashboardProps> = ({
             })}
           </div>
         </>
+      )}
+
+      {/* NFC Test Modal */}
+      {isTestNfcOpen && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300 border border-slate-100 overflow-hidden">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Testar Cartão NFC</h3>
+              <button onClick={closeNfcTest} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors">
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+
+            <div className="space-y-8">
+              {!testTagResult ? (
+                <div className="text-center py-10 space-y-6">
+                  <div className="relative inline-block">
+                    <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-30"></div>
+                    <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[32px] flex items-center justify-center mx-auto shadow-inner relative z-10">
+                      <i className="fa-solid fa-wifi text-4xl animate-pulse"></i>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-slate-800 uppercase mb-2">Aguardando Cartão...</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aproxime a TAG do leitor NFC do dispositivo</p>
+                  </div>
+                  {nfcTestState === 'error' && (
+                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-[10px] font-black uppercase shadow-sm">
+                      Falha ao acessar o leitor NFC. Certifique-se de que o NFC está ativo.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-[32px] p-8 text-center relative overflow-hidden group">
+                    <i className="fa-solid fa-id-card absolute top-[-20px] left-[-20px] text-[100px] text-emerald-500/5 rotate-12 pointer-events-none"></i>
+                    
+                    <div className="relative z-10">
+                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-emerald-600 mx-auto mb-4 shadow-sm">
+                        <i className="fa-solid fa-check text-2xl"></i>
+                      </div>
+                      <h4 className="text-2xl font-black text-emerald-900 uppercase tracking-tight mb-1">
+                        {testTagResult.crewName || 'CARTÃO NÃO VINCULADO'}
+                      </h4>
+                      <p className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest">DADOS IDENTIFICADOS NO SISTEMA</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">ID DA TAG</span>
+                      <span className="text-xs font-mono font-black text-slate-900">{testTagResult.tagId}</span>
+                    </div>
+                    {testTagResult.berthId && (
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">LEITO/BERTH</span>
+                        <span className="text-xs font-black text-slate-900">{testTagResult.berthId}</span>
+                      </div>
+                    )}
+                    {testTagResult.role && (
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">FUNÇÃO</span>
+                        <span className="text-xs font-black text-slate-900">{testTagResult.role}</span>
+                      </div>
+                    )}
+                    {testTagResult.company && (
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">EMPRESA</span>
+                        <span className="text-xs font-black text-slate-900">{testTagResult.company}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button onClick={() => { setTestTagResult(null); startNfcTest(); }} className="flex-1 py-4 bg-slate-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+                      <i className="fa-solid fa-rotate-right mr-2"></i> Ler Outro
+                    </button>
+                    <button onClick={() => setTestTagResult(null)} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all">
+                      <i className="fa-solid fa-eraser mr-2"></i> Limpar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {isPobConsultOpen && (
