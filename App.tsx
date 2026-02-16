@@ -117,6 +117,7 @@ const App: React.FC = () => {
             setActiveSession(prev => {
               if (!prev) return null;
               
+              // Se a baleeira foi colocada em Modo Manual (Offline), forçamos o pause local e sincronizamos o tempo
               if (remoteStatus.isManualMode) {
                 return {
                   ...prev,
@@ -124,10 +125,11 @@ const App: React.FC = () => {
                   seconds: remoteStatus.seconds || 0,
                   accumulatedSeconds: remoteStatus.accumulatedSeconds || 0,
                   tags: remoteStatus.tags || prev.tags,
-                  isManualMode: true
+                  isManualMode: true // Propriedade opcional para UI
                 };
               } 
               
+              // Se voltou para Online e estava pausado por conta do manual
               if (!remoteStatus.isManualMode && prev.isPaused && !remoteStatus.isPaused) {
                 return {
                   ...prev,
@@ -183,8 +185,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const syncToCloud = async () => {
-      if (!activeSession || activeSession.isAdminView || isInitializingRef.current || activeSession.isManualMode) return;
+      if (!activeSession || activeSession.isAdminView || isInitializingRef.current) return;
       
+      // Não sincronizamos o status se estivermos em modo manual (o dashboard assume o controle)
+      // Porém, se mudarmos localmente o pause (não pelo manual), precisamos enviar.
       const currentStatusUpdate = {
         ...fleetStatus,
         [activeSession.lifeboat]: {
@@ -210,7 +214,7 @@ const App: React.FC = () => {
   const processNewScan = useCallback((tagId: string, tagData: string) => {
     if (!tagId) return;
     setActiveSession(prev => {
-      if (!prev || prev.isPaused || prev.isAdminView || prev.isManualMode) return prev;
+      if (!prev || prev.isPaused || prev.isAdminView) return prev;
       if (prev.tags.some(t => t.id === tagId)) return prev;
 
       const matchedBerth = prev.expectedCrew?.find(b => 
@@ -242,7 +246,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let timerInterval: number | undefined;
-    if (activeSession && !activeSession.isPaused && !activeSession.isAdminView && !activeSession.isManualMode) {
+    if (activeSession && !activeSession.isPaused && !activeSession.isAdminView) {
       timerInterval = window.setInterval(() => {
         setActiveSession(prev => {
           if (!prev || prev.isPaused) return prev;
@@ -252,7 +256,7 @@ const App: React.FC = () => {
       }, 1000);
     }
     return () => clearInterval(timerInterval);
-  }, [activeSession?.isPaused, activeSession?.startTime, activeSession?.isManualMode]);
+  }, [activeSession?.isPaused, activeSession?.startTime]);
 
   const startTrainingSession = async (lb: LifeboatType) => {
     setIsSyncing(true);
@@ -266,8 +270,7 @@ const App: React.FC = () => {
       isRealScenario: tempConfig?.isRealScenario || false, 
       tags: [], seconds: 0, startTime: Date.now(), 
       accumulatedSeconds: 0, isPaused: false,
-      expectedCrew: expectedCrew,
-      isManualMode: fleetStatus[lb]?.isManualMode || false
+      expectedCrew: expectedCrew
     };
     setActiveSession(ns);
     setCurrentPage(AppState.TRAINING);
@@ -327,7 +330,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFESAFE ODN1 (NS-41)</h1>
+                <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
                 {isSyncing && <i className="fa-solid fa-rotate animate-spin text-blue-400 text-[10px]"></i>}
               </div>
             </div>

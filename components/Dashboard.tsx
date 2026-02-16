@@ -271,6 +271,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     let updatedStatus = { ...status };
     
     if (isNowManual) {
+      // Ao entrar no modo manual, congelamos o tempo atual
       let currentSeconds = status.seconds || 0;
       if (!status.isPaused && status.startTime) {
         const elapsed = Math.floor((Date.now() - status.startTime) / 1000);
@@ -286,11 +287,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         seconds: currentSeconds
       };
     } else {
+      // Ao sair do modo manual, retomamos a contagem de tempo do ponto onde parou
       updatedStatus = {
         ...status,
         isManualMode: false,
         isPaused: false,
         startTime: Date.now()
+        // accumulatedSeconds permanece igual para o App.tsx retomar
       };
     }
 
@@ -549,7 +552,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {activeSession ? 'Retomar Sessão' : (generalTraining.isRealScenario && generalTraining.isActive ? 'EMERGÊNCIA: INICIAR' : 'Iniciar Embarque')}
                       </div>
                       <div className="text-[11px] sm:text-[12px] opacity-80 uppercase font-black tracking-[0.25em] mt-2">
-                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFESAFE ODN1')}
+                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFEBOAT MUSTER')}
                       </div>
                   </div>
               </button>

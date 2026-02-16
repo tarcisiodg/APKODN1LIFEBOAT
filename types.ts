@@ -58,7 +58,6 @@ export interface ActiveSession {
   isPaused: boolean;
   isAdminView?: boolean;
   expectedCrew?: Berth[]; 
-  isManualMode?: boolean;
 }
 
 export interface TrainingRecord {
