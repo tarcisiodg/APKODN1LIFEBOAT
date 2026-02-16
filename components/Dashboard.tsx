@@ -50,6 +50,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Estados para o Wizard de Início de Contagem Geral
+  const [isGeneralSetupOpen, setIsGeneralSetupOpen] = useState(false);
+  const [generalSetupStep, setGeneralSetupStep] = useState<1 | 2>(1);
+  const [gsIsReal, setGsIsReal] = useState(false);
+  const [gsType, setGsType] = useState<'Gás' | 'Fogo/Abandono'>('Fogo/Abandono');
+  const [gsDescription, setGsDescription] = useState('');
+
   // Estados para o cronômetro de treinamento geral (Contagem Geral)
   const [generalTraining, setGeneralTraining] = useState<{
     isActive: boolean;
@@ -59,6 +66,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     duration: string;
     startTimestamp?: number;
     finalTotal?: number;
+    trainingType?: string;
+    isRealScenario?: boolean;
+    description?: string;
   }>({ isActive: false, isFinished: false, startTime: '', endTime: '', duration: '' });
   
   const [liveDuration, setLiveDuration] = useState('00:00:00');
@@ -133,7 +143,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const overallMusterTotal = useMemo(() => totalPeopleInFleet + totalManualGroups, [totalPeopleInFleet, totalManualGroups]);
 
-  // Diferença para o Muster (Pendente se > 0, Muster se = 0, Excedente se < 0)
   const musterDiff = useMemo(() => berthStats.occupied - overallMusterTotal, [berthStats.occupied, overallMusterTotal]);
 
   const capacityPercentage = useMemo(() => {
@@ -141,7 +150,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     return Math.round((berthStats.occupied / berthStats.total) * 100);
   }, [berthStats.occupied, berthStats.total]);
 
-  const handleStartGeneralTraining = async () => {
+  const handleStartGeneralSetup = () => {
+    setGeneralSetupStep(1);
+    setGsIsReal(false);
+    setGsType('Fogo/Abandono');
+    setGsDescription('');
+    setIsGeneralSetupOpen(true);
+  };
+
+  const handleFinishGeneralSetup = async () => {
     const now = new Date();
     const startTimeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const newState = {
@@ -150,9 +167,13 @@ const Dashboard: React.FC<DashboardProps> = ({
       startTime: startTimeStr,
       endTime: '',
       duration: '',
-      startTimestamp: Date.now()
+      startTimestamp: Date.now(),
+      trainingType: gsType,
+      isRealScenario: gsIsReal,
+      description: gsDescription
     };
     await cloudService.updateGeneralMusterTraining(newState);
+    setIsGeneralSetupOpen(false);
   };
 
   const handleFinishGeneralTraining = async () => {
@@ -184,11 +205,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         date: new Date().toLocaleString('pt-BR'),
         lifeboat: 'FROTA COMPLETA',
         leaderName: user?.name || 'Operador',
-        trainingType: 'Contagem Geral',
-        isRealScenario: false,
+        trainingType: generalTraining.isRealScenario ? `EMERGÊNCIA: ${generalTraining.trainingType}` : `SIMULADO: ${generalTraining.trainingType}`,
+        isRealScenario: generalTraining.isRealScenario || false,
         crewCount: generalTraining.finalTotal || overallMusterTotal,
         duration: generalTraining.duration,
-        summary: await generateTrainingSummary('FROTA COMPLETA', generalTraining.finalTotal || overallMusterTotal, generalTraining.duration),
+        summary: `${generalTraining.description ? `MOTIVO/LOCAL: ${generalTraining.description}. ` : ''}${await generateTrainingSummary('FROTA COMPLETA', generalTraining.finalTotal || overallMusterTotal, generalTraining.duration)}`,
         operator: user?.name || 'Sistema',
         tags: []
       };
@@ -222,10 +243,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const isAddingToReleased = !newReleased.includes(berthId);
 
     if (isAddingToReleased) {
-      // 1. Adiciona à lista de liberados
       newReleased.push(berthId);
-
-      // 2. SINCRONIZAÇÃO REVERSA: Remover do status das baleeiras caso esteja presente
       const updatedFleet = { ...fleetStatus };
       let fleetChanged = false;
 
@@ -249,15 +267,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
       }
     } else {
-      // Remove da lista de liberados
       newReleased = newReleased.filter(id => id !== berthId);
     }
 
-    // 3. Salva a nova lista de IDs liberados
     setReleasedIds(newReleased);
     await cloudService.updateReleasedCrew(newReleased);
 
-    // 4. Atualiza o contador manual de 'LIBERADOS'
     const updatedManual = { ...manualCounts, 'LIBERADOS': newReleased.length };
     setManualCounts(updatedManual);
     await cloudService.updateManualCounters(updatedManual);
@@ -327,12 +342,19 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {user.isAdmin && (
         <div className="mb-10">
-          <div className="bg-blue-600 p-4 sm:p-5 rounded-[32px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[180px] flex flex-col">
+          <div className={`p-4 sm:p-5 rounded-[32px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[180px] flex flex-col ${generalTraining.isRealScenario ? 'bg-rose-600 animate-pulse' : 'bg-blue-600'}`}>
             <div className="relative z-10 flex flex-col flex-1 h-full">
               {/* TOPO DO CARD */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
-                <div className="inline-flex items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm">
-                  <h4 className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white">CONTAGEM GERAL</h4>
+                <div className="inline-flex flex-col gap-1">
+                  <div className="inline-flex items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm self-start">
+                    <h4 className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white">CONTAGEM GERAL</h4>
+                  </div>
+                  {generalTraining.isActive && (
+                    <div className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/80 ml-2">
+                      {generalTraining.isRealScenario ? 'CENÁRIO: EMERGÊNCIA' : 'CENÁRIO: SIMULADO'} • {generalTraining.trainingType}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="relative flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
@@ -342,7 +364,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         Limpar e Salvar
                       </button>
                     ) : (
-                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralTraining} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-500 border-rose-400/30 text-white animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
+                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralSetup} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-600 border-rose-500 hover:bg-rose-700 text-white shadow-rose-600/20' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
                         <i className={`fa-solid ${generalTraining.isActive ? 'fa-stop' : 'fa-play'}`}></i>
                         {generalTraining.isActive ? 'Finalizar' : 'Iniciar'}
                       </button>
@@ -435,7 +457,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
             
-            <i className="fa-solid fa-clipboard-check absolute right-[-15px] bottom-[-25px] text-[90px] sm:text-[130px] text-white/5 -rotate-12 pointer-events-none"></i>
+            <i className={`fa-solid ${generalTraining.isRealScenario ? 'fa-triangle-exclamation' : 'fa-clipboard-check'} absolute right-[-15px] bottom-[-25px] text-[90px] sm:text-[130px] text-white/5 -rotate-12 pointer-events-none`}></i>
           </div>
         </div>
       )}
@@ -499,6 +521,67 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="text-[9px] sm:text-[10px] opacity-60 uppercase font-bold">{activeSession ? activeSession.lifeboat : 'Acesse para iniciar'}</div>
                 </div>
             </button>
+        </div>
+      )}
+
+      {/* Wizard de Início de Contagem Geral */}
+      {isGeneralSetupOpen && (
+        <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+            <div className="flex items-center justify-between mb-8">
+               <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">
+                 {generalSetupStep === 1 ? 'Tipo de Cenário' : 'Detalhes do Evento'}
+               </h3>
+               <button onClick={() => setIsGeneralSetupOpen(false)} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-full"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+
+            {generalSetupStep === 1 ? (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 gap-4">
+                  <button onClick={() => { setGsIsReal(false); setGeneralSetupStep(2); }} className="p-6 rounded-3xl border-2 border-slate-100 hover:border-blue-600 hover:bg-blue-50 transition-all text-left flex items-center gap-4 group">
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white"><i className="fa-solid fa-graduation-cap text-lg"></i></div>
+                    <div>
+                      <span className="block font-black text-xs uppercase text-slate-900">Simulado</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Exercício de Treinamento</span>
+                    </div>
+                  </button>
+                  <button onClick={() => { setGsIsReal(true); setGeneralSetupStep(2); }} className="p-6 rounded-3xl border-2 border-slate-100 hover:border-rose-600 hover:bg-rose-50 transition-all text-left flex items-center gap-4 group">
+                    <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center group-hover:bg-rose-600 group-hover:text-white"><i className="fa-solid fa-triangle-exclamation text-lg"></i></div>
+                    <div>
+                      <span className="block font-black text-xs uppercase text-slate-900">Emergência Real</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Cenário Crítico Ativo</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                <div className="space-y-2 text-left">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-1">TIPO DE EVENTO</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setGsType('Gás')} className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${gsType === 'Gás' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Gás</button>
+                    <button onClick={() => setGsType('Fogo/Abandono')} className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${gsType === 'Fogo/Abandono' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Fogo/Abandono</button>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-left">
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-1">MOTIVO / LOCAL / OBSERVAÇÕES</label>
+                  <textarea 
+                    value={gsDescription}
+                    onChange={(e) => setGsDescription(e.target.value)}
+                    rows={3}
+                    placeholder="DESCREVA O LOCAL OU MOTIVO..."
+                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase focus:ring-1 focus:ring-blue-100 outline-none resize-none"
+                  ></textarea>
+                </div>
+
+                <div className="grid gap-2 pt-4">
+                  <button onClick={handleFinishGeneralSetup} className="w-full py-5 bg-slate-900 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Iniciar Contagem Geral</button>
+                  <button onClick={() => setGeneralSetupStep(1)} className="w-full py-5 bg-slate-100 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest">Voltar</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
