@@ -337,7 +337,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
-            <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
+            <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
               <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">POB VIGENTE</span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{berthStats.occupied}</span>
@@ -347,18 +347,18 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             {user.isAdmin && (
               <>
-                <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 text-center">CAPACIDADE</span>
                   <span className={`text-xl sm:text-2xl font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-600' : 'text-emerald-600'}`}>{capacityPercentage}%</span>
                 </div>
-                <button onClick={onOpenBerthManagement} className="bg-blue-600 border border-blue-700 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group">
+                <button onClick={onOpenBerthManagement} className="bg-blue-600 border border-blue-700 rounded-xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group">
                   <span className="text-[8px] sm:text-[9px] font-black text-blue-100 uppercase tracking-widest leading-none mb-2 opacity-80">CONTROLE</span>
                   <div className="flex items-center gap-2">
                     <i className="fa-solid fa-bed text-white text-xs"></i>
                     <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">LEITOS</span>
                   </div>
                 </button>
-                <button onClick={onOpenUserManagement} className="bg-slate-800 border border-slate-900 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
+                <button onClick={onOpenUserManagement} className="bg-slate-800 border border-slate-900 rounded-xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 opacity-80">SISTEMA</span>
                   <div className="flex items-center gap-2">
                     <i className="fa-solid fa-users-gear text-white text-xs"></i>
@@ -374,11 +374,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {user.isAdmin && (
         <div className="mb-10">
-          <div className={`p-4 sm:p-5 rounded-[32px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[180px] flex flex-col ${generalTraining.isRealScenario ? 'bg-rose-600 animate-pulse' : 'bg-blue-600'}`}>
+          <div className={`p-4 sm:p-5 rounded-xl shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[180px] flex flex-col ${generalTraining.isRealScenario ? 'bg-rose-600 animate-pulse' : 'bg-blue-600'}`}>
             <div className="relative z-10 flex flex-col flex-1 h-full">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
                 <div className="inline-flex flex-col gap-1">
-                  <div className="inline-flex items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm self-start">
+                  <div className="inline-flex items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-xl border border-white/20 shadow-sm self-start">
                     <h4 className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white">CONTAGEM GERAL</h4>
                   </div>
                   {generalTraining.isActive && (
@@ -390,19 +390,19 @@ const Dashboard: React.FC<DashboardProps> = ({
                 
                 <div className="relative flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                    {generalTraining.isFinished ? (
-                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
+                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
                         {isSaving ? <i className="fa-solid fa-rotate animate-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
                         Limpar e Salvar
                       </button>
                     ) : (
-                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralSetup} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-600 border-rose-500 hover:bg-rose-700 text-white shadow-rose-600/20' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
+                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralSetup} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-600 border-rose-50 hover:bg-rose-700 text-white shadow-rose-600/20' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
                         <i className={`fa-solid ${generalTraining.isActive ? 'fa-stop' : 'fa-play'}`}></i>
                         {generalTraining.isActive ? 'Finalizar' : 'Iniciar'}
                       </button>
                     )}
 
                     {(generalTraining.isActive || generalTraining.duration) && (
-                      <div className="relative sm:absolute sm:top-[100%] sm:right-0 mt-3 sm:mt-2 bg-black/40 backdrop-blur-xl rounded-[20px] sm:rounded-[24px] p-3 sm:p-4 border border-white/20 flex flex-col items-end gap-2 min-w-[160px] sm:min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
+                      <div className="relative sm:absolute sm:top-[100%] sm:right-0 mt-3 sm:mt-2 bg-black/40 backdrop-blur-xl rounded-xl p-3 sm:p-4 border border-white/20 flex flex-col items-end gap-2 min-w-[160px] sm:min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
                         {generalTraining.isActive ? (
                           <>
                             <div className="flex items-center gap-3 w-full justify-between mb-0.5">
@@ -491,15 +491,15 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
       
       {!user.isAdmin ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-10 gap-12">
+        <div className="flex-1 flex flex-col items-center justify-start pt-8 sm:pt-16 gap-8">
             <div className="relative">
               {!generalTraining.isActive && !activeSession && (
-                <div className="absolute inset-0 bg-white/90 backdrop-blur-[6px] z-10 rounded-[48px] flex flex-col items-center justify-center border-4 border-dashed border-blue-200/50 shadow-inner group/standby overflow-hidden">
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-[6px] z-10 rounded-xl flex flex-col items-center justify-center border border-dashed border-blue-200/50 shadow-inner group/standby overflow-hidden">
                   <div className="absolute -inset-[100%] bg-gradient-to-tr from-transparent via-blue-50/30 to-transparent animate-[shimmer_4s_infinite] pointer-events-none"></div>
                   
                   <div className="relative mb-6">
                     <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-20"></div>
-                    <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-blue-500 shadow-[0_10px_25px_rgba(59,130,246,0.1)] border border-blue-50/50 relative z-10">
+                    <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center text-blue-500 shadow-[0_10px_25px_rgba(59,130,246,0.1)] border border-blue-50/50 relative z-10">
                       <i className="fa-solid fa-clock-rotate-left text-3xl animate-[spin_10s_linear_infinite]"></i>
                     </div>
                   </div>
@@ -522,7 +522,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <button 
                 onClick={activeSession ? onResumeTraining : onStartTraining} 
                 disabled={!generalTraining.isActive && !activeSession}
-                className={`w-64 h-64 sm:w-80 sm:h-80 rounded-[48px] shadow-[0_35px_60px_-15px_rgba(37,99,235,0.4)] text-white flex flex-col items-center justify-center gap-5 hover:scale-105 active:scale-95 transition-all group border-8 border-white/90 ring-1 ring-blue-100 ${generalTraining.isRealScenario && generalTraining.isActive ? 'bg-rose-600 shadow-rose-600/40' : 'bg-blue-600'}`}
+                className={`w-64 h-64 sm:w-80 sm:h-80 rounded-xl shadow-md text-white flex flex-col items-center justify-center gap-5 hover:scale-105 active:scale-95 transition-all group border border-white/20 ${generalTraining.isRealScenario && generalTraining.isActive ? 'bg-rose-600 shadow-rose-600/40' : 'bg-blue-600'}`}
               >
                   <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : (generalTraining.isRealScenario && generalTraining.isActive ? 'fa-triangle-exclamation animate-bounce' : 'fa-play')} text-6xl group-hover:rotate-12 transition-transform drop-shadow-lg`}></i>
                   <div className="text-center px-6">
@@ -536,8 +536,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
             
-            <button onClick={() => setIsPobConsultOpen(true)} className="flex items-center justify-center gap-6 px-12 py-8 bg-white rounded-[40px] border-4 border-slate-100 text-slate-900 hover:border-blue-600 hover:bg-blue-50 transition-all shadow-[0_30px_60px_rgba(0,0,0,0.12)] active:scale-95 group min-w-[320px]">
-                <div className="w-16 h-16 bg-slate-900 text-white rounded-[24px] flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-xl shadow-slate-900/10">
+            <button onClick={() => setIsPobConsultOpen(true)} className="flex items-center justify-center gap-6 px-12 py-8 bg-white rounded-xl border border-slate-200 text-slate-900 hover:border-blue-600 hover:bg-blue-50 transition-all shadow-md active:scale-95 group min-w-[320px]">
+                <div className="w-16 h-16 bg-slate-900 text-white rounded-xl flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-lg shadow-slate-900/10">
                   <i className="fa-solid fa-users-viewfinder text-2xl"></i>
                 </div>
                 <span className="font-black text-2xl uppercase tracking-tighter">CONSULTAR POB</span>
@@ -556,12 +556,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                 const count = manualCounts[category] || 0;
                 const hasValue = count > 0;
                 return (
-                  <div key={category} className={`bg-white p-3 sm:p-4 rounded-[24px] sm:rounded-[28px] border-2 transition-all duration-300 ${category === 'LIBERADOS' ? 'border-amber-400 bg-amber-50/30 shadow-sm' : hasValue ? 'border-blue-500 bg-blue-50/20 shadow-md ring-1 ring-blue-50' : 'border-slate-300 shadow-sm'}`}>
+                  <div key={category} className={`bg-white p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 ${category === 'LIBERADOS' ? 'border-amber-400 bg-amber-50/30 shadow-sm' : hasValue ? 'border-blue-500 bg-blue-50/20 shadow-md ring-1 ring-blue-50' : 'border-slate-300 shadow-sm'}`}>
                     <p className={`text-[9px] sm:text-[10px] font-black uppercase text-center mb-2 sm:mb-3 truncate tracking-tight transition-colors ${hasValue ? 'text-blue-700' : 'text-slate-600'}`}>{category}</p>
                     <div className="flex items-center justify-between gap-1">
-                      <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 sm:w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-minus text-[8px]"></i></button>
+                      <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 sm:w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-minus text-[8px]"></i></button>
                       <input type="number" value={count === 0 ? '' : count} onChange={(e) => setManualCountAbsolute(category, e.target.value)} readOnly={category === 'LIBERADOS'} className={`w-10 sm:w-12 text-center font-black text-xl sm:text-2xl bg-transparent border-none outline-none focus:ring-0 transition-colors ${hasValue ? 'text-blue-900' : 'text-slate-800'}`} />
-                      <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 sm:w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-plus text-[8px]"></i></button>
+                      <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 sm:w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-plus text-[8px]"></i></button>
                     </div>
                   </div>
                 );
@@ -577,17 +577,17 @@ const Dashboard: React.FC<DashboardProps> = ({
               const countToDisplay = isManual ? (status.manualCount || 0) : (status?.count || 0);
               
               return (
-                <div key={lb} className={`p-5 rounded-[32px] border-2 transition-all flex flex-col gap-4 relative ${isManual ? 'bg-amber-50 border-amber-500 shadow-md' : isActive ? 'bg-blue-50 border-blue-600 shadow-sm' : 'bg-white border-slate-300 opacity-70 shadow-sm'}`}>
+                <div key={lb} className={`p-5 rounded-xl border-2 transition-all flex flex-col gap-4 relative ${isManual ? 'bg-amber-50 border-amber-500 shadow-md' : isActive ? 'bg-blue-50 border-blue-600 shadow-sm' : 'bg-white border-slate-300 opacity-70 shadow-sm'}`}>
                   <div className="flex items-start justify-between">
-                    <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm ${isActive && !isManual ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'}`}>
+                    <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`w-12 h-12 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm ${isActive && !isManual ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'}`}>
                       <i className={`fa-solid ${isManual ? 'fa-triangle-exclamation text-amber-500' : 'fa-ship ' + (isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300')} text-xl`}></i>
                     </div>
                     
                     {isManual ? (
-                      <div className="flex items-center gap-2 bg-white/50 p-1 rounded-full border border-amber-200">
-                         <button onClick={() => updateLifeboatManualCount(lb, -1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-minus text-[10px]"></i></button>
+                      <div className="flex items-center gap-2 bg-white/50 p-1 rounded-xl border border-amber-200">
+                         <button onClick={() => updateLifeboatManualCount(lb, -1)} className="w-8 h-8 rounded-xl flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-minus text-[10px]"></i></button>
                          <span className="text-2xl font-black text-amber-900 tabular-nums w-10 text-center">{countToDisplay}</span>
-                         <button onClick={() => updateLifeboatManualCount(lb, 1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-plus text-[10px]"></i></button>
+                         <button onClick={() => updateLifeboatManualCount(lb, 1)} className="w-8 h-8 rounded-xl flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-plus text-[10px]"></i></button>
                       </div>
                     ) : (
                       <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`text-right ${isActive ? 'cursor-pointer' : 'cursor-default'}`}>
@@ -625,10 +625,10 @@ const Dashboard: React.FC<DashboardProps> = ({
         </>
       )}
 
-      {/* Modal de Consulta de POB (Para Operadores) - Responsivo Otimizado */}
+      {/* Modal de Consulta de POB - Rectangular format */}
       {isPobConsultOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
-          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-7xl w-full p-3 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
+          <div className="bg-white rounded-xl max-w-7xl w-full p-3 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
             
             {/* Cabeçalho do Modal */}
             <div className="flex justify-between items-center mb-4 sm:mb-6 px-1 sm:px-2">
@@ -638,7 +638,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <button 
                 onClick={() => { setIsPobConsultOpen(false); setSearchTerm(''); }} 
-                className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-50 rounded-2xl text-slate-400 active:scale-95 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm flex-shrink-0 border border-slate-100"
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-50 rounded-xl text-slate-400 active:scale-95 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm flex-shrink-0 border border-slate-100"
               >
                 <i className="fa-solid fa-xmark text-xl"></i>
               </button>
@@ -646,33 +646,32 @@ const Dashboard: React.FC<DashboardProps> = ({
             
             {/* Barra de Busca */}
             <div className="relative mb-5 sm:mb-8 px-1 sm:px-2">
-              <div className="absolute left-6 sm:left-9 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-blue-500 bg-blue-50 rounded-lg">
+              <div className="absolute left-6 sm:left-9 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-blue-500 bg-blue-50 rounded-xl">
                 <i className="fa-solid fa-magnifying-glass text-xs"></i>
               </div>
               <input 
                 type="text" 
                 placeholder="BUSCAR NOME, FUNÇÃO, LEITO OU EMPRESA..." 
-                className="w-full pl-14 sm:pl-16 pr-6 py-5 sm:py-6 bg-slate-50 border-2 border-slate-100 rounded-[20px] sm:rounded-[24px] text-[11px] sm:text-[12px] font-black uppercase focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner placeholder:text-slate-300" 
+                className="w-full pl-14 sm:pl-16 pr-6 py-5 sm:py-6 bg-slate-50 border-2 border-slate-100 rounded-xl text-[11px] sm:text-[12px] font-black uppercase focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner placeholder:text-slate-300" 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
               />
             </div>
 
-            {/* Container da Lista (Grid de Cards em Tablets/Mobile) */}
+            {/* Container da Lista */}
             <div className="flex-1 overflow-y-auto custom-scrollbar px-1 sm:px-2 pb-6">
               {sortedPobList.length === 0 ? (
-                <div className="py-24 text-center text-slate-300 bg-slate-50/30 rounded-3xl border-2 border-dashed border-slate-100">
+                <div className="py-24 text-center text-slate-300 bg-slate-50/30 rounded-xl border-2 border-dashed border-slate-100">
                   <i className="fa-solid fa-users-slash text-5xl mb-4 block opacity-20"></i>
                   <p className="text-[11px] font-black uppercase tracking-[0.2em]">Nenhum tripulante encontrado</p>
                 </div>
               ) : (
                 <>
-                  {/* Visão de CARDS (Mobile e Tablets < 1024px) - 2 colunas para tablets */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:hidden pb-4">
                     {sortedPobList.map((b) => {
                       const isOccupied = b.crewName && b.crewName.trim() !== '';
                       return (
-                        <div key={b.id} className={`bg-white border-2 p-5 rounded-[28px] shadow-sm space-y-4 transition-all hover:shadow-md ${isOccupied ? 'border-slate-100' : 'border-slate-100 opacity-50 bg-slate-50/30'}`}>
+                        <div key={b.id} className={`bg-white border-2 p-5 rounded-xl shadow-sm space-y-4 transition-all hover:shadow-md ${isOccupied ? 'border-slate-100' : 'border-slate-100 opacity-50 bg-slate-50/30'}`}>
                           <div className="flex justify-between items-start gap-4">
                              <div className="min-w-0 flex-1">
                                <div className="flex items-center gap-2 mb-1.5">
@@ -720,8 +719,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                     })}
                   </div>
 
-                  {/* Visão de TABELA (Desktop >= 1024px) */}
-                  <div className="hidden lg:block min-w-full bg-white rounded-[32px] border-2 border-slate-100 shadow-sm overflow-hidden">
+                  {/* Visão de TABELA */}
+                  <div className="hidden lg:block min-w-full bg-white rounded-xl border-2 border-slate-100 shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-md z-20 border-b-2 border-slate-200">
                         <tr>
@@ -784,29 +783,29 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* Outros Modais (Setup, Finish, Release, etc) - Mantidos do Dashboard original */}
+      {/* Outros Modais - Uniform rectangular appearance */}
       {isGeneralSetupOpen && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+          <div className="bg-white rounded-xl max-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
             <div className="flex items-center justify-between mb-8">
                <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">
                  {generalSetupStep === 1 ? 'Tipo de Cenário' : 'Detalhes do Evento'}
                </h3>
-               <button onClick={() => setIsGeneralSetupOpen(false)} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
+               <button onClick={() => setIsGeneralSetupOpen(false)} className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
             </div>
 
             {generalSetupStep === 1 ? (
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="grid grid-cols-1 gap-4">
-                  <button onClick={() => { setGsIsReal(false); setGeneralSetupStep(2); }} className="p-6 rounded-3xl border-2 border-slate-100 hover:border-blue-600 hover:bg-blue-50 transition-all text-left flex items-center gap-4 group">
-                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white"><i className="fa-solid fa-graduation-cap text-lg"></i></div>
+                  <button onClick={() => { setGsIsReal(false); setGeneralSetupStep(2); }} className="p-6 rounded-xl border-2 border-slate-100 hover:border-blue-600 hover:bg-blue-50 transition-all text-left flex items-center gap-4 group">
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white"><i className="fa-solid fa-graduation-cap text-lg"></i></div>
                     <div>
                       <span className="block font-black text-xs uppercase text-slate-900">Simulado</span>
                       <span className="block text-[10px] font-bold text-slate-400 uppercase">Exercício de Treinamento</span>
                     </div>
                   </button>
-                  <button onClick={() => { setGsIsReal(true); setGeneralSetupStep(2); }} className="p-6 rounded-3xl border-2 border-slate-100 hover:border-rose-600 hover:bg-rose-50 transition-all text-left flex items-center gap-4 group">
-                    <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center group-hover:bg-rose-600 group-hover:text-white"><i className="fa-solid fa-triangle-exclamation text-lg"></i></div>
+                  <button onClick={() => { setGsIsReal(true); setGeneralSetupStep(2); }} className="p-6 rounded-xl border-2 border-slate-100 hover:border-rose-600 hover:bg-rose-50 transition-all text-left flex items-center gap-4 group">
+                    <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center group-hover:bg-rose-600 group-hover:text-white"><i className="fa-solid fa-triangle-exclamation text-lg"></i></div>
                     <div>
                       <span className="block font-black text-xs uppercase text-slate-900">Emergência Real</span>
                       <span className="block text-[10px] font-bold text-slate-400 uppercase">Cenário Crítico Ativo</span>
@@ -819,17 +818,17 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="space-y-2 text-left">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-1">TIPO DE EVENTO</label>
                   <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => setGsType('Gás')} className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${gsType === 'Gás' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Gás</button>
-                    <button onClick={() => setGsType('Fogo/Abandono')} className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${gsType === 'Fogo/Abandono' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Fogo/Abandono</button>
+                    <button onClick={() => setGsType('Gás')} className={`py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${gsType === 'Gás' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Gás</button>
+                    <button onClick={() => setGsType('Fogo/Abandono')} className={`py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${gsType === 'Fogo/Abandono' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Fogo/Abandono</button>
                   </div>
                 </div>
                 <div className="space-y-2 text-left">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-1">MOTIVO / LOCAL / OBSERVAÇÕES</label>
-                  <textarea value={gsDescription} onChange={(e) => setGsDescription(e.target.value)} rows={3} placeholder="DESCREVA O LOCAL OU MOTIVO..." className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold uppercase focus:ring-1 focus:ring-blue-100 outline-none resize-none" />
+                  <textarea value={gsDescription} onChange={(e) => setGsDescription(e.target.value)} rows={3} placeholder="DESCREVA O LOCAL OU MOTIVO..." className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase focus:ring-1 focus:ring-blue-100 outline-none resize-none" />
                 </div>
                 <div className="grid gap-2 pt-4">
-                  <button onClick={handleFinishGeneralSetup} className="w-full py-5 bg-slate-900 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Iniciar Contagem Geral</button>
-                  <button onClick={() => setGeneralSetupStep(1)} className="w-full py-5 bg-slate-100 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest">Voltar</button>
+                  <button onClick={handleFinishGeneralSetup} className="w-full py-5 bg-slate-900 text-white font-black rounded-xl text-[11px] uppercase tracking-widest shadow-xl active:scale-95 transition-all">Iniciar Contagem Geral</button>
+                  <button onClick={() => setGeneralSetupStep(1)} className="w-full py-5 bg-slate-100 text-slate-400 font-black rounded-xl text-[11px] uppercase tracking-widest">Voltar</button>
                 </div>
               </div>
             )}
@@ -839,14 +838,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {isConfirmingGeneralFinish && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
-            <div className="w-20 h-20 bg-rose-50 rounded-[28px] flex items-center justify-center text-rose-600 mx-auto mb-8 shadow-inner">
+          <div className="bg-white rounded-xl max-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+            <div className="w-20 h-20 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600 mx-auto mb-8 shadow-inner">
               <i className="fa-solid fa-stop text-3xl"></i>
             </div>
             <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Finalizar Contagem?</h3>
             <div className="grid gap-3">
-              <button onClick={handleFinishGeneralTraining} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all border border-rose-400/30">Sim, Finalizar</button>
-              <button onClick={() => setIsConfirmingGeneralFinish(false)} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all">Cancelar</button>
+              <button onClick={handleFinishGeneralTraining} className="w-full py-5 bg-rose-600 text-white font-black rounded-xl text-[11px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all border border-rose-400/30">Sim, Finalizar</button>
+              <button onClick={() => setIsConfirmingGeneralFinish(false)} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-xl text-[11px] uppercase tracking-widest active:scale-95 transition-all">Cancelar</button>
             </div>
           </div>
         </div>
