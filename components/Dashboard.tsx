@@ -23,8 +23,7 @@ const LIFEBOATS: LifeboatType[] = [
 
 const MANUAL_CATEGORIES = [
   'PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 
-  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS',
-  'BALEEIRA 1', 'BALEEIRA 2', 'BALEEIRA 3'
+  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS'
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -47,6 +46,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [releasedIds, setReleasedIds] = useState<string[]>([]);
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [isConfirmingGeneralFinish, setIsConfirmingGeneralFinish] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -172,6 +172,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       finalTotal: overallMusterTotal
     };
     await cloudService.updateGeneralMusterTraining(newState);
+    setIsConfirmingGeneralFinish(false);
   };
 
   const handleSaveAndClearEverything = async () => {
@@ -308,9 +309,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                         Limpar e Salvar
                       </button>
                     ) : (
-                      <button onClick={generalTraining.isActive ? handleFinishGeneralTraining : handleStartGeneralTraining} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-500 border-rose-400/30 text-white animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
+                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralTraining} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-500 border-rose-400/30 text-white animate-pulse' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
                         <i className={`fa-solid ${generalTraining.isActive ? 'fa-stop' : 'fa-play'}`}></i>
-                        {generalTraining.isActive ? 'Finalizar' : 'Iniciar Treino'}
+                        {generalTraining.isActive ? 'Finalizar' : 'Iniciar'}
                       </button>
                     )}
 
@@ -487,6 +488,32 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </button>
               ))}
               {releasedCrew.length === 0 && <p className="py-20 text-[9px] sm:text-[10px] font-black text-slate-300 uppercase">Nenhum tripulante liberado</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Finalização da Contagem Geral */}
+      {isConfirmingGeneralFinish && (
+        <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-[40px] max-w-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+            <div className="w-20 h-20 bg-rose-50 rounded-[28px] flex items-center justify-center text-rose-600 mx-auto mb-8 shadow-inner">
+              <i className="fa-solid fa-stop text-3xl"></i>
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Finalizar Contagem?</h3>
+            <div className="grid gap-3">
+              <button 
+                onClick={handleFinishGeneralTraining}
+                className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all border border-rose-400/30"
+              >
+                Sim, Finalizar
+              </button>
+              <button 
+                onClick={() => setIsConfirmingGeneralFinish(false)}
+                className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
