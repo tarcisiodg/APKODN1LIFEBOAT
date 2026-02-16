@@ -117,7 +117,6 @@ const App: React.FC = () => {
             setActiveSession(prev => {
               if (!prev) return null;
               
-              // Se a baleeira foi colocada em Modo Manual (Offline), forçamos o pause local e sincronizamos o tempo
               if (remoteStatus.isManualMode) {
                 return {
                   ...prev,
@@ -125,11 +124,10 @@ const App: React.FC = () => {
                   seconds: remoteStatus.seconds || 0,
                   accumulatedSeconds: remoteStatus.accumulatedSeconds || 0,
                   tags: remoteStatus.tags || prev.tags,
-                  isManualMode: true // Propriedade opcional para UI
+                  isManualMode: true
                 };
               } 
               
-              // Se voltou para Online e estava pausado por conta do manual
               if (!remoteStatus.isManualMode && prev.isPaused && !remoteStatus.isPaused) {
                 return {
                   ...prev,
@@ -175,8 +173,29 @@ const App: React.FC = () => {
   }, [finishSession]);
 
   useEffect(() => {
-    if (activeSession) localStorage.setItem('lifesafe_active_session', JSON.stringify(activeSession));
-    else localStorage.removeItem('lifesafe_active_session');
+    if (activeSession) {
+      try {
+        const safeSession = {
+          lifeboat: activeSession.lifeboat,
+          leaderName: activeSession.leaderName,
+          trainingType: activeSession.trainingType,
+          isRealScenario: activeSession.isRealScenario,
+          tags: activeSession.tags || [],
+          seconds: activeSession.seconds || 0,
+          startTime: activeSession.startTime || 0,
+          accumulatedSeconds: activeSession.accumulatedSeconds || 0,
+          isPaused: !!activeSession.isPaused,
+          isAdminView: !!activeSession.isAdminView,
+          isManualMode: !!activeSession.isManualMode,
+          expectedCrew: activeSession.expectedCrew ? activeSession.expectedCrew.map(b => ({...b})) : []
+        };
+        localStorage.setItem('lifesafe_active_session', JSON.stringify(safeSession));
+      } catch (e) {
+        console.error("Failed to save session state safely", e);
+      }
+    } else {
+      localStorage.removeItem('lifesafe_active_session');
+    }
   }, [activeSession]);
 
   useEffect(() => {
@@ -187,8 +206,6 @@ const App: React.FC = () => {
     const syncToCloud = async () => {
       if (!activeSession || activeSession.isAdminView || isInitializingRef.current) return;
       
-      // Não sincronizamos o status se estivermos em modo manual (o dashboard assume o controle)
-      // Porém, se mudarmos localmente o pause (não pelo manual), precisamos enviar.
       const currentStatusUpdate = {
         ...fleetStatus,
         [activeSession.lifeboat]: {
@@ -279,7 +296,11 @@ const App: React.FC = () => {
 
   const handleLogin = (userData: User) => {
     setUser(userData);
-    localStorage.setItem('lifesafe_user', JSON.stringify(userData));
+    try {
+      localStorage.setItem('lifesafe_user', JSON.stringify(userData));
+    } catch (e) {
+      console.error("Failed to save user info", e);
+    }
     setCurrentPage(AppState.DASHBOARD);
   };
 
@@ -331,7 +352,6 @@ const App: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
-                {isSyncing && <i className="fa-solid fa-rotate animate-spin text-blue-400 text-[10px]"></i>}
               </div>
             </div>
           </div>
