@@ -11,7 +11,8 @@ import {
   query, 
   orderBy, 
   limit,
-  onSnapshot
+  onSnapshot,
+  writeBatch
 } from "firebase/firestore";
 import { User, TrainingRecord, LifeboatStatus, LifeboatType, Berth } from '../types';
 
@@ -213,6 +214,20 @@ export const cloudService = {
     await setDoc(recordRef, { ...record, timestamp: new Date().toISOString() });
   },
 
+  async deleteHistoryRecord(id: string): Promise<void> {
+    const recordRef = doc(db, "history", id);
+    await deleteDoc(recordRef);
+  },
+
+  async deleteHistoryRecordsBulk(ids: string[]): Promise<void> {
+    const batch = writeBatch(db);
+    ids.forEach(id => {
+      const recordRef = doc(db, "history", id);
+      batch.delete(recordRef);
+    });
+    await batch.commit();
+  },
+
   async getHistory(): Promise<TrainingRecord[]> {
     const historyCol = collection(db, "history");
     const q = query(historyCol, orderBy("timestamp", "desc"), limit(50));
@@ -232,7 +247,6 @@ export const cloudService = {
     });
   },
 
-  // Gerenciamento global de Muster Geral no Dashboard
   async updateGeneralMusterTraining(data: any): Promise<void> {
     const ref = doc(db, "config", "general_muster_training");
     await setDoc(ref, data);

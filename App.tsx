@@ -46,6 +46,13 @@ const App: React.FC = () => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const loadHistoryData = async () => {
+    try {
+      const cloudHistory = await cloudService.getHistory();
+      setHistory(cloudHistory);
+    } catch (e) { console.error(e); }
+  };
+
   useEffect(() => {
     let unsubscribeFleet: () => void;
     const initData = async () => {
@@ -72,10 +79,7 @@ const App: React.FC = () => {
         else setCurrentPage(AppState.DASHBOARD);
       }
 
-      try {
-        const cloudHistory = await cloudService.getHistory();
-        setHistory(cloudHistory);
-      } catch (e) { console.error(e); }
+      await loadHistoryData();
 
       unsubscribeFleet = cloudService.subscribeToFleet((updatedStatusFromCloud) => {
         setFleetStatus(currentLocalStatus => {
@@ -228,8 +232,7 @@ const App: React.FC = () => {
       tags: activeSession?.tags || recordData.tags || [] 
     };
     await cloudService.saveTrainingRecord(newRecord);
-    const cloudHistory = await cloudService.getHistory();
-    setHistory(cloudHistory);
+    await loadHistoryData();
     setIsSyncing(false);
   };
 
@@ -292,7 +295,7 @@ const App: React.FC = () => {
         {currentPage === AppState.DASHBOARD && <Dashboard onStartTraining={() => setCurrentPage(AppState.TRAINING_CONFIG)} onResumeTraining={() => setCurrentPage(AppState.TRAINING)} onViewLifeboat={async (lb) => { if(user?.isAdmin) { const s = fleetStatus[lb]; if(s?.isActive) { setIsSyncing(true); const allBerths = await cloudService.getBerths(); const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb); setActiveSession({ lifeboat: lb, leaderName: s.leaderName || 'Líder', trainingType: s.trainingType as any || 'Fogo/Abandono', isRealScenario: s.isRealScenario || false, tags: s.tags || [], seconds: s.seconds || 0, startTime: s.startTime || Date.now(), accumulatedSeconds: s.accumulatedSeconds || 0, isPaused: s.isPaused || false, isAdminView: true, expectedCrew: expectedCrew }); setCurrentPage(AppState.TRAINING); setIsSyncing(false); } } }} onOpenUserManagement={() => setCurrentPage(AppState.USER_MANAGEMENT)} onOpenBerthManagement={() => setCurrentPage(AppState.BERTH_MANAGEMENT)} user={user} fleetStatus={fleetStatus} historyCount={history.length} activeSession={activeSession} />}
         {currentPage === AppState.TRAINING_CONFIG && <TrainingConfig onSubmit={(type, isReal) => { setTempConfig({trainingType: type, isRealScenario: isReal}); setCurrentPage(AppState.SELECTION); }} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.SELECTION && <LifeboatSelection onSelect={startTrainingSession} onBack={() => setCurrentPage(AppState.TRAINING_CONFIG)} fleetStatus={fleetStatus} />}
-        {currentPage === AppState.HISTORY && <History records={history} onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
+        {currentPage === AppState.HISTORY && <History records={history} onBack={() => setCurrentPage(AppState.DASHBOARD)} isAdmin={user?.isAdmin} onRefresh={loadHistoryData} />}
         {currentPage === AppState.USER_MANAGEMENT && <UserManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.NFC_ENROLLMENT && <NfcEnrollment onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.BERTH_MANAGEMENT && <BerthManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
