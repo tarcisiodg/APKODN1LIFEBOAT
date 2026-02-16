@@ -349,36 +349,19 @@ const Dashboard: React.FC<DashboardProps> = ({
   const availableToRelease = useMemo(() => allBerths.filter(b => b.crewName && !releasedIds.includes(b.id)), [allBerths, releasedIds]);
   const releasedCrew = useMemo(() => allBerths.filter(b => releasedIds.includes(b.id)), [allBerths, releasedIds]);
   
-  const pobGrouping = useMemo(() => {
+  const sortedPobList = useMemo(() => {
     const filtered = allBerths.filter(b => 
       b.crewName?.toUpperCase().includes(searchTerm.toUpperCase()) || 
       b.id.toUpperCase().includes(searchTerm.toUpperCase()) ||
-      b.role?.toUpperCase().includes(searchTerm.toUpperCase())
+      b.role?.toUpperCase().includes(searchTerm.toUpperCase()) ||
+      b.company?.toUpperCase().includes(searchTerm.toUpperCase())
     );
 
-    const grouping: Record<string, { primary: Berth[], secondary: Berth[] }> = {};
-    
-    LIFEBOATS.forEach(lb => {
-      grouping[lb] = { primary: [], secondary: [] };
+    return filtered.sort((a, b) => {
+      const nameA = a.crewName || 'ZZZZZ'; 
+      const nameB = b.crewName || 'ZZZZZ';
+      return nameA.localeCompare(nameB);
     });
-    grouping['SEM ATRIBUIÇÃO'] = { primary: [], secondary: [] };
-
-    filtered.forEach(b => {
-      const pLb = b.lifeboat || 'SEM ATRIBUIÇÃO';
-      const sLb = b.secondaryLifeboat;
-
-      if (grouping[pLb]) {
-        grouping[pLb].primary.push(b);
-      } else {
-        grouping['SEM ATRIBUIÇÃO'].primary.push(b);
-      }
-
-      if (sLb && grouping[sLb]) {
-        grouping[sLb].secondary.push(b);
-      }
-    });
-
-    return grouping;
   }, [allBerths, searchTerm]);
 
   if (!user) return null;
@@ -654,130 +637,87 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Modal de Consulta de POB (Para Operadores) */}
       {isPobConsultOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6">
-          <div className="bg-white rounded-[32px] sm:rounded-[40px] max-w-5xl w-full p-4 sm:p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col max-h-[95vh] border border-slate-100">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-[32px] sm:rounded-[40px] max-w-7xl w-full p-4 sm:p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col max-h-[95vh] border border-slate-100">
+            <div className="flex justify-between items-center mb-6 px-2">
               <div>
                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Consulta de POB</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Visão Geral de Lotação e Atribuições</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Lista Geral Ordenada por Nome</p>
               </div>
-              <button onClick={() => { setIsPobConsultOpen(false); setSearchTerm(''); }} className="w-10 h-10 bg-slate-50 rounded-full text-slate-400 active:scale-95 hover:text-rose-500 transition-colors flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
+              <button onClick={() => { setIsPobConsultOpen(false); setSearchTerm(''); }} className="w-12 h-12 bg-slate-50 rounded-2xl text-slate-400 active:scale-95 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm"><i className="fa-solid fa-xmark text-lg"></i></button>
             </div>
             
-            <div className="relative mb-6">
-              <i className="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-              <input type="text" placeholder="BUSCAR POR NOME, FUNÇÃO OU LEITO..." className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase focus:ring-1 focus:ring-blue-100 outline-none transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="relative mb-6 px-2">
+              <i className="fa-solid fa-magnifying-glass absolute left-7 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+              <input type="text" placeholder="BUSCAR POR NOME, FUNÇÃO, LEITO OU EMPRESA..." className="w-full pl-12 pr-6 py-4.5 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase focus:ring-2 focus:ring-blue-100 focus:bg-white outline-none transition-all shadow-inner" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-10 pb-6">
-              {Object.keys(pobGrouping).length === 0 ? (
-                <div className="py-20 text-center text-slate-300">
-                  <i className="fa-solid fa-users-slash text-4xl mb-4 block"></i>
-                  <p className="text-[10px] font-black uppercase tracking-widest">Nenhum tripulante encontrado</p>
-                </div>
-              ) : (
-                LIFEBOATS.concat(['SEM ATRIBUIÇÃO' as any]).map(lb => {
-                  const data = pobGrouping[lb];
-                  if (!data || (data.primary.length === 0 && data.secondary.length === 0)) return null;
-                  
-                  return (
-                    <div key={lb as string} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                      <div className="flex items-center gap-3 mb-6 sticky top-0 bg-white py-3 z-10 border-b border-slate-100">
-                        <div className={`w-1.5 h-6 rounded-full ${(lb as string) === 'SEM ATRIBUIÇÃO' ? 'bg-slate-300' : 'bg-blue-600'}`}></div>
-                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">{lb as string}</h4>
-                        <div className="flex items-center gap-2 ml-auto">
-                          <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-3 py-1 rounded-full uppercase tracking-tighter">TOTAL: {data.primary.length + data.secondary.length}</span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                        {/* Seção Primária */}
-                        <div>
-                          <div className="flex items-center justify-between mb-4 px-2">
-                             <div className="flex items-center gap-2">
-                               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Muster Primário ({data.primary.length})</span>
-                             </div>
-                          </div>
-                          
-                          <div className="bg-slate-50/50 rounded-[24px] border border-slate-100 overflow-hidden">
-                            {/* Column Headers */}
-                            <div className="hidden sm:grid grid-cols-12 gap-3 px-6 py-3 border-b border-slate-100 text-[8px] font-black text-slate-400 uppercase tracking-[0.15em]">
-                              <div className="col-span-2">Leito</div>
-                              <div className="col-span-6">Nome / Função</div>
-                              <div className="col-span-4 text-right">Status</div>
-                            </div>
-                            
-                            <div className="divide-y divide-slate-100">
-                              {data.primary.length === 0 ? (
-                                <div className="p-10 text-center text-[9px] font-black text-slate-300 uppercase tracking-tighter">Nenhum registro primário</div>
-                              ) : (
-                                data.primary.map(b => (
-                                  <div key={b.id + 'p'} className="grid grid-cols-1 sm:grid-cols-12 items-center gap-3 px-6 py-4 hover:bg-blue-50/30 transition-colors group/row">
-                                    <div className="sm:col-span-2 flex items-center">
-                                      <span className="bg-slate-800 text-white w-full sm:w-14 h-9 rounded-xl flex items-center justify-center text-[10px] font-mono font-bold shadow-sm">{b.id}</span>
-                                    </div>
-                                    <div className="sm:col-span-6 min-w-0">
-                                      <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1 truncate group-hover/row:text-blue-700 transition-colors">{b.crewName || 'VAZIO'}</p>
-                                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate">{b.role || 'SEM FUNÇÃO'} • <span className="text-blue-500/80">{b.company || 'N/A'}</span></p>
-                                    </div>
-                                    <div className="sm:col-span-4 text-right flex items-center justify-end gap-2">
-                                      {releasedIds.includes(b.id) && <span className="text-[8px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200 uppercase tracking-tighter">Liberado</span>}
-                                      <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 uppercase tracking-tighter">Ativo</span>
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Seção Secundária */}
-                        <div>
-                          <div className="flex items-center justify-between mb-4 px-2">
-                             <div className="flex items-center gap-2">
-                               <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Muster Secundário ({data.secondary.length})</span>
-                             </div>
-                          </div>
-
-                          <div className="bg-slate-50/50 rounded-[24px] border border-slate-100 overflow-hidden">
-                            {/* Column Headers */}
-                            <div className="hidden sm:grid grid-cols-12 gap-3 px-6 py-3 border-b border-slate-100 text-[8px] font-black text-slate-400 uppercase tracking-[0.15em]">
-                              <div className="col-span-2">Leito</div>
-                              <div className="col-span-5">Nome / Função</div>
-                              <div className="col-span-5 text-right">Vinculação</div>
-                            </div>
-
-                            <div className="divide-y divide-slate-100">
-                              {data.secondary.length === 0 ? (
-                                <div className="p-10 text-center text-[9px] font-black text-slate-300 uppercase tracking-tighter">Nenhum registro secundário</div>
-                              ) : (
-                                data.secondary.map(b => (
-                                  <div key={b.id + 's'} className="grid grid-cols-1 sm:grid-cols-12 items-center gap-3 px-6 py-4 hover:bg-indigo-50/30 transition-colors group/row">
-                                    <div className="sm:col-span-2 flex items-center">
-                                      <span className="bg-indigo-600 text-white w-full sm:w-14 h-9 rounded-xl flex items-center justify-center text-[10px] font-mono font-bold shadow-sm">{b.id}</span>
-                                    </div>
-                                    <div className="sm:col-span-5 min-w-0">
-                                      <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1 truncate group-hover/row:text-indigo-700 transition-colors">{b.crewName || 'VAZIO'}</p>
-                                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate">{b.role || 'SEM FUNÇÃO'} • <span className="text-indigo-400">{b.company || 'N/A'}</span></p>
-                                    </div>
-                                    <div className="sm:col-span-5 text-right flex flex-col items-end gap-1.5">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[8px] font-black text-indigo-600 bg-white px-2 py-0.5 rounded-lg uppercase border border-indigo-100 tracking-tighter">Prim: {b.lifeboat}</span>
-                                        {releasedIds.includes(b.id) && <span className="text-[8px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200 uppercase tracking-tighter">Liberado</span>}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+            <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar px-2 pb-6">
+              <div className="min-w-[1000px] bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                {sortedPobList.length === 0 ? (
+                  <div className="py-24 text-center text-slate-300 bg-slate-50/30">
+                    <i className="fa-solid fa-users-slash text-5xl mb-4 block opacity-20"></i>
+                    <p className="text-[10px] font-black uppercase tracking-widest">Nenhum tripulante encontrado</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-md z-20 border-b border-slate-200">
+                      <tr>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Leito</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">PRIMÁRIA</th>
+                        <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">SECUNDÁRIA</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {sortedPobList.map((b) => (
+                        <tr key={b.id} className="hover:bg-blue-50/40 transition-colors group/row">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm inline-block group-hover/row:scale-105 transition-transform">{b.id}</span>
+                          </td>
+                          <td className="px-6 py-4 min-w-0">
+                            <p className="text-[11px] font-black text-slate-800 uppercase leading-none group-hover/row:text-blue-700 transition-colors truncate">{b.crewName || '--- VAZIO ---'}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight truncate">{b.role || '-'}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-[10px] font-black text-blue-600/80 uppercase tracking-tighter truncate">{b.company || '-'}</p>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border uppercase tracking-tighter shadow-sm inline-block min-w-[50px] ${b.lifeboat ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                              {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '---'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border uppercase tracking-tighter shadow-sm inline-block min-w-[50px] ${b.secondaryLifeboat ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                              {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '---'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between px-2">
+              <div className="flex gap-6">
+                 <div className="flex items-center gap-2">
+                   <div className="w-2.5 h-2.5 bg-blue-600 rounded-full shadow-sm"></div>
+                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total POB: {sortedPobList.length}</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></div>
+                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">A Bordo: {sortedPobList.filter(x => x.crewName).length}</span>
+                 </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                <i className="fa-solid fa-shield-halved text-[10px] text-blue-400"></i>
+                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Lifesafe ODN1(NS-41)</span>
+              </div>
             </div>
           </div>
         </div>
@@ -786,7 +726,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Outros Modais (Setup, Finish, Release, etc) - Mantidos do Dashboard original */}
       {isGeneralSetupOpen && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+          <div className="bg-white rounded-[40px] max-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
             <div className="flex items-center justify-between mb-8">
                <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">
                  {generalSetupStep === 1 ? 'Tipo de Cenário' : 'Detalhes do Evento'}
