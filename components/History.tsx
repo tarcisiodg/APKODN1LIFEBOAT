@@ -208,7 +208,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
             <i className="fa-solid fa-chevron-left"></i>
           </button>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none">Histórico</h2>
+            <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">Histórico</h2>
           </div>
         </div>
       </div>
