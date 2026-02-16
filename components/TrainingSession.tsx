@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ActiveSession, TrainingRecord, ScannedTag, LifeboatType } from '../types';
-import { generateTrainingSummary } from '../services/geminiService';
 import { cloudService } from '../services/cloudService';
 
 interface TrainingSessionProps {
@@ -17,33 +16,21 @@ interface TrainingSessionProps {
 }
 
 const LIFEBOATS: LifeboatType[] = ['Lifeboat 1', 'Lifeboat 2', 'Lifeboat 3', 'Lifeboat 4', 'Lifeboat 5', 'Lifeboat 6'];
-const MANUAL_CATEGORIES = [
-  'PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 
-  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS'
-];
 
 const TrainingSession: React.FC<TrainingSessionProps> = ({ 
   session, 
-  onFinish, 
   onMinimize, 
   onScanTag,
   onRemoveTag,
-  onTogglePause,
-  onSaveRecord,
-  operatorName,
   isAdminUser
 }) => {
   const [nfcState, setNfcState] = useState<'idle' | 'starting' | 'active' | 'error' | 'unsupported'>('idle');
-  const [nfcError, setNfcError] = useState<string | null>(null);
-  const [isFinishing, setIsFinishing] = useState(false);
-  const [isConfirmingFinish, setIsConfirmingFinish] = useState(false);
   const [lastScannedText, setLastScannedText] = useState<string | null>(null);
   const [invalidScanId, setInvalidScanId] = useState<string | null>(null);
   const [tagToDelete, setTagToDelete] = useState<ScannedTag | null>(null);
   const [viewTab, setViewTab] = useState<'present' | 'pending'>('present');
   const [releasedIds, setReleasedIds] = useState<string[]>([]);
   
-  // Ref para evitar stale closures no listener de NFC
   const releasedIdsRef = useRef<string[]>([]);
   const nfcReaderRef = useRef<any>(null);
 
@@ -117,15 +104,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           return;
         }
 
-        // Lógica de transferência automática usando a Ref atualizada
         if (matchedBerth && releasedIdsRef.current.includes(matchedBerth.id)) {
           const currentReleased = releasedIdsRef.current;
           const newReleasedList = currentReleased.filter(id => id !== matchedBerth.id);
-          
-          // 1. Atualiza lista de IDs (Isso vai disparar o subscribe e atualizar a Ref)
           await cloudService.updateReleasedCrew(newReleasedList);
-          
-          // 2. Atualiza o contador manual de 'LIBERADOS' para o Dashboard
           try {
             const currentCounters = await cloudService.getManualCounters();
             const updatedCounters = { ...currentCounters, 'LIBERADOS': newReleasedList.length };
@@ -157,51 +139,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   };
 
   useEffect(() => { if (!session.isAdminView) startNFC(); }, [session.isAdminView]);
-
-  const handleFinish = async (isGlobal: boolean = false) => {
-    setIsFinishing(true);
-    try {
-      const durationStr = formatTime(session.seconds);
-      const label = isGlobal ? 'FROTA COMPLETA' : session.lifeboat;
-
-      const now = new Date();
-      const endTimeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const startTimeStr = new Date(session.startTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      
-      const summary = await generateTrainingSummary(label, session.tags.length, durationStr);
-      await onSaveRecord({ 
-        date: new Date().toLocaleString('pt-BR'), 
-        lifeboat: label as any, 
-        leaderName: session.leaderName, 
-        trainingType: isGlobal ? 'Contagem Geral' : session.trainingType, 
-        isRealScenario: session.isRealScenario, 
-        crewCount: session.tags.length, 
-        duration: durationStr, 
-        summary: summary,
-        startTime: startTimeStr,
-        endTime: endTimeStr
-      });
-
-      if (isGlobal) {
-        const resetFleet: any = {};
-        LIFEBOATS.forEach(lb => { resetFleet[lb] = { count: 0, isActive: false, tags: [], seconds: 0 }; });
-        const resetCounters = Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]));
-        
-        await Promise.all([
-          cloudService.updateFleetStatus(resetFleet),
-          cloudService.updateManualCounters(resetCounters),
-          cloudService.updateReleasedCrew([]) 
-        ]);
-      }
-
-      onFinish();
-    } catch (e) {
-      alert("Erro ao salvar dados.");
-    } finally {
-      setIsFinishing(false);
-      setIsConfirmingFinish(false);
-    }
-  };
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pb-32">
@@ -337,39 +274,12 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         )}
       </div>
 
-      {/* Botões de Ação */}
+      {/* Botões de Ação - Apenas Minimizar agora disponível */}
       <div className="fixed bottom-0 left-0 right-0 p-8 bg-white/60 backdrop-blur-xl border-t border-slate-100 flex gap-4 justify-center z-50 shadow-sm">
-        <button onClick={onMinimize} className="flex-1 max-w-sm py-5 bg-slate-50 border border-slate-100 text-slate-600 font-black rounded-[20px] text-[10px] uppercase shadow-sm active:scale-95 transition-all tracking-widest">MINIMIZAR</button>
-        {!session.isAdminView && (
-          <button onClick={() => setIsConfirmingFinish(true)} className="flex-1 max-w-sm py-5 bg-blue-600 text-white font-black rounded-[20px] text-[10px] uppercase shadow-md shadow-blue-600/20 active:scale-95 transition-all tracking-widest">FINALIZAR</button>
-        )}
+        <button onClick={onMinimize} className="w-full max-w-md py-5 bg-[#2563eb] text-white font-black rounded-[24px] text-[11px] uppercase shadow-lg shadow-blue-600/20 active:scale-95 transition-all tracking-[0.2em]">MINIMIZAR OPERAÇÃO</button>
       </div>
 
-      {/* Modais */}
-      {isConfirmingFinish && (
-        <div className="fixed inset-0 z-[101] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[48px] max-w-lg w-full p-12 shadow-md animate-in zoom-in duration-300">
-            <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">O que deseja fazer?</h3>
-            <div className="grid gap-3">
-              <button onClick={() => handleFinish(false)} disabled={isFinishing} className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-md flex items-center justify-center gap-2">
-                {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Salvando...</> : 'Finalizar Esta Unidade'}
-              </button>
-              
-              {isAdminUser && (
-                <button onClick={() => handleFinish(true)} disabled={isFinishing} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-md flex items-center justify-center gap-2 border border-rose-400/30">
-                  {isFinishing ? <><i className="fa-solid fa-rotate animate-spin"></i> Encerrando...</> : 'Encerrar Contagem Geral (Tudo)'}
-                </button>
-              )}
-              
-              <button onClick={() => setIsConfirmingFinish(false)} disabled={isFinishing} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[10px] uppercase">Cancelar</button>
-            </div>
-            {isAdminUser && (
-              <p className="mt-4 text-[8px] font-bold text-rose-500 uppercase tracking-widest">Atenção: Encerrar Contagem Geral desativa todas as baleeiras e zera os contadores.</p>
-            )}
-          </div>
-        </div>
-      )}
-
+      {/* Modal de Exclusão de Tag */}
       {tagToDelete && (
         <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white rounded-[48px] max-sm w-full p-10 shadow-md text-center">

@@ -53,8 +53,23 @@ const App: React.FC = () => {
     } catch (e) { console.error(e); }
   };
 
+  const finishSession = useCallback(async () => {
+    const localActiveSession = activeSessionRef.current;
+    if (localActiveSession && !localActiveSession.isAdminView) {
+      const finalFleet = { ...fleetStatus };
+      finalFleet[localActiveSession.lifeboat] = { count: 0, isActive: false, tags: [], seconds: 0 };
+      setFleetStatus(finalFleet);
+      await cloudService.updateFleetStatus(finalFleet);
+    }
+    setActiveSession(null); 
+    setTempConfig(null); 
+    setCurrentPage(AppState.DASHBOARD);
+  }, [fleetStatus]);
+
   useEffect(() => {
     let unsubscribeFleet: () => void;
+    let unsubscribeGeneralMuster: () => void;
+
     const initData = async () => {
       setIsSyncing(true);
       const savedUser = localStorage.getItem('lifesafe_user');
@@ -81,28 +96,37 @@ const App: React.FC = () => {
 
       await loadHistoryData();
 
-      unsubscribeFleet = cloudService.subscribeToFleet((updatedStatusFromCloud) => {
-        setFleetStatus(currentLocalStatus => {
-          const mergedStatus = { ...INITIAL_STATUS, ...updatedStatusFromCloud };
-          const localActiveSession = activeSessionRef.current;
-          
-          if (localActiveSession && !isInitializingRef.current) {
-            const remoteStatus = mergedStatus[localActiveSession.lifeboat];
-            if (!remoteStatus?.isActive) {
-              setActiveSession(null);
-              setCurrentPage(AppState.DASHBOARD);
-            } else if (localActiveSession.isAdminView) {
-              let currentSeconds = remoteStatus.seconds || 0;
-              if (!remoteStatus.isPaused && remoteStatus.startTime) {
-                const elapsed = Math.floor((Date.now() - remoteStatus.startTime) / 1000);
-                currentSeconds = (remoteStatus.accumulatedSeconds || 0) + elapsed;
-              }
-              setActiveSession(prev => prev ? { ...prev, tags: remoteStatus.tags || [], seconds: currentSeconds, isPaused: remoteStatus.isPaused || false } : null);
-            }
-          }
-          return mergedStatus;
-        });
+      // Inscrição para monitorar o fim do treinamento global pelo administrador
+      unsubscribeGeneralMuster = cloudService.subscribeToGeneralMusterTraining((data) => {
+        const localActiveSession = activeSessionRef.current;
+        // Se o administrador desativar o treinamento (isActive: false) e houver uma sessão de operador ativa
+        if (data && data.isActive === false && localActiveSession && !localActiveSession.isAdminView) {
+          finishSession();
+        }
       });
+
+      unsubscribeFleet = cloudService.subscribeToFleet((updatedStatusFromCloud) => {
+        const mergedStatus = { ...INITIAL_STATUS, ...updatedStatusFromCloud };
+        const localActiveSession = activeSessionRef.current;
+        
+        if (localActiveSession && !isInitializingRef.current) {
+          const remoteStatus = mergedStatus[localActiveSession.lifeboat];
+          // Se a baleeira específica for desativada remotamente
+          if (!remoteStatus?.isActive) {
+            setActiveSession(null);
+            setCurrentPage(AppState.DASHBOARD);
+          } else if (localActiveSession.isAdminView) {
+            let currentSeconds = remoteStatus.seconds || 0;
+            if (!remoteStatus.isPaused && remoteStatus.startTime) {
+              const elapsed = Math.floor((Date.now() - remoteStatus.startTime) / 1000);
+              currentSeconds = (remoteStatus.accumulatedSeconds || 0) + elapsed;
+            }
+            setActiveSession(prev => prev ? { ...prev, tags: remoteStatus.tags || [], seconds: currentSeconds, isPaused: remoteStatus.isPaused || false } : null);
+          }
+        }
+        setFleetStatus(mergedStatus);
+      });
+
       setTimeout(() => { isInitializingRef.current = false; setIsSyncing(false); }, 1500);
     };
     initData();
@@ -114,10 +138,11 @@ const App: React.FC = () => {
 
     return () => { 
       if (unsubscribeFleet) unsubscribeFleet();
+      if (unsubscribeGeneralMuster) unsubscribeGeneralMuster();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [finishSession]);
 
   useEffect(() => {
     if (activeSession) localStorage.setItem('lifesafe_active_session', JSON.stringify(activeSession));
@@ -205,7 +230,6 @@ const App: React.FC = () => {
     const allBerths = await cloudService.getBerths();
     const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb);
     
-    // Configuração padrão para operadores que pulam a tela de config
     const ns: ActiveSession = { 
       lifeboat: lb, 
       leaderName: user?.name || 'Operador', 
@@ -260,16 +284,6 @@ const App: React.FC = () => {
     setIsConfirmingLogout(false);
     setCurrentPage(AppState.LOGIN); 
     setIsSyncing(false);
-  };
-
-  const finishSession = async () => {
-    if (activeSession && !activeSession.isAdminView) {
-      const finalFleet = { ...fleetStatus };
-      finalFleet[activeSession.lifeboat] = { count: 0, isActive: false, tags: [], seconds: 0 };
-      setFleetStatus(finalFleet);
-      await cloudService.updateFleetStatus(finalFleet);
-    }
-    setActiveSession(null); setTempConfig(null); setCurrentPage(AppState.DASHBOARD);
   };
 
   return (

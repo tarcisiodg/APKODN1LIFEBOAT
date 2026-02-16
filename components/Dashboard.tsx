@@ -97,6 +97,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     fetchData();
     const interval = setInterval(fetchData, 30000);
     
+    // Inscreve no estado da contagem geral (obrigatório para admins e operadores)
+    unsubscribeGeneralTraining = cloudService.subscribeToGeneralMusterTraining((data) => {
+      if (data) setGeneralTraining(data);
+    });
+
     if (user?.isAdmin) {
       unsubscribeCounters = cloudService.subscribeToManualCounters((counters) => {
         setManualCounts(prev => ({ ...prev, ...counters }));
@@ -104,10 +109,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       unsubscribeReleased = cloudService.subscribeToReleasedCrew((ids) => {
         setReleasedIds(ids);
-      });
-
-      unsubscribeGeneralTraining = cloudService.subscribeToGeneralMusterTraining((data) => {
-        if (data) setGeneralTraining(data);
       });
     }
 
@@ -295,46 +296,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     await cloudService.updateFleetStatus(updatedFleet);
   };
 
-  const handleToggleRelease = async (berthId: string) => {
-    let newReleased = [...releasedIds];
-    const isAddingToReleased = !newReleased.includes(berthId);
-
-    if (isAddingToReleased) {
-      newReleased.push(berthId);
-      const updatedFleet = { ...fleetStatus };
-      let fleetChanged = false;
-
-      LIFEBOATS.forEach(lb => {
-        if (updatedFleet[lb]?.isActive && updatedFleet[lb].tags) {
-          const originalLength = updatedFleet[lb].tags.length;
-          updatedFleet[lb].tags = updatedFleet[lb].tags.filter(tag => tag.leito !== berthId);
-          
-          if (updatedFleet[lb].tags.length !== originalLength) {
-            updatedFleet[lb].count = updatedFleet[lb].tags.length;
-            fleetChanged = true;
-          }
-        }
-      });
-
-      if (fleetChanged) {
-        try {
-          await cloudService.updateFleetStatus(updatedFleet);
-        } catch (e) {
-          console.error("Erro ao remover tripulante da baleeira:", e);
-        }
-      }
-    } else {
-      newReleased = newReleased.filter(id => id !== berthId);
-    }
-
-    setReleasedIds(newReleased);
-    await cloudService.updateReleasedCrew(newReleased);
-
-    const updatedManual = { ...manualCounts, 'LIBERADOS': newReleased.length };
-    setManualCounts(updatedManual);
-    await cloudService.updateManualCounters(updatedManual);
-  };
-
   const setManualCountAbsolute = async (category: string, value: string) => {
     if (category === 'LIBERADOS') return;
     const numValue = value === '' ? 0 : parseInt(value, 10);
@@ -346,9 +307,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   };
 
-  const availableToRelease = useMemo(() => allBerths.filter(b => b.crewName && !releasedIds.includes(b.id)), [allBerths, releasedIds]);
-  const releasedCrew = useMemo(() => allBerths.filter(b => releasedIds.includes(b.id)), [allBerths, releasedIds]);
-  
   const sortedPobList = useMemo(() => {
     const filtered = allBerths.filter(b => 
       b.crewName?.toUpperCase().includes(searchTerm.toUpperCase()) || 
@@ -533,23 +491,39 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
       
       {!user.isAdmin ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-10 gap-8">
-            <button onClick={activeSession ? onResumeTraining : onStartTraining} className="w-56 h-56 sm:w-64 sm:h-64 bg-blue-600 rounded-full shadow-2xl shadow-blue-600/30 text-white flex flex-col items-center justify-center gap-4 hover:scale-105 active:scale-95 transition-all group border-4 border-white">
-                <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : 'fa-play'} text-4xl group-hover:rotate-12 transition-transform`}></i>
-                <div className="text-center">
-                    <div className="font-black text-lg sm:text-xl uppercase tracking-tight">{activeSession ? 'Retomar Sessão' : 'Iniciar Embarque'}</div>
-                    <div className="text-[9px] sm:text-[10px] opacity-60 uppercase font-bold tracking-widest">{activeSession ? activeSession.lifeboat : 'LIFEBOAT MUSTER'}</div>
+        <div className="flex-1 flex flex-col items-center justify-center py-10 gap-12">
+            <div className="relative">
+              {!generalTraining.isActive && !activeSession && (
+                <div className="absolute inset-0 bg-slate-100/50 backdrop-blur-sm z-10 rounded-[48px] flex flex-col items-center justify-center border-4 border-dashed border-slate-200">
+                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-300 mb-4 shadow-sm">
+                    <i className="fa-solid fa-clock-rotate-left text-2xl animate-pulse"></i>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center px-6">Aguardando início da Contagem Geral pelo Administrador</span>
                 </div>
-            </button>
+              )}
+              
+              <button 
+                onClick={activeSession ? onResumeTraining : onStartTraining} 
+                disabled={!generalTraining.isActive && !activeSession}
+                className={`w-64 h-64 sm:w-80 sm:h-80 rounded-[48px] shadow-[0_35px_60px_-15px_rgba(37,99,235,0.4)] text-white flex flex-col items-center justify-center gap-5 hover:scale-105 active:scale-95 transition-all group border-8 border-white/90 ring-1 ring-blue-100 ${generalTraining.isRealScenario && generalTraining.isActive ? 'bg-rose-600 shadow-rose-600/40' : 'bg-blue-600'}`}
+              >
+                  <i className={`fa-solid ${activeSession ? 'fa-tower-broadcast animate-pulse' : (generalTraining.isRealScenario && generalTraining.isActive ? 'fa-triangle-exclamation animate-bounce' : 'fa-play')} text-6xl group-hover:rotate-12 transition-transform drop-shadow-lg`}></i>
+                  <div className="text-center px-6">
+                      <div className="font-black text-2xl sm:text-3xl uppercase tracking-tighter drop-shadow-md leading-tight">
+                        {activeSession ? 'Retomar Sessão' : (generalTraining.isRealScenario && generalTraining.isActive ? 'EMERGÊNCIA: INICIAR' : 'Iniciar Embarque')}
+                      </div>
+                      <div className="text-[11px] sm:text-[12px] opacity-80 uppercase font-black tracking-[0.25em] mt-2">
+                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFEBOAT MUSTER')}
+                      </div>
+                  </div>
+              </button>
+            </div>
             
-            <button onClick={() => setIsPobConsultOpen(true)} className="flex items-center gap-4 px-8 py-5 bg-white rounded-3xl border-2 border-slate-100 text-slate-800 hover:border-blue-600 hover:bg-blue-50 transition-all shadow-sm active:scale-95 group">
-                <div className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                  <i className="fa-solid fa-users"></i>
+            <button onClick={() => setIsPobConsultOpen(true)} className="flex items-center justify-center gap-6 px-12 py-8 bg-white rounded-[40px] border-4 border-slate-100 text-slate-900 hover:border-blue-600 hover:bg-blue-50 transition-all shadow-[0_30px_60px_rgba(0,0,0,0.12)] active:scale-95 group min-w-[320px]">
+                <div className="w-16 h-16 bg-slate-900 text-white rounded-[24px] flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-xl shadow-slate-900/10">
+                  <i className="fa-solid fa-users-viewfinder text-2xl"></i>
                 </div>
-                <div className="text-left">
-                  <span className="block font-black text-xs uppercase tracking-tight">Consultar POB</span>
-                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Lista de tripulantes</span>
-                </div>
+                <span className="font-black text-2xl uppercase tracking-tighter">CONSULTAR POB</span>
             </button>
         </div>
       ) : (
@@ -637,80 +611,91 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Modal de Consulta de POB (Para Operadores) - Responsivo Otimizado */}
       {isPobConsultOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
-          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-7xl w-full p-3 sm:p-8 shadow-2xl animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
+          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-7xl w-full p-3 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
             
             {/* Cabeçalho do Modal */}
             <div className="flex justify-between items-center mb-4 sm:mb-6 px-1 sm:px-2">
               <div className="min-w-0">
-                <h3 className="text-lg sm:text-xl font-black text-slate-900 uppercase tracking-tight truncate">Consulta de POB</h3>
-                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 truncate">Lista Geral Ordenada por Nome</p>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tighter truncate">Consulta de POB</h3>
+                <p className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 truncate opacity-70">Lista Geral Ordenada por Nome</p>
               </div>
               <button 
                 onClick={() => { setIsPobConsultOpen(false); setSearchTerm(''); }} 
-                className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 rounded-xl sm:rounded-2xl text-slate-400 active:scale-95 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm flex-shrink-0"
+                className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-50 rounded-2xl text-slate-400 active:scale-95 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm flex-shrink-0 border border-slate-100"
               >
-                <i className="fa-solid fa-xmark text-lg"></i>
+                <i className="fa-solid fa-xmark text-xl"></i>
               </button>
             </div>
             
             {/* Barra de Busca */}
-            <div className="relative mb-4 sm:mb-6 px-1 sm:px-2">
-              <i className="fa-solid fa-magnifying-glass absolute left-6 sm:left-8 top-1/2 -translate-y-1/2 text-slate-300 text-xs sm:text-sm"></i>
+            <div className="relative mb-5 sm:mb-8 px-1 sm:px-2">
+              <div className="absolute left-6 sm:left-9 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-blue-500 bg-blue-50 rounded-lg">
+                <i className="fa-solid fa-magnifying-glass text-xs"></i>
+              </div>
               <input 
                 type="text" 
                 placeholder="BUSCAR NOME, FUNÇÃO, LEITO OU EMPRESA..." 
-                className="w-full pl-11 sm:pl-14 pr-6 py-4 sm:py-4.5 bg-slate-50 border border-slate-100 rounded-xl sm:rounded-2xl text-[10px] sm:text-[11px] font-black uppercase focus:ring-2 focus:ring-blue-100 focus:bg-white outline-none transition-all shadow-inner" 
+                className="w-full pl-14 sm:pl-16 pr-6 py-5 sm:py-6 bg-slate-50 border-2 border-slate-100 rounded-[20px] sm:rounded-[24px] text-[11px] sm:text-[12px] font-black uppercase focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner placeholder:text-slate-300" 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
               />
             </div>
 
-            {/* Container da Lista (Responsivo: Tabela no Desktop, Grid de Cards em Tablets/Mobile) */}
+            {/* Container da Lista (Grid de Cards em Tablets/Mobile) */}
             <div className="flex-1 overflow-y-auto custom-scrollbar px-1 sm:px-2 pb-6">
               {sortedPobList.length === 0 ? (
-                <div className="py-24 text-center text-slate-300 bg-slate-50/30 rounded-2xl">
-                  <i className="fa-solid fa-users-slash text-4xl sm:text-5xl mb-4 block opacity-20"></i>
-                  <p className="text-[10px] font-black uppercase tracking-widest">Nenhum tripulante encontrado</p>
+                <div className="py-24 text-center text-slate-300 bg-slate-50/30 rounded-3xl border-2 border-dashed border-slate-100">
+                  <i className="fa-solid fa-users-slash text-5xl mb-4 block opacity-20"></i>
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em]">Nenhum tripulante encontrado</p>
                 </div>
               ) : (
                 <>
-                  {/* Visão de CARDS (Mobile e Tablets < 1024px) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:hidden pb-4">
+                  {/* Visão de CARDS (Mobile e Tablets < 1024px) - 2 colunas para tablets */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:hidden pb-4">
                     {sortedPobList.map((b) => {
                       const isOccupied = b.crewName && b.crewName.trim() !== '';
                       return (
-                        <div key={b.id} className={`bg-white border p-4 rounded-2xl shadow-sm space-y-3 transition-all ${isOccupied ? 'border-blue-100 bg-blue-50/10' : 'border-slate-100 opacity-60'}`}>
-                          <div className="flex justify-between items-start gap-3">
-                             <div className="min-w-0">
-                               <div className="flex items-center gap-2 mb-1">
-                                 <h4 className={`text-[11px] font-black uppercase leading-tight truncate ${isOccupied ? 'text-slate-800' : 'text-slate-400'}`}>
+                        <div key={b.id} className={`bg-white border-2 p-5 rounded-[28px] shadow-sm space-y-4 transition-all hover:shadow-md ${isOccupied ? 'border-slate-100' : 'border-slate-100 opacity-50 bg-slate-50/30'}`}>
+                          <div className="flex justify-between items-start gap-4">
+                             <div className="min-w-0 flex-1">
+                               <div className="flex items-center gap-2 mb-1.5">
+                                 <h4 className={`text-[13px] font-black uppercase leading-tight truncate ${isOccupied ? 'text-slate-900' : 'text-slate-400'}`}>
                                    {isOccupied ? b.crewName : '--- VAZIO ---'}
                                  </h4>
                                </div>
-                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate">
-                                 {isOccupied ? `${b.role || '-'} • ${b.company || '-'}` : 'Leito disponível para alocação'}
-                               </p>
+                               <div className="space-y-1">
+                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight truncate flex items-center gap-1.5">
+                                   <i className="fa-solid fa-briefcase text-[8px] opacity-40"></i>
+                                   {isOccupied ? b.role || '-' : '-'}
+                                 </p>
+                                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-tight truncate flex items-center gap-1.5">
+                                   <i className="fa-solid fa-building text-[8px] opacity-40"></i>
+                                   {isOccupied ? b.company || '-' : '-'}
+                                 </p>
+                               </div>
                              </div>
-                             <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                               <span className="bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm">{b.id}</span>
-                               <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${isOccupied ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                                 {isOccupied ? 'Ocupado' : 'Livre'}
+                             <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                               <span className="bg-slate-900 text-white px-3 py-2 rounded-xl text-[11px] font-mono font-black shadow-md">{b.id}</span>
+                               <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest border-2 ${isOccupied ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                 {isOccupied ? 'OCUPADO' : 'LIVRE'}
                                </span>
                              </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
-                            <div className="flex-1 flex flex-col gap-1">
-                              <span className="text-[8px] font-black text-slate-300 uppercase tracking-wider">Primária</span>
-                              <span className={`text-[10px] font-black py-1.5 rounded-lg border text-center uppercase tracking-tighter shadow-sm ${b.lifeboat ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
-                                {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '-'}
-                              </span>
+                          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-50">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">PRIMÁRIA</span>
+                              <div className={`text-[11px] font-black py-2 rounded-xl border-2 text-center uppercase tracking-tighter shadow-sm flex items-center justify-center gap-1.5 ${b.lifeboat ? 'bg-white text-emerald-600 border-emerald-500' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                                {b.lifeboat && <i className="fa-solid fa-ship text-[8px]"></i>}
+                                {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '---'}
+                              </div>
                             </div>
-                            <div className="flex-1 flex flex-col gap-1">
-                              <span className="text-[8px] font-black text-slate-300 uppercase tracking-wider">Secundária</span>
-                              <span className={`text-[10px] font-black py-1.5 rounded-lg border text-center uppercase tracking-tighter shadow-sm ${b.secondaryLifeboat ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
-                                {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '-'}
-                              </span>
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">SECUNDÁRIA</span>
+                              <div className={`text-[11px] font-black py-2 rounded-xl border-2 text-center uppercase tracking-tighter shadow-sm flex items-center justify-center gap-1.5 ${b.secondaryLifeboat ? 'bg-white text-indigo-600 border-indigo-500' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                                {b.secondaryLifeboat && <i className="fa-solid fa-ship text-[8px]"></i>}
+                                {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '---'}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -719,40 +704,40 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
 
                   {/* Visão de TABELA (Desktop >= 1024px) */}
-                  <div className="hidden lg:block min-w-full bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="hidden lg:block min-w-full bg-white rounded-[32px] border-2 border-slate-100 shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-md z-20 border-b border-slate-200">
+                      <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-md z-20 border-b-2 border-slate-200">
                         <tr>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Leito</th>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</th>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</th>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</th>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">PRIMÁRIA</th>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">SECUNDÁRIA</th>
+                          <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Leito</th>
+                          <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Nome Completo</th>
+                          <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Função</th>
+                          <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Empresa</th>
+                          <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-center">PRIMÁRIA</th>
+                          <th className="px-6 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] text-center">SECUNDÁRIA</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody className="divide-y-2 divide-slate-50">
                         {sortedPobList.map((b) => (
                           <tr key={b.id} className="hover:bg-blue-50/40 transition-colors group/row">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm inline-block group-hover/row:scale-105 transition-transform">{b.id}</span>
+                            <td className="px-6 py-5 whitespace-nowrap">
+                              <span className="bg-slate-900 text-white px-3.5 py-2 rounded-xl text-[11px] font-mono font-black shadow-md inline-block group-hover/row:scale-105 transition-transform">{b.id}</span>
                             </td>
-                            <td className="px-6 py-4 min-w-0">
-                              <p className="text-[11px] font-black text-slate-800 uppercase leading-none group-hover/row:text-blue-700 transition-colors truncate">{b.crewName || '--- VAZIO ---'}</p>
+                            <td className="px-6 py-5 min-w-0">
+                              <p className="text-[12px] font-black text-slate-900 uppercase leading-none group-hover/row:text-blue-700 transition-colors truncate">{b.crewName || '--- VAZIO ---'}</p>
                             </td>
-                            <td className="px-6 py-4">
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight truncate">{b.role || '-'}</p>
+                            <td className="px-6 py-5">
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight truncate">{b.role || '-'}</p>
                             </td>
-                            <td className="px-6 py-4">
-                              <p className="text-[10px] font-black text-blue-600/80 uppercase tracking-tighter truncate">{b.company || '-'}</p>
+                            <td className="px-6 py-5">
+                              <p className="text-[10px] font-black text-blue-600 uppercase tracking-tight truncate">{b.company || '-'}</p>
                             </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border uppercase tracking-tighter shadow-sm inline-block min-w-[50px] ${b.lifeboat ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                            <td className="px-6 py-5 text-center">
+                              <span className={`text-[10px] font-black px-4 py-2 rounded-full border-2 uppercase tracking-tighter shadow-sm inline-block min-w-[60px] ${b.lifeboat ? 'bg-white text-emerald-600 border-emerald-500' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
                                 {b.lifeboat ? b.lifeboat.replace(/\D/g, '') : '---'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`text-[9px] font-black px-3 py-1.5 rounded-full border uppercase tracking-tighter shadow-sm inline-block min-w-[50px] ${b.secondaryLifeboat ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                            <td className="px-6 py-5 text-center">
+                              <span className={`text-[10px] font-black px-4 py-2 rounded-full border-2 uppercase tracking-tighter shadow-sm inline-block min-w-[60px] ${b.secondaryLifeboat ? 'bg-white text-indigo-600 border-indigo-500' : 'bg-slate-50 text-slate-200 border-slate-100'}`}>
                                 {b.secondaryLifeboat ? b.secondaryLifeboat.replace(/\D/g, '') : '---'}
                               </span>
                             </td>
@@ -766,20 +751,20 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             
             {/* Rodapé do Modal */}
-            <div className="mt-auto pt-3 sm:pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between px-1 sm:px-2 gap-3 sm:gap-0">
-              <div className="flex gap-4 sm:gap-6 w-full sm:w-auto justify-center sm:justify-start">
-                 <div className="flex items-center gap-2">
-                   <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 bg-blue-600 rounded-full shadow-sm"></div>
-                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">POB Total: {sortedPobList.length}</span>
+            <div className="mt-auto pt-4 sm:pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between px-1 sm:px-2 gap-4 sm:gap-0">
+              <div className="flex gap-5 sm:gap-8 w-full sm:w-auto justify-center sm:justify-start">
+                 <div className="flex items-center gap-2.5">
+                   <div className="w-3 h-3 bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.4)]"></div>
+                   <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.1em]">POB Total: {sortedPobList.length}</span>
                  </div>
-                 <div className="flex items-center gap-2">
-                   <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 bg-emerald-500 rounded-full shadow-sm"></div>
-                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">A Bordo: {sortedPobList.filter(x => x.crewName && x.crewName.trim() !== '').length}</span>
+                 <div className="flex items-center gap-2.5">
+                   <div className="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+                   <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.1em]">A Bordo: {sortedPobList.filter(x => x.crewName && x.crewName.trim() !== '').length}</span>
                  </div>
               </div>
-              <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100 self-center sm:self-auto">
-                <i className="fa-solid fa-shield-halved text-[9px] sm:text-[10px] text-blue-400"></i>
-                <span className="text-[8px] sm:text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Lifesafe ODN1(NS-41)</span>
+              <div className="flex items-center gap-2.5 px-5 py-2.5 bg-slate-900 text-white rounded-2xl shadow-lg self-center sm:self-auto ring-4 ring-slate-900/5">
+                <i className="fa-solid fa-shield-halved text-[11px] text-blue-400"></i>
+                <span className="text-[10px] font-black uppercase tracking-[0.25em]">Lifesafe ODN1(NS-41)</span>
               </div>
             </div>
           </div>
