@@ -282,7 +282,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm md:text-base font-bold text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
+                <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
                 {isSyncing && <i className="fa-solid fa-rotate animate-spin text-blue-400 text-[10px]"></i>}
               </div>
             </div>
@@ -306,28 +306,28 @@ const App: React.FC = () => {
         <nav className="fixed bottom-0 left-0 right-0 z-[80] bg-white border-t border-slate-100 flex items-center justify-around py-3 px-4 shadow-sm">
             <button onClick={() => setCurrentPage(AppState.DASHBOARD)} className={`flex flex-col items-center gap-1 transition-colors ${currentPage === AppState.DASHBOARD ? 'text-blue-600' : 'text-slate-400'}`}>
               <i className="fa-solid fa-house text-lg"></i>
-              <span className="text-[9px] font-bold uppercase">Início</span>
+              <span className="text-[9px] font-black uppercase">Início</span>
             </button>
             <button onClick={() => setCurrentPage(AppState.HISTORY)} className={`flex flex-col items-center gap-1 transition-colors ${currentPage === AppState.HISTORY ? 'text-blue-600' : 'text-slate-400'}`}>
               <i className="fa-solid fa-clock-rotate-left text-lg"></i>
-              <span className="text-[9px] font-bold uppercase">Histórico</span>
+              <span className="text-[9px] font-black uppercase">Histórico</span>
             </button>
             <div className={`flex flex-col items-center gap-1 ${isOnline ? 'text-emerald-500' : 'text-rose-500'}`}>
               <i className={`fa-solid ${isOnline ? 'fa-cloud' : 'fa-plane-slash'} text-lg`}></i>
-              <span className="text-[9px] font-bold uppercase">{isOnline ? 'CLOUD' : 'OFFLINE'}</span>
+              <span className="text-[9px] font-black uppercase">{isOnline ? 'CLOUD' : 'OFFLINE'}</span>
             </div>
         </nav>
       )}
 
       {isConfirmingLogout && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-3xl max-sm w-full p-8 shadow-md">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6"><i className="fa-solid fa-power-off text-2xl"></i></div>
-            <h3 className="text-xl font-bold mb-2">Sair do Sistema?</h3>
-            <p className="text-slate-500 text-xs mb-8">Sessões ativas serão salvas em nuvem.</p>
+          <div className="bg-white rounded-[32px] max-sm w-full p-8 shadow-md border border-slate-100">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm"><i className="fa-solid fa-power-off text-2xl"></i></div>
+            <h3 className="text-xl font-black mb-2 uppercase tracking-tight">Sair do Sistema?</h3>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-8">Sessões ativas serão salvas em nuvem.</p>
             <div className="grid gap-3">
-              <button onClick={handleLogout} className="w-full py-4 bg-red-600 text-white font-bold rounded-xl text-xs uppercase shadow-sm">Sair</button>
-              <button onClick={() => setIsConfirmingLogout(false)} className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs uppercase">Cancelar</button>
+              <button onClick={handleLogout} className="w-full py-4 bg-red-600 text-white font-black rounded-xl text-xs uppercase shadow-md active:scale-95 transition-all">Confirmar Logout</button>
+              <button onClick={() => setIsConfirmingLogout(false)} className="w-full py-4 bg-slate-100 text-slate-700 font-black rounded-xl text-xs uppercase">Cancelar</button>
             </div>
           </div>
         </div>

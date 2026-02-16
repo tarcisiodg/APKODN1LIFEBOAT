@@ -14,7 +14,7 @@
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
             },
-            boxShadow: { // Define softer, more minimalist shadows
+            boxShadow: {
               'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
               'DEFAULT': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
               'md': '0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03)',
@@ -25,7 +25,6 @@
             },
             animation: {
               'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              // Add a slightly faster pulse for specific elements without being too aggressive
               'pulse-fast': 'pulse-fast 1s ease-in-out infinite',
             }
           }
@@ -40,34 +39,29 @@
       }
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #f8fafc; /* Lighter background */
+        background-color: #f8fafc;
         color: #1e293b;
         overflow-x: hidden;
       }
       .custom-scrollbar::-webkit-scrollbar {
-        width: 6px; /* Slightly wider for better visibility on a light theme */
+        width: 6px;
       }
       .custom-scrollbar::-webkit-scrollbar-track {
-        background: #f1f5f9; /* Light track */
+        background: #f1f5f9;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #cbd5e1; /* Light thumb */
+        background: #cbd5e1;
         border-radius: 10px;
       }
       @keyframes pulse-fast {
         0%, 100% { transform: scale(1.0); }
         50% { transform: scale(1.02); opacity: 0.95; }
       }
-
-      /* Hide native number input arrows (spin buttons) */
-      /* Chrome, Safari, Edge, Opera */
       input::-webkit-outer-spin-button,
       input::-webkit-inner-spin-button {
         -webkit-appearance: none;
         margin: 0;
       }
-
-      /* Firefox */
       input[type=number] {
         -moz-appearance: textfield;
       }

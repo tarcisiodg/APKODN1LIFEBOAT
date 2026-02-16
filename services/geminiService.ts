@@ -13,7 +13,7 @@ export async function generateTrainingSummary(lifeboat: string, crewCount: numbe
           Tripulantes Lidos com Sucesso: ${crewCount}
           Tempo de Resposta Total: ${duration}
           
-          O resumo deve ser técnico, enfatizando a prontidão da tripulação e a eficácia do sistema de monitoramento Lifesafe ODN1.
+          O resumo deve ser técnico, enfatizando a prontidão da tripulação e a eficácia do sistema de monitoramento LIFEBOAT MUSTER.
           
           REGRAS: Retorne apenas o parágrafo preenchido, sem negritos, sem introduções e sem formatação markdown.`
         }]

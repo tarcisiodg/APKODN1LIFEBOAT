@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { TrainingRecord, LifeboatType, ScannedTag } from '../types';
 import { cloudService } from '../services/cloudService';
@@ -24,13 +23,11 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
     return `${year}-${month}-${day}`;
   };
 
-  const [lifeboatFilter, setLifeboatFilter] = useState<LifeboatType | 'Todas'>('Todas');
+  const [lifeboatFilter, setLifeboatFilter] = useState<LifeboatType | 'Todas' | 'FROTA COMPLETA'>('Todas');
   const [dateFilter, setDateFilter] = useState<string>(getTodayDateString());
   const [recordToDelete, setRecordToDelete] = useState<TrainingRecord | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   const filteredRecords = useMemo(() => {
     return records.filter(record => {
@@ -60,14 +57,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
     setSelectedIds(next);
   };
 
-  const handleSelectAll = () => {
-    if (selectedIds.size === filteredRecords.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredRecords.map(r => r.id)));
-    }
-  };
-
   const handleDeleteRecord = async () => {
     if (!recordToDelete) return;
     setIsDeleting(true);
@@ -82,20 +71,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
       alert("Erro ao excluir registro.");
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    setIsBulkDeleting(true);
-    try {
-      await cloudService.deleteHistoryRecordsBulk(Array.from(selectedIds));
-      if (onRefresh) onRefresh();
-      setSelectedIds(new Set());
-      setShowBulkConfirm(false);
-    } catch (e) {
-      alert("Erro ao excluir registros selecionados.");
-    } finally {
-      setIsBulkDeleting(false);
     }
   };
 
@@ -123,7 +98,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
       ["Data", dateOnly],
       ["Hora de Início", record.startTime || timeOnly],
       ["Hora de Término", record.endTime || timeOnly],
-      ["Unidade", record.lifeboat === 'FROTA COMPLETA' ? 'ODN I - NS41' : record.lifeboat.toUpperCase()],
+      ["Unidade", record.lifeboat === 'FROTA COMPLETA' ? 'ODN I - NS41 (GERAL)' : record.lifeboat.toUpperCase()],
       ["Tipo de Evento", record.trainingType],
       ["Duração Total", record.duration],
       ["POB Total", record.crewCount.toString()],
@@ -131,7 +106,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
       [""],
     ];
 
-    // Se for Contagem Geral, listar ERT
     if (record.lifeboat === 'FROTA COMPLETA' && record.ertCounts) {
       rows.push(["EQUIPES DE RESPOSTA A EMERGÊNCIAS (ERT)"]);
       rows.push(["Categoria", "Quantidade"]);
@@ -141,7 +115,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
       rows.push([""]);
     }
 
-    // Listagem por Baleeira (Breakdown)
     if (record.lifeboatBreakdown) {
       rows.push(["DETALHAMENTO POR BALEEIRA"]);
       Object.entries(record.lifeboatBreakdown).forEach(([lb, data]) => {
@@ -159,7 +132,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
         rows.push([""]);
       });
     } else if (record.tags && record.tags.length > 0) {
-      // Caso seja uma baleeira individual
       rows.push(["LISTA DE TRIPULANTES EMBARCADOS"]);
       rows.push(["Nome", "Função", "Empresa", "Tag / ID", "Hora de Registro"]);
       record.tags.forEach(tag => {
@@ -222,13 +194,22 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
             <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">Histórico de Eventos</h2>
           </div>
         </div>
+        {filteredRecords.length > 0 && (
+          <button 
+            onClick={exportFilteredToCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 transition-all active:scale-95"
+          >
+            <i className="fa-solid fa-download"></i>
+            Exportar Log
+          </button>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
             <i className="fa-solid fa-filter"></i>
-            Filtros
+            Filtros de Busca
           </div>
           {(lifeboatFilter !== 'Todas' || dateFilter !== '') && (
             <button 
@@ -240,9 +221,9 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
           )}
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Baleeira / Grupo</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Unidade / Grupo</label>
             <select 
               value={lifeboatFilter}
               onChange={(e) => setLifeboatFilter(e.target.value as any)}
@@ -251,11 +232,11 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
               {LIFEBOATS.map(lb => (
                 <option key={lb} value={lb}>{lb.toUpperCase()}</option>
               ))}
-              <option value="FROTA COMPLETA">FROTA COMPLETA</option>
+              <option value="FROTA COMPLETA">RELATÓRIO GERAL</option>
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Data</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Data do Evento</label>
             <input 
               type="date" 
               value={dateFilter}
@@ -298,8 +279,9 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
                         <i className={`fa-solid ${record.lifeboat === 'FROTA COMPLETA' ? 'fa-tower-observation' : 'fa-anchor'}`}></i>
                       </div>
                       <div>
-                        {/* SUBSTITUIÇÃO SOLICITADA: FROTA COMPLETA POR RELATÓRIO NO TÍTULO DO CARD */}
-                        <h3 className="font-bold text-slate-900 uppercase tracking-tight">{record.lifeboat === 'FROTA COMPLETA' ? 'RELATÓRIO' : record.lifeboat}</h3>
+                        <h3 className="font-bold text-slate-900 uppercase tracking-tight">
+                          {record.lifeboat === 'FROTA COMPLETA' ? 'RELATÓRIO GERAL' : record.lifeboat}
+                        </h3>
                         <div className="flex items-center gap-2">
                            <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase text-white ${record.trainingType.includes('EMERGÊNCIA') ? 'bg-rose-600' : 'bg-blue-600'}`}>
                             {record.trainingType}
@@ -341,7 +323,6 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
         </div>
       )}
 
-      {/* Modal de Exclusão Individual */}
       {recordToDelete && (
         <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
           <div className="bg-white rounded-[32px] max-sm w-full p-8 shadow-md animate-in zoom-in duration-300">

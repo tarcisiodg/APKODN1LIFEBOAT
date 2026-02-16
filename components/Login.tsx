@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { cloudService } from '../services/cloudService';
@@ -71,15 +72,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     <div className="flex-1 flex flex-col items-center justify-center py-12 px-6 bg-slate-100 min-h-screen">
       <div className="w-full max-w-md bg-white rounded-[32px] shadow-md p-8 md:p-10 border border-slate-100 animate-in fade-in zoom-in duration-500">
         <div className="text-center mb-10">
-          {/* Logo container updated to be square with rounded corners as requested */}
           <div className="w-20 h-20 bg-[#f8fafc] rounded-2xl flex items-center justify-center text-blue-600 text-4xl mx-auto mb-8 shadow-sm border border-slate-100">
             <i className="fa-solid fa-shield-halved"></i>
           </div>
           
-          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight mb-1">
+          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-1">
             {isRegisterMode ? 'SOLICITAR ACESSO' : 'LIFEBOAT MUSTER'}
           </h2>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">Sistema de Gerenciamento</p>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">SISTEMA DE GERENCIAMENTO DE EVENTOS</p>
         </div>
 
         {successMsg ? (
