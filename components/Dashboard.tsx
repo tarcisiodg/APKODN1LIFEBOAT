@@ -218,13 +218,45 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleToggleRelease = async (berthId: string) => {
     let newReleased = [...releasedIds];
-    if (newReleased.includes(berthId)) {
-      newReleased = newReleased.filter(id => id !== berthId);
-    } else {
+    const isAddingToReleased = !newReleased.includes(berthId);
+
+    if (isAddingToReleased) {
+      // 1. Adiciona à lista de liberados
       newReleased.push(berthId);
+
+      // 2. SINCRONIZAÇÃO REVERSA: Remover do status das baleeiras caso esteja presente
+      const updatedFleet = { ...fleetStatus };
+      let fleetChanged = false;
+
+      LIFEBOATS.forEach(lb => {
+        if (updatedFleet[lb]?.isActive && updatedFleet[lb].tags) {
+          const originalLength = updatedFleet[lb].tags.length;
+          updatedFleet[lb].tags = updatedFleet[lb].tags.filter(tag => tag.leito !== berthId);
+          
+          if (updatedFleet[lb].tags.length !== originalLength) {
+            updatedFleet[lb].count = updatedFleet[lb].tags.length;
+            fleetChanged = true;
+          }
+        }
+      });
+
+      if (fleetChanged) {
+        try {
+          await cloudService.updateFleetStatus(updatedFleet);
+        } catch (e) {
+          console.error("Erro ao remover tripulante da baleeira:", e);
+        }
+      }
+    } else {
+      // Remove da lista de liberados
+      newReleased = newReleased.filter(id => id !== berthId);
     }
+
+    // 3. Salva a nova lista de IDs liberados
     setReleasedIds(newReleased);
     await cloudService.updateReleasedCrew(newReleased);
+
+    // 4. Atualiza o contador manual de 'LIBERADOS'
     const updatedManual = { ...manualCounts, 'LIBERADOS': newReleased.length };
     setManualCounts(updatedManual);
     await cloudService.updateManualCounters(updatedManual);
@@ -366,7 +398,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className="text-xl sm:text-2xl font-black tabular-nums leading-none">{totalPeopleInFleet}</span>
                 </div>
                 <div className="group cursor-default">
-                  <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">RESPOSTA</span>
+                  <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">EQUIPES</span>
                   <span className="text-xl sm:text-2xl font-black tabular-nums leading-none">{totalManualGroups}</span>
                 </div>
                 {generalTraining.isActive && (
@@ -495,7 +527,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Modal de Confirmação de Finalização da Contagem Geral */}
       {isConfirmingGeneralFinish && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-w-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+          <div className="bg-white rounded-[40px] max-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
             <div className="w-20 h-20 bg-rose-50 rounded-[28px] flex items-center justify-center text-rose-600 mx-auto mb-8 shadow-inner">
               <i className="fa-solid fa-stop text-3xl"></i>
             </div>
