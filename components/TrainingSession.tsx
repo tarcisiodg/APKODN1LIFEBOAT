@@ -43,11 +43,14 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [viewTab, setViewTab] = useState<'present' | 'pending'>('present');
   const [releasedIds, setReleasedIds] = useState<string[]>([]);
   
+  // Ref para evitar stale closures no listener de NFC
+  const releasedIdsRef = useRef<string[]>([]);
   const nfcReaderRef = useRef<any>(null);
 
   useEffect(() => {
     const unsub = cloudService.subscribeToReleasedCrew((ids) => {
       setReleasedIds(ids);
+      releasedIdsRef.current = ids;
     });
     return () => unsub();
   }, []);
@@ -62,7 +65,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const pendingCrew = useMemo(() => {
     if (!session.expectedCrew) return [];
     return session.expectedCrew.filter(berth => {
-      // Regra 1: Não deve estar já na lista de embarcados (tags)
       const isAnyTagScanned = session.tags.some(tag => 
         (berth.tagId1 && tag.id.trim().toLowerCase() === berth.tagId1.trim().toLowerCase()) ||
         (berth.tagId2 && tag.id.trim().toLowerCase() === berth.tagId2.trim().toLowerCase()) ||
@@ -70,9 +72,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         (tag.leito === berth.id)
       );
       
-      // Regra 2: Não deve estar na lista de LIBERADOS
       const isReleased = releasedIds.includes(berth.id);
-
       return !isAnyTagScanned && !isReleased;
     });
   }, [session.expectedCrew, session.tags, releasedIds]);
@@ -117,17 +117,18 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           return;
         }
 
-        // Lógica de transferência automática: Se for um LIBERADO escaneando no Lifeboat
-        if (matchedBerth && releasedIds.includes(matchedBerth.id)) {
-          const newReleased = releasedIds.filter(id => id !== matchedBerth.id);
+        // Lógica de transferência automática usando a Ref atualizada
+        if (matchedBerth && releasedIdsRef.current.includes(matchedBerth.id)) {
+          const currentReleased = releasedIdsRef.current;
+          const newReleasedList = currentReleased.filter(id => id !== matchedBerth.id);
           
-          // Atualiza lista de IDs de liberados
-          await cloudService.updateReleasedCrew(newReleased);
+          // 1. Atualiza lista de IDs (Isso vai disparar o subscribe e atualizar a Ref)
+          await cloudService.updateReleasedCrew(newReleasedList);
           
-          // Atualiza o contador manual de 'LIBERADOS' para o Dashboard
+          // 2. Atualiza o contador manual de 'LIBERADOS' para o Dashboard
           try {
             const currentCounters = await cloudService.getManualCounters();
-            const updatedCounters = { ...currentCounters, 'LIBERADOS': newReleased.length };
+            const updatedCounters = { ...currentCounters, 'LIBERADOS': newReleasedList.length };
             await cloudService.updateManualCounters(updatedCounters);
           } catch (e) { console.error("Erro ao sincronizar contadores:", e); }
         }
@@ -176,7 +177,6 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       });
 
       if (isGlobal) {
-        // Encerra tudo em tempo real na nuvem
         const resetFleet: any = {};
         LIFEBOATS.forEach(lb => { resetFleet[lb] = { count: 0, isActive: false, tags: [], seconds: 0 }; });
         const resetCounters = Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]));
@@ -184,7 +184,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
         await Promise.all([
           cloudService.updateFleetStatus(resetFleet),
           cloudService.updateManualCounters(resetCounters),
-          cloudService.updateReleasedCrew([]) // Limpa liberados no fim da contagem geral
+          cloudService.updateReleasedCrew([]) 
         ]);
       }
 
