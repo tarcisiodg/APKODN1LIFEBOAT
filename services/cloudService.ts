@@ -240,6 +240,11 @@ export const cloudService = {
     await setDoc(fleetRef, status);
   },
 
+  async updateSingleLifeboatStatus(lb: LifeboatType, status: LifeboatStatus): Promise<void> {
+    const fleetRef = doc(db, "fleet", "status");
+    await updateDoc(fleetRef, { [lb]: status });
+  },
+
   subscribeToFleet(callback: (status: Record<string, LifeboatStatus>) => void) {
     const fleetRef = doc(db, "fleet", "status");
     return onSnapshot(fleetRef, (doc) => {

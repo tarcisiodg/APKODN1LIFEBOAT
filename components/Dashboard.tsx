@@ -64,6 +64,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [gsIsReal, setGsIsReal] = useState(false);
   const [gsType, setGsType] = useState<'Gás' | 'Fogo/Abandono'>('Fogo/Abandono');
   const [gsDescription, setGsDescription] = useState('');
+  
+  const [lbToReset, setLbToReset] = useState<LifeboatType | null>(null);
 
   const [generalTraining, setGeneralTraining] = useState<{
     isActive: boolean;
@@ -324,7 +326,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const status = fleetStatus[lb];
     const isNowManual = !status?.isManualMode;
     
-    let updatedStatus = { ...status };
+    let updatedStatus: LifeboatStatus = { ...status };
     
     if (isNowManual) {
       let currentSeconds = status.seconds || 0;
@@ -350,25 +352,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       };
     }
 
-    const updatedFleet = {
-      ...fleetStatus,
-      [lb]: updatedStatus
-    };
-    await cloudService.updateFleetStatus(updatedFleet);
+    await cloudService.updateSingleLifeboatStatus(lb, updatedStatus);
   };
 
   const updateLifeboatManualCount = async (lb: LifeboatType, delta: number) => {
     const status = fleetStatus[lb];
     if (!status?.isManualMode) return;
     
-    const updatedFleet = {
-      ...fleetStatus,
-      [lb]: {
-        ...status,
-        manualCount: Math.max(0, (status.manualCount || 0) + delta)
-      }
+    const updatedStatus = {
+      ...status,
+      manualCount: Math.max(0, (status.manualCount || 0) + delta)
     };
-    await cloudService.updateFleetStatus(updatedFleet);
+    await cloudService.updateSingleLifeboatStatus(lb, updatedStatus);
   };
 
   const setLifeboatManualCountAbsolute = async (lb: LifeboatType, value: string) => {
@@ -377,14 +372,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     const numValue = value === '' ? 0 : parseInt(value, 10);
     const validValue = isNaN(numValue) ? 0 : Math.max(0, numValue);
 
-    const updatedFleet = {
-      ...fleetStatus,
-      [lb]: {
-        ...status,
-        manualCount: validValue
-      }
+    const updatedStatus = {
+      ...status,
+      manualCount: validValue
     };
-    await cloudService.updateFleetStatus(updatedFleet);
+    await cloudService.updateSingleLifeboatStatus(lb, updatedStatus);
   };
 
   const setManualCountAbsolute = async (category: string, value: string) => {
@@ -396,6 +388,29 @@ const Dashboard: React.FC<DashboardProps> = ({
       cloudService.updateManualCounters(updated).catch(console.error);
       return updated;
     });
+  };
+
+  const handleForceResetLifeboat = async () => {
+    if (!lbToReset) return;
+    setIsSaving(true);
+    try {
+      const resetStatus: LifeboatStatus = { 
+        count: 0, 
+        isActive: false, 
+        tags: [], 
+        seconds: 0, 
+        isManualMode: false,
+        isPaused: false,
+        startTime: 0,
+        accumulatedSeconds: 0
+      };
+      await cloudService.updateSingleLifeboatStatus(lbToReset, resetStatus);
+      setLbToReset(null);
+    } catch (e) {
+      alert("Erro ao resetar baleeira.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const sortedPobList = useMemo(() => {
@@ -734,23 +749,35 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <i className={`fa-solid ${isManual ? 'fa-triangle-exclamation text-amber-500' : 'fa-ship ' + (isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300')} text-xl`}></i>
                     </div>
                     
-                    {isManual ? (
-                      <div className="flex items-center gap-2 bg-white/50 p-1 rounded-full border border-amber-200">
-                         <button onClick={() => updateLifeboatManualCount(lb, -1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-minus text-[10px]"></i></button>
-                         <input 
-                            type="number" 
-                            value={countToDisplay === 0 ? '' : countToDisplay} 
-                            onChange={(e) => setLifeboatManualCountAbsolute(lb, e.target.value)}
-                            className="text-2xl font-black text-amber-900 tabular-nums w-12 text-center bg-transparent border-none outline-none focus:ring-0"
-                         />
-                         <button onClick={() => updateLifeboatManualCount(lb, 1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-plus text-[10px]"></i></button>
-                      </div>
-                    ) : (
-                      <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`text-right ${isActive ? 'cursor-pointer' : 'cursor-default'}`}>
-                        <span className="text-3xl font-black text-slate-900 tabular-nums leading-none">{countToDisplay}</span>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">PESSOAS</p>
-                      </div>
-                    )}
+                    <div className="flex flex-col items-end">
+                      {isActive && user.isAdmin && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setLbToReset(lb); }}
+                          disabled={isSaving}
+                          className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-2 hover:bg-rose-100 transition-colors shadow-sm active:scale-90 disabled:opacity-50"
+                          title="Encerrar Imediatamente"
+                        >
+                          <i className="fa-solid fa-power-off text-[10px]"></i>
+                        </button>
+                      )}
+                      {isManual ? (
+                        <div className="flex items-center gap-2 bg-white/50 p-1 rounded-full border border-amber-200">
+                           <button onClick={() => updateLifeboatManualCount(lb, -1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-minus text-[10px]"></i></button>
+                           <input 
+                              type="number" 
+                              value={countToDisplay === 0 ? '' : countToDisplay} 
+                              onChange={(e) => setLifeboatManualCountAbsolute(lb, e.target.value)}
+                              className="text-2xl font-black text-amber-900 tabular-nums w-12 text-center bg-transparent border-none outline-none focus:ring-0"
+                           />
+                           <button onClick={() => updateLifeboatManualCount(lb, 1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-plus text-[10px]"></i></button>
+                        </div>
+                      ) : (
+                        <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`text-right ${isActive ? 'cursor-pointer' : 'cursor-default'}`}>
+                          <span className="text-3xl font-black text-slate-900 tabular-nums leading-none">{countToDisplay}</span>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">PESSOAS</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -779,6 +806,31 @@ const Dashboard: React.FC<DashboardProps> = ({
             })}
           </div>
         </>
+      )}
+
+      {/* Confirmation Modal for Lifeboat Force Reset */}
+      {lbToReset && (
+        <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-[40px] max-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+            <div className="w-20 h-20 bg-rose-50 rounded-[28px] flex items-center justify-center text-rose-600 mx-auto mb-8 shadow-inner">
+              <i className="fa-solid fa-power-off text-3xl"></i>
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">Desligar {lbToReset}?</h3>
+            <p className="text-slate-500 text-[10px] font-bold uppercase mb-8 leading-relaxed">
+              Isso interromperá a contagem imediatamente e deixará a baleeira disponível para seleção. NENHUM registro será salvo.
+            </p>
+            <div className="grid gap-3">
+              <button 
+                onClick={handleForceResetLifeboat} 
+                disabled={isSaving}
+                className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all border border-rose-400/30 disabled:opacity-50"
+              >
+                {isSaving ? <i className="fa-solid fa-spinner animate-spin"></i> : 'Confirmar Encerramento'}
+              </button>
+              <button onClick={() => setLbToReset(null)} disabled={isSaving} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all">Cancelar</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Release Crew Selection Modal */}

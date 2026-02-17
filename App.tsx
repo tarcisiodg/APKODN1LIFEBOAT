@@ -34,10 +34,15 @@ const App: React.FC = () => {
 
   const activeSessionRef = useRef<ActiveSession | null>(null);
   const isInitializingRef = useRef<boolean>(true);
+  const fleetStatusRef = useRef<Record<LifeboatType, LifeboatStatus>>(INITIAL_STATUS);
 
   useEffect(() => {
     activeSessionRef.current = activeSession;
   }, [activeSession]);
+
+  useEffect(() => {
+    fleetStatusRef.current = fleetStatus;
+  }, [fleetStatus]);
 
   const formatDuration = (totalSeconds: number) => {
     const h = Math.floor(totalSeconds / 3600);
@@ -56,15 +61,13 @@ const App: React.FC = () => {
   const finishSession = useCallback(async () => {
     const localActiveSession = activeSessionRef.current;
     if (localActiveSession && !localActiveSession.isAdminView) {
-      const finalFleet = { ...fleetStatus };
-      finalFleet[localActiveSession.lifeboat] = { count: 0, isActive: false, tags: [], seconds: 0 };
-      setFleetStatus(finalFleet);
-      await cloudService.updateFleetStatus(finalFleet);
+      const finalStatus: LifeboatStatus = { count: 0, isActive: false, tags: [], seconds: 0 };
+      await cloudService.updateSingleLifeboatStatus(localActiveSession.lifeboat, finalStatus);
     }
     setActiveSession(null); 
     setTempConfig(null); 
     setCurrentPage(AppState.DASHBOARD);
-  }, [fleetStatus]);
+  }, []);
 
   useEffect(() => {
     let unsubscribeFleet: () => void;
@@ -110,10 +113,12 @@ const App: React.FC = () => {
         if (localActiveSession && !isInitializingRef.current) {
           const remoteStatus = mergedStatus[localActiveSession.lifeboat];
           
-          if (!remoteStatus?.isActive) {
+          if (remoteStatus && !remoteStatus.isActive) {
             setActiveSession(null);
-            setCurrentPage(AppState.DASHBOARD);
-          } else {
+            if (currentPage === AppState.TRAINING) {
+              setCurrentPage(AppState.DASHBOARD);
+            }
+          } else if (remoteStatus) {
             setActiveSession(prev => {
               if (!prev) return null;
               
@@ -170,7 +175,7 @@ const App: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [finishSession]);
+  }, [finishSession, currentPage]);
 
   useEffect(() => {
     if (activeSession) {
@@ -204,26 +209,34 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const syncToCloud = async () => {
-      if (!activeSession || activeSession.isAdminView || isInitializingRef.current) return;
+      const localActive = activeSessionRef.current;
+      if (!localActive || localActive.isAdminView || isInitializingRef.current) return;
       
-      const currentStatusUpdate = {
-        ...fleetStatus,
-        [activeSession.lifeboat]: {
-          ...fleetStatus[activeSession.lifeboat],
-          count: activeSession.tags.length,
-          tags: activeSession.tags,
-          seconds: activeSession.seconds,
-          startTime: activeSession.startTime,
-          accumulatedSeconds: activeSession.accumulatedSeconds,
-          isPaused: activeSession.isPaused,
-          isActive: true,
-          isRealScenario: activeSession.isRealScenario,
-          leaderName: activeSession.leaderName,
-          trainingType: activeSession.trainingType,
-          operatorName: user?.name || 'Sistema'
+      const remoteStatus = fleetStatusRef.current[localActive.lifeboat];
+      if (remoteStatus && remoteStatus.isActive === false) {
+        setActiveSession(null);
+        if (currentPage === AppState.TRAINING) {
+          setCurrentPage(AppState.DASHBOARD);
         }
+        return;
+      }
+
+      const update: LifeboatStatus = {
+        count: localActive.tags.length,
+        tags: localActive.tags,
+        seconds: localActive.seconds,
+        startTime: localActive.startTime,
+        accumulatedSeconds: localActive.accumulatedSeconds,
+        isPaused: localActive.isPaused,
+        isActive: true,
+        isRealScenario: localActive.isRealScenario,
+        leaderName: localActive.leaderName,
+        trainingType: localActive.trainingType,
+        operatorName: user?.name || 'Sistema'
       };
-      try { await cloudService.updateFleetStatus(currentStatusUpdate); } catch (e) { console.error(e); }
+      try { 
+        await cloudService.updateSingleLifeboatStatus(localActive.lifeboat, update); 
+      } catch (e) { console.error(e); }
     };
     syncToCloud();
   }, [activeSession?.tags.length, activeSession?.isPaused, activeSession?.seconds]);
@@ -325,9 +338,8 @@ const App: React.FC = () => {
           isRealScenario: activeSession.isRealScenario, crewCount: activeSession.tags.length, 
           duration: formatDuration(activeSession.seconds), summary: "Logout interrompido", tags: activeSession.tags 
         });
-        const finalFleet = { ...fleetStatus };
-        finalFleet[activeSession.lifeboat] = { count: 0, isActive: false };
-        await cloudService.updateFleetStatus(finalFleet);
+        const finalStatus: LifeboatStatus = { count: 0, isActive: false };
+        await cloudService.updateSingleLifeboatStatus(activeSession.lifeboat, finalStatus);
       } catch (e) { console.error(e); }
     }
     setUser(null); 
@@ -351,7 +363,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFEBOAT MUSTER</h1>
+                <h1 className="text-sm md:text-base font-black text-slate-800 leading-none uppercase tracking-tight">LIFESAFE ODN1</h1>
               </div>
             </div>
           </div>
