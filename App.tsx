@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, LifeboatType, User, LifeboatStatus, TrainingRecord, ActiveSession, ScannedTag, Berth } from './types';
 import Login from './components/Login';
@@ -21,22 +22,50 @@ const INITIAL_STATUS: Record<LifeboatType, LifeboatStatus> = {
 };
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<AppState>(AppState.LOGIN);
-  const [user, setUser] = useState<User | null>(null);
-  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  // Lazy initializers for synchronous state loading
+  const [currentPage, setCurrentPage] = useState<AppState>(() => {
+    const saved = localStorage.getItem('lifesafe_current_page');
+    const user = localStorage.getItem('lifesafe_user');
+    return user ? (saved as AppState || AppState.DASHBOARD) : AppState.LOGIN;
+  });
+
+  const [user, setUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('lifesafe_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(() => {
+    const saved = localStorage.getItem('lifesafe_active_session');
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    if (!parsed.isPaused && parsed.startTime) {
+      const elapsed = Math.floor((Date.now() - parsed.startTime) / 1000);
+      parsed.seconds = (parsed.accumulatedSeconds || 0) + elapsed;
+    }
+    return parsed;
+  });
+
   const [fleetStatus, setFleetStatus] = useState<Record<LifeboatType, LifeboatStatus>>(INITIAL_STATUS);
   const [history, setHistory] = useState<TrainingRecord[]>([]);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isConfirmingLogout, setIsConfirmingLogout] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [tempConfig, setTempConfig] = useState<{trainingType: 'Gás' | 'Fogo/Abandono', isRealScenario: boolean} | null>(null);
+  const [tempConfig, setTempConfig] = useState<{trainingType: 'Gás' | 'Fogo/Abandono', isRealScenario: boolean} | null>(() => {
+    const saved = localStorage.getItem('lifesafe_temp_config');
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  const activeSessionRef = useRef<ActiveSession | null>(null);
+  const activeSessionRef = useRef<ActiveSession | null>(activeSession);
   const isInitializingRef = useRef<boolean>(true);
   const fleetStatusRef = useRef<Record<LifeboatType, LifeboatStatus>>(INITIAL_STATUS);
 
   useEffect(() => {
     activeSessionRef.current = activeSession;
+    if (activeSession) {
+      localStorage.setItem('lifesafe_active_session', JSON.stringify(activeSession));
+    } else {
+      localStorage.removeItem('lifesafe_active_session');
+    }
   }, [activeSession]);
 
   useEffect(() => {
@@ -74,28 +103,6 @@ const App: React.FC = () => {
 
     const initData = async () => {
       setIsSyncing(true);
-      const savedUser = localStorage.getItem('lifesafe_user');
-      const savedSession = localStorage.getItem('lifesafe_active_session');
-      const savedPage = localStorage.getItem('lifesafe_current_page');
-      const savedTempConfig = localStorage.getItem('lifesafe_temp_config');
-
-      if (savedUser) {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        if (savedSession) {
-          const parsedSession = JSON.parse(savedSession);
-          if (!parsedSession.isPaused && parsedSession.startTime) {
-            const elapsed = Math.floor((Date.now() - parsedSession.startTime) / 1000);
-            parsedSession.seconds = (parsedSession.accumulatedSeconds || 0) + elapsed;
-          }
-          setActiveSession(parsedSession);
-          activeSessionRef.current = parsedSession;
-        }
-        if (savedTempConfig) setTempConfig(JSON.parse(savedTempConfig));
-        if (savedPage) setCurrentPage(savedPage as AppState);
-        else setCurrentPage(AppState.DASHBOARD);
-      }
-
       await loadHistoryData();
 
       unsubscribeGeneralMuster = cloudService.subscribeToGeneralMusterTraining((data) => {
@@ -112,54 +119,26 @@ const App: React.FC = () => {
         if (localActiveSession && !isInitializingRef.current) {
           const remoteStatus = mergedStatus[localActiveSession.lifeboat];
           
-          if (remoteStatus && !remoteStatus.isActive) {
+          if (remoteStatus && !remoteStatus.isActive && !localActiveSession.isAdminView) {
             setActiveSession(null);
-            if (currentPage === AppState.TRAINING) {
-              setCurrentPage(AppState.DASHBOARD);
-            }
-          } else if (remoteStatus) {
+            if (currentPage === AppState.TRAINING) setCurrentPage(AppState.DASHBOARD);
+          } else if (remoteStatus && localActiveSession.isAdminView) {
+            // Only sync back if we are viewing as admin to avoid state fighting
             setActiveSession(prev => {
               if (!prev) return null;
-              
-              if (remoteStatus.isManualMode) {
-                return {
-                  ...prev,
-                  isPaused: true,
-                  seconds: remoteStatus.seconds || 0,
-                  accumulatedSeconds: remoteStatus.accumulatedSeconds || 0,
-                  tags: remoteStatus.tags || prev.tags,
-                  isManualMode: true
-                };
-              } 
-              
-              if (!remoteStatus.isManualMode && prev.isPaused && !remoteStatus.isPaused) {
-                return {
-                  ...prev,
-                  isPaused: false,
-                  startTime: remoteStatus.startTime || Date.now(),
-                  accumulatedSeconds: remoteStatus.accumulatedSeconds || 0,
-                  tags: remoteStatus.tags || prev.tags,
-                  isManualMode: false
-                };
+              let currentSeconds = remoteStatus.seconds || 0;
+              if (!remoteStatus.isPaused && remoteStatus.startTime) {
+                const elapsed = Math.floor((Date.now() - remoteStatus.startTime) / 1000);
+                currentSeconds = (remoteStatus.accumulatedSeconds || 0) + elapsed;
               }
-
-              if (prev.isAdminView) {
-                let currentSeconds = remoteStatus.seconds || 0;
-                if (!remoteStatus.isPaused && remoteStatus.startTime) {
-                  const elapsed = Math.floor((Date.now() - remoteStatus.startTime) / 1000);
-                  currentSeconds = (remoteStatus.accumulatedSeconds || 0) + elapsed;
-                }
-                return { ...prev, tags: remoteStatus.tags || [], seconds: currentSeconds, isPaused: remoteStatus.isPaused || false };
-              }
-              
-              return prev;
+              return { ...prev, tags: remoteStatus.tags || [], seconds: currentSeconds, isPaused: remoteStatus.isPaused || false };
             });
           }
         }
         setFleetStatus(mergedStatus);
       });
 
-      setTimeout(() => { isInitializingRef.current = false; setIsSyncing(false); }, 1500);
+      setTimeout(() => { isInitializingRef.current = false; setIsSyncing(false); }, 1000);
     };
     initData();
 
@@ -174,52 +153,28 @@ const App: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [finishSession, currentPage]);
+  }, [finishSession]);
 
   useEffect(() => {
-    if (activeSession) {
-      try {
-        const safeSession = {
-          lifeboat: activeSession.lifeboat,
-          leaderName: activeSession.leaderName,
-          trainingType: activeSession.trainingType,
-          isRealScenario: activeSession.isRealScenario,
-          tags: activeSession.tags || [],
-          seconds: activeSession.seconds || 0,
-          startTime: activeSession.startTime || 0,
-          accumulatedSeconds: activeSession.accumulatedSeconds || 0,
-          isPaused: !!activeSession.isPaused,
-          isAdminView: !!activeSession.isAdminView,
-          isManualMode: !!activeSession.isManualMode,
-          expectedCrew: activeSession.expectedCrew ? activeSession.expectedCrew.map(b => ({...b})) : []
-        };
-        localStorage.setItem('lifesafe_active_session', JSON.stringify(safeSession));
-      } catch (e) {
-        console.error("Failed to save session state safely", e);
-      }
-    } else {
-      localStorage.removeItem('lifesafe_active_session');
+    if (currentPage !== AppState.LOGIN) {
+      localStorage.setItem('lifesafe_current_page', currentPage);
     }
-  }, [activeSession]);
-
-  useEffect(() => {
-    if (currentPage !== AppState.LOGIN) localStorage.setItem('lifesafe_current_page', currentPage);
   }, [currentPage]);
 
+  useEffect(() => {
+    if (tempConfig) {
+      localStorage.setItem('lifesafe_temp_config', JSON.stringify(tempConfig));
+    } else {
+      localStorage.removeItem('lifesafe_temp_config');
+    }
+  }, [tempConfig]);
+
+  // Sync state to cloud effect (optimized: removed seconds from dependency to prevent flicker)
   useEffect(() => {
     const syncToCloud = async () => {
       const localActive = activeSessionRef.current;
       if (!localActive || localActive.isAdminView || isInitializingRef.current) return;
       
-      const remoteStatus = fleetStatusRef.current[localActive.lifeboat];
-      if (remoteStatus && remoteStatus.isActive === false) {
-        setActiveSession(null);
-        if (currentPage === AppState.TRAINING) {
-          setCurrentPage(AppState.DASHBOARD);
-        }
-        return;
-      }
-
       const update: LifeboatStatus = {
         count: localActive.tags.length,
         tags: localActive.tags,
@@ -238,7 +193,7 @@ const App: React.FC = () => {
       } catch (e) { console.error(e); }
     };
     syncToCloud();
-  }, [activeSession?.tags.length, activeSession?.isPaused, activeSession?.seconds]);
+  }, [activeSession?.tags.length, activeSession?.isPaused]); // Only sync on these critical changes
 
   const processNewScan = useCallback((tagId: string, tagData: string) => {
     if (!tagId) return;
@@ -289,30 +244,31 @@ const App: React.FC = () => {
 
   const startTrainingSession = async (lb: LifeboatType) => {
     setIsSyncing(true);
-    const allBerths = await cloudService.getBerths();
-    const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb);
-    
-    const ns: ActiveSession = { 
-      lifeboat: lb, 
-      leaderName: user?.name || 'Operador', 
-      trainingType: tempConfig?.trainingType || 'Fogo/Abandono', 
-      isRealScenario: tempConfig?.isRealScenario || false, 
-      tags: [], seconds: 0, startTime: Date.now(), 
-      accumulatedSeconds: 0, isPaused: false,
-      expectedCrew: expectedCrew
-    };
-    setActiveSession(ns);
-    setCurrentPage(AppState.TRAINING);
-    setIsSyncing(false);
+    try {
+      const allBerths = await cloudService.getBerths();
+      const expectedCrew = allBerths.filter(b => b.lifeboat === lb || b.secondaryLifeboat === lb);
+      
+      const ns: ActiveSession = { 
+        lifeboat: lb, 
+        leaderName: user?.name || 'Operador', 
+        trainingType: tempConfig?.trainingType || 'Fogo/Abandono', 
+        isRealScenario: tempConfig?.isRealScenario || false, 
+        tags: [], seconds: 0, startTime: Date.now(), 
+        accumulatedSeconds: 0, isPaused: false,
+        expectedCrew: expectedCrew
+      };
+      setActiveSession(ns);
+      setCurrentPage(AppState.TRAINING);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleLogin = (userData: User) => {
     setUser(userData);
-    try {
-      localStorage.setItem('lifesafe_user', JSON.stringify(userData));
-    } catch (e) {
-      console.error("Failed to save user info", e);
-    }
+    localStorage.setItem('lifesafe_user', JSON.stringify(userData));
     setCurrentPage(AppState.DASHBOARD);
   };
 
