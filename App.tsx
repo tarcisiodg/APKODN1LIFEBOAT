@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isConfirmingLogout, setIsConfirmingLogout] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [generalMusterStatus, setGeneralMusterStatus] = useState<{isActive: boolean, isFinished: boolean} | null>(null);
   const [tempConfig, setTempConfig] = useState<{trainingType: 'Gás' | 'Fogo/Abandono', isRealScenario: boolean} | null>(() => {
     const saved = localStorage.getItem('lifesafe_temp_config');
     return saved ? JSON.parse(saved) : null;
@@ -106,8 +107,11 @@ const App: React.FC = () => {
       await loadHistoryData();
 
       unsubscribeGeneralMuster = cloudService.subscribeToGeneralMusterTraining((data) => {
+        setGeneralMusterStatus(data);
         const localActiveSession = activeSessionRef.current;
-        if (data && data.isActive === false && localActiveSession && !localActiveSession.isAdminView) {
+        
+        // Regra de retorno automático: Se o exercício NÃO estiver ativo e NÃO estiver em estado de "Finalizado (aguardando salvar)", reseta o operador.
+        if (data && data.isActive === false && data.isFinished === false && localActiveSession && !localActiveSession.isAdminView) {
           finishSession();
         }
       });
@@ -120,6 +124,7 @@ const App: React.FC = () => {
           const remoteStatus = mergedStatus[localActiveSession.lifeboat];
           
           if (remoteStatus && !remoteStatus.isActive && !localActiveSession.isAdminView) {
+            // Se o status da baleeira foi resetado remotamente e não estamos no modo admin, fechar a sessão.
             setActiveSession(null);
             if (currentPage === AppState.TRAINING) setCurrentPage(AppState.DASHBOARD);
           } else if (remoteStatus && localActiveSession.isAdminView) {
@@ -153,7 +158,7 @@ const App: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [finishSession]);
+  }, [finishSession, currentPage]);
 
   useEffect(() => {
     if (currentPage !== AppState.LOGIN) {
@@ -334,7 +339,7 @@ const App: React.FC = () => {
         {currentPage === AppState.USER_MANAGEMENT && <UserManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.NFC_ENROLLMENT && <NfcEnrollment onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
         {currentPage === AppState.BERTH_MANAGEMENT && <BerthManagement onBack={() => setCurrentPage(AppState.DASHBOARD)} />}
-        {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onRemoveTag={removeTag} onTogglePause={(p) => setActiveSession(prev => prev ? (p ? { ...prev, isPaused: true, accumulatedSeconds: prev.seconds } : { ...prev, isPaused: false, startTime: Date.now() }) : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} isAdminUser={user?.isAdmin} />}
+        {currentPage === AppState.TRAINING && activeSession && <TrainingSession session={activeSession} onFinish={finishSession} onMinimize={() => setCurrentPage(AppState.DASHBOARD)} onScanTag={processNewScan} onRemoveTag={removeTag} onTogglePause={(p) => setActiveSession(prev => prev ? (p ? { ...prev, isPaused: true, accumulatedSeconds: prev.seconds } : { ...prev, isPaused: false, startTime: Date.now() }) : null)} onSaveRecord={saveToHistory} operatorName={user?.name || 'Operador'} isAdminUser={user?.isAdmin} generalTrainingStatus={generalMusterStatus} />}
       </main>
 
       {user && currentPage !== AppState.LOGIN && currentPage !== AppState.TRAINING && (

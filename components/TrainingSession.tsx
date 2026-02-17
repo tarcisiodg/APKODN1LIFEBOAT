@@ -13,6 +13,7 @@ interface TrainingSessionProps {
   onSaveRecord: (record: Omit<TrainingRecord, 'id' | 'operator'>) => void;
   operatorName: string;
   isAdminUser?: boolean;
+  generalTrainingStatus?: { isActive: boolean, isFinished: boolean } | null;
 }
 
 const LIFEBOATS: LifeboatType[] = ['Lifeboat 1', 'Lifeboat 2', 'Lifeboat 3', 'Lifeboat 4', 'Lifeboat 5', 'Lifeboat 6'];
@@ -22,7 +23,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   onMinimize, 
   onScanTag,
   onRemoveTag,
-  isAdminUser
+  isAdminUser,
+  generalTrainingStatus
 }) => {
   const [nfcState, setNfcState] = useState<'idle' | 'starting' | 'active' | 'error' | 'unsupported'>('idle');
   const [lastScannedText, setLastScannedText] = useState<string | null>(null);
@@ -83,7 +85,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       setNfcState('active');
       reader.addEventListener("reading", async ({ message, serialNumber }: any) => {
         const tagId = serialNumber || "";
-        if (!tagId || session.isManualMode) return;
+        // Bloquear leitura se estiver finalizado ou em modo manual
+        if (!tagId || session.isManualMode || generalTrainingStatus?.isFinished) return;
 
         const matchedBerth = session.expectedCrew?.find(b => 
           (b.tagId1 && b.tagId1.trim().toLowerCase() === tagId.trim().toLowerCase()) ||
@@ -142,8 +145,23 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
   return (
     <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pb-32">
+      {/* Aviso de Treinamento Finalizado pelo Admin */}
+      {generalTrainingStatus?.isFinished && (
+        <div className="mb-6 animate-in slide-in-from-top-10 duration-500">
+          <div className="bg-rose-600 border border-rose-500 rounded-[32px] p-6 flex flex-col items-center justify-center gap-3 shadow-xl shadow-rose-600/20 text-center">
+            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center animate-bounce">
+              <i className="fa-solid fa-flag-checkered text-white text-2xl"></i>
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter">Exercício Finalizado</h3>
+              <p className="text-[10px] font-bold text-rose-100 uppercase tracking-widest mt-1">Aguardando arquivamento dos dados pelo comando...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Aviso de Modo Manual */}
-      {session.isManualMode && (
+      {session.isManualMode && !generalTrainingStatus?.isFinished && (
         <div className="mb-6 animate-in slide-in-from-top-4 duration-500">
           <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex items-center gap-4 shadow-sm">
             <div className="w-10 h-10 bg-amber-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 animate-pulse">
@@ -198,8 +216,8 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           </div>
         </div>
         
-        <div className={`text-white p-3 px-6 rounded-[24px] shadow-sm flex flex-col items-center min-w-[140px] transition-colors ${session.isManualMode ? 'bg-amber-600' : 'bg-[#111827]'}`}>
-             <span className="text-[8px] font-black opacity-50 uppercase tracking-[0.25em]">{session.isManualMode ? 'MODO MANUAL' : 'CRONÔMETRO'}</span>
+        <div className={`text-white p-3 px-6 rounded-[24px] shadow-sm flex flex-col items-center min-w-[140px] transition-colors ${generalTrainingStatus?.isFinished ? 'bg-rose-500 opacity-80' : session.isManualMode ? 'bg-amber-600' : 'bg-[#111827]'}`}>
+             <span className="text-[8px] font-black opacity-50 uppercase tracking-[0.25em]">{generalTrainingStatus?.isFinished ? 'TEMPO FINAL' : (session.isManualMode ? 'MODO MANUAL' : 'CRONÔMETRO')}</span>
              <span className="text-2xl font-mono font-black mt-1 tracking-tighter tabular-nums">{formatTime(session.seconds)}</span>
         </div>
       </div>
@@ -246,7 +264,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                     </div>
                     <div className="flex items-center gap-6 pr-2">
                       <span className="text-[10px] font-black text-slate-400 tabular-nums">{tag.timestamp}</span>
-                      {!session.isAdminView && (
+                      {!session.isAdminView && !generalTrainingStatus?.isFinished && (
                         <button onClick={() => setTagToDelete(tag)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-400 flex items-center justify-center active:scale-90 transition-all"><i className="fa-solid fa-trash-can text-[10px]"></i></button>
                       )}
                     </div>
