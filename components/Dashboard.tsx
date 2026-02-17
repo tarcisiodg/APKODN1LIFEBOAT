@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth, TrainingRecord, ScannedTag } from '../types';
 import { cloudService } from '../services/cloudService';
@@ -45,6 +46,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [releasedIds, setReleasedIds] = useState<string[]>([]);
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [selectedForAction, setSelectedForAction] = useState<Set<string>>(new Set());
+  
   const [isConfirmingGeneralFinish, setIsConfirmingGeneralFinish] = useState(false);
   const [isPobConsultOpen, setIsPobConsultOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,7 +154,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const overallMusterTotal = useMemo(() => totalPeopleInFleet + totalManualGroups, [totalPeopleInFleet, totalManualGroups]);
 
-  const musterDiff = useMemo(() => berthStats.occupied - overallMusterTotal, [berthStats.occupied, overallMusterTotal]);
+  const berthStatsOccupiedActual = useMemo(() => berthStats.occupied, [berthStats.occupied]);
+
+  const musterDiff = useMemo(() => berthStatsOccupiedActual - overallMusterTotal, [berthStatsOccupiedActual, overallMusterTotal]);
 
   const capacityPercentage = useMemo(() => {
     if (berthStats.total === 0) return 0;
@@ -256,8 +261,13 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const updateManualCount = async (category: string, delta: number) => {
     if (category === 'LIBERADOS') {
-      if (delta > 0) setIsReleaseModalOpen(true);
-      else if (releasedIds.length > 0) setIsReturnModalOpen(true);
+      setSearchTerm('');
+      setSelectedForAction(new Set());
+      if (delta > 0) {
+        setIsReleaseModalOpen(true);
+      } else if (releasedIds.length > 0) {
+        setIsReturnModalOpen(true);
+      }
       return;
     }
 
@@ -269,6 +279,47 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   };
 
+  const handleConfirmRelease = async () => {
+    if (selectedForAction.size === 0) return;
+    setIsSaving(true);
+    try {
+      const newIds = [...new Set([...releasedIds, ...Array.from(selectedForAction)])];
+      await cloudService.updateReleasedCrew(newIds);
+      const updatedCounters = { ...manualCounts, 'LIBERADOS': newIds.length };
+      await cloudService.updateManualCounters(updatedCounters);
+      setIsReleaseModalOpen(false);
+      setSelectedForAction(new Set());
+    } catch (e) {
+      alert("Erro ao processar liberação.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirmReturn = async () => {
+    if (selectedForAction.size === 0) return;
+    setIsSaving(true);
+    try {
+      const newIds = releasedIds.filter(id => !selectedForAction.has(id));
+      await cloudService.updateReleasedCrew(newIds);
+      const updatedCounters = { ...manualCounts, 'LIBERADOS': newIds.length };
+      await cloudService.updateManualCounters(updatedCounters);
+      setIsReturnModalOpen(false);
+      setSelectedForAction(new Set());
+    } catch (e) {
+      alert("Erro ao processar retorno.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    const next = new Set(selectedForAction);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedForAction(next);
+  };
+
   const toggleLifeboatManualMode = async (lb: LifeboatType) => {
     const status = fleetStatus[lb];
     const isNowManual = !status?.isManualMode;
@@ -276,7 +327,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     let updatedStatus = { ...status };
     
     if (isNowManual) {
-      // Ao entrar no modo manual, congelamos o tempo atual
       let currentSeconds = status.seconds || 0;
       if (!status.isPaused && status.startTime) {
         const elapsed = Math.floor((Date.now() - status.startTime) / 1000);
@@ -292,13 +342,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         seconds: currentSeconds
       };
     } else {
-      // Ao sair do modo manual, retomamos a contagem de tempo do ponto onde parou
       updatedStatus = {
         ...status,
         isManualMode: false,
         isPaused: false,
         startTime: Date.now()
-        // accumulatedSeconds permanece igual para o App.tsx retomar
       };
     }
 
@@ -365,7 +413,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   }, [allBerths, searchTerm]);
 
-  // NFC Test Logic
+  const availableToRelease = useMemo(() => {
+    return sortedPobList.filter(b => b.crewName && b.crewName.trim() !== '' && !releasedIds.includes(b.id));
+  }, [sortedPobList, releasedIds]);
+
+  const currentlyReleased = useMemo(() => {
+    return allBerths.filter(b => releasedIds.includes(b.id) && (b.crewName?.toUpperCase().includes(searchTerm.toUpperCase()) || b.id.toUpperCase().includes(searchTerm.toUpperCase())));
+  }, [allBerths, releasedIds, searchTerm]);
+
   const startNfcTest = async () => {
     if (!('NDEFReader' in window)) {
       alert("NFC não suportado neste dispositivo.");
@@ -726,10 +781,91 @@ const Dashboard: React.FC<DashboardProps> = ({
         </>
       )}
 
+      {/* Release Crew Selection Modal */}
+      {(isReleaseModalOpen || isReturnModalOpen) && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
+          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-4xl w-full p-4 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[90vh] border border-slate-100">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tighter">
+                  {isReleaseModalOpen ? 'Liberar Tripulantes' : 'Retornar Tripulantes'}
+                </h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 opacity-70">
+                  {isReleaseModalOpen ? 'Escolha quem ficará fora da contagem de baleeira' : 'Escolha quem retornará para a contagem normal'}
+                </p>
+              </div>
+              <button 
+                onClick={() => { setIsReleaseModalOpen(false); setIsReturnModalOpen(false); setSelectedForAction(new Set()); }} 
+                className="w-12 h-12 bg-slate-50 rounded-2xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shadow-sm border border-slate-100"
+              >
+                <i className="fa-solid fa-xmark text-xl"></i>
+              </button>
+            </div>
+
+            <div className="relative mb-6">
+              <div className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-blue-500 bg-blue-50 rounded-lg">
+                <i className="fa-solid fa-magnifying-glass text-xs"></i>
+              </div>
+              <input 
+                type="text" 
+                placeholder="BUSCAR NOME, FUNÇÃO OU LEITO..." 
+                className="w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-[20px] text-[11px] font-black uppercase focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner" 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6 space-y-3">
+              {(isReleaseModalOpen ? availableToRelease : currentlyReleased).length === 0 ? (
+                <div className="py-20 text-center text-slate-300">
+                   <i className="fa-solid fa-users-slash text-5xl mb-4 opacity-20"></i>
+                   <p className="text-[11px] font-black uppercase tracking-widest">Nenhum tripulante disponível</p>
+                </div>
+              ) : (
+                (isReleaseModalOpen ? availableToRelease : currentlyReleased).map(b => {
+                  const isSelected = selectedForAction.has(b.id);
+                  return (
+                    <div 
+                      key={b.id} 
+                      onClick={() => toggleSelection(b.id)}
+                      className={`p-4 rounded-[24px] border-2 cursor-pointer transition-all flex items-center justify-between gap-4 ${isSelected ? 'border-blue-600 bg-blue-50/30 shadow-md' : 'border-slate-100 bg-white hover:border-slate-200'}`}
+                    >
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                         <div className={`w-12 h-10 rounded-xl flex items-center justify-center text-[11px] font-mono font-black ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-900 text-white'}`}>
+                           {b.id}
+                         </div>
+                         <div className="min-w-0">
+                           <h4 className="text-[13px] font-black uppercase truncate">{b.crewName}</h4>
+                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight truncate">{b.role || '-'} • {b.company || '-'}</p>
+                         </div>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 bg-white'}`}>
+                        {isSelected && <i className="fa-solid fa-check text-[10px]"></i>}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-auto pt-6 border-t border-slate-100">
+              <button 
+                onClick={isReleaseModalOpen ? handleConfirmRelease : handleConfirmReturn} 
+                disabled={selectedForAction.size === 0 || isSaving}
+                className={`w-full py-5 rounded-[24px] font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 ${selectedForAction.size === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : (isReleaseModalOpen ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-emerald-600 text-white shadow-emerald-600/20')}`}
+              >
+                {isSaving ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className={`fa-solid ${isReleaseModalOpen ? 'fa-arrow-right-from-bracket' : 'fa-arrow-right-to-bracket'}`}></i>}
+                {isReleaseModalOpen ? `Liberar ${selectedForAction.size} Selecionados` : `Retornar ${selectedForAction.size} Selecionados`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* NFC Test Modal */}
       {isTestNfcOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300 border border-slate-100 overflow-hidden">
+          <div className="bg-white rounded-[40px] max-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300 border border-slate-100 overflow-hidden">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Testar Cartão NFC</h3>
               <button onClick={closeNfcTest} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors">
