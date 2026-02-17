@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, LifeboatStatus, LifeboatType, ActiveSession, Berth, TrainingRecord, ScannedTag } from '../types';
 import { cloudService } from '../services/cloudService';
@@ -208,8 +207,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       duration: durationStr,
       finalTotal: overallMusterTotal
     };
-    await cloudService.updateGeneralMusterTraining(newState);
-    setIsConfirmingGeneralFinish(false);
+    
+    setIsSaving(true);
+    try {
+      await cloudService.updateGeneralMusterTraining(newState);
+      // Automatically pause all active lifeboat timers
+      await cloudService.pauseAllActiveLifeboats();
+    } catch (e) {
+      console.error("Erro ao finalizar contagem geral:", e);
+    } finally {
+      setIsSaving(false);
+      setIsConfirmingGeneralFinish(false);
+    }
   };
 
   const handleSaveAndClearEverything = async () => {
@@ -252,6 +261,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       };
 
       await cloudService.saveTrainingRecord(record);
+      // Finalize Everything Globally now resets all lifeboats to isActive: false
       await cloudService.finalizeEverythingGlobally();
       setGeneralTraining({ isActive: false, isFinished: false, startTime: '', endTime: '', duration: '' });
     } catch (e) {
@@ -341,7 +351,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         manualCount: status.count || 0,
         isPaused: true,
         accumulatedSeconds: currentSeconds,
-        seconds: currentSeconds
+        seconds: currentSeconds,
+        startTime: 0
       };
     } else {
       updatedStatus = {
@@ -687,7 +698,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {activeSession ? 'Retomar Sessão' : (generalTraining.isRealScenario && generalTraining.isActive ? 'EMERGÊNCIA: INICIAR' : 'Iniciar Embarque')}
                       </div>
                       <div className="text-[11px] sm:text-[14px] opacity-80 uppercase font-black tracking-[0.2em] mt-1">
-                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFESAFE ODN1')}
+                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFEBOAT MUSTER')}
                       </div>
                   </div>
               </button>
@@ -1212,8 +1223,10 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Finalizar Contagem?</h3>
             <div className="grid gap-3">
-              <button onClick={handleFinishGeneralTraining} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all border border-rose-400/30">Sim, Finalizar</button>
-              <button onClick={() => setIsConfirmingGeneralFinish(false)} className="w-full py-5 bg-slate-50 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all">Cancelar</button>
+              <button onClick={handleFinishGeneralTraining} disabled={isSaving} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[11px] uppercase tracking-widest shadow-xl shadow-rose-600/20 active:scale-95 transition-all border border-rose-400/30">
+                {isSaving ? <i className="fa-solid fa-spinner animate-spin"></i> : 'Sim, Finalizar'}
+              </button>
+              <button onClick={() => setIsConfirmingGeneralFinish(false)} disabled={isSaving} className="w-full py-5 bg-slate-100 text-slate-400 font-black rounded-3xl text-[11px] uppercase tracking-widest active:scale-95 transition-all">Cancelar</button>
             </div>
           </div>
         </div>

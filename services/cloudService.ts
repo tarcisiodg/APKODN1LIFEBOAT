@@ -1,4 +1,3 @@
-
 import { db } from './firebaseConfig';
 import { 
   collection, 
@@ -245,6 +244,40 @@ export const cloudService = {
     await updateDoc(fleetRef, { [lb]: status });
   },
 
+  async pauseAllActiveLifeboats(): Promise<void> {
+    const fleetRef = doc(db, "fleet", "status");
+    const snap = await getDoc(fleetRef);
+    if (!snap.exists()) return;
+
+    const fleet = snap.data() as Record<string, LifeboatStatus>;
+    const updatedFleet: Record<string, LifeboatStatus> = {};
+    let hasChanges = false;
+
+    Object.entries(fleet).forEach(([lb, s]) => {
+      if (s.isActive && !s.isPaused) {
+        let currentSeconds = s.seconds || 0;
+        if (s.startTime) {
+          const elapsed = Math.floor((Date.now() - s.startTime) / 1000);
+          currentSeconds = (s.accumulatedSeconds || 0) + elapsed;
+        }
+        updatedFleet[lb] = {
+          ...s,
+          isPaused: true,
+          accumulatedSeconds: currentSeconds,
+          seconds: currentSeconds,
+          startTime: 0 // Stop the running clock
+        };
+        hasChanges = true;
+      } else {
+        updatedFleet[lb] = s;
+      }
+    });
+
+    if (hasChanges) {
+      await setDoc(fleetRef, updatedFleet);
+    }
+  },
+
   subscribeToFleet(callback: (status: Record<string, LifeboatStatus>) => void) {
     const fleetRef = doc(db, "fleet", "status");
     return onSnapshot(fleetRef, (doc) => {
@@ -268,7 +301,7 @@ export const cloudService = {
   async finalizeEverythingGlobally(): Promise<void> {
     const resetFleet: any = {};
     LIFEBOATS.forEach(lb => { 
-      resetFleet[lb] = { count: 0, isActive: false, tags: [], seconds: 0 }; 
+      resetFleet[lb] = { count: 0, isActive: false, tags: [], seconds: 0, isPaused: false, startTime: 0, accumulatedSeconds: 0 }; 
     });
     const resetCounters = Object.fromEntries(MANUAL_CATEGORIES.map(cat => [cat, 0]));
     
@@ -276,7 +309,7 @@ export const cloudService = {
       this.updateFleetStatus(resetFleet),
       this.updateManualCounters(resetCounters),
       this.updateReleasedCrew([]),
-      this.updateGeneralMusterTraining({ isActive: false, startTime: '', endTime: '', duration: '' })
+      this.updateGeneralMusterTraining({ isActive: false, startTime: '', endTime: '', duration: '', description: '', finalTotal: 0, isFinished: false })
     ]);
   }
 };
