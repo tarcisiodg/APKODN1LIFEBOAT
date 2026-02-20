@@ -237,14 +237,28 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">TAG HELIDECK</label>
                   <div className="flex gap-2">
-                    <input type="text" value={newBerth.tagId1 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase" />
+                    <div className="relative flex-1">
+                      <input type="text" value={newBerth.tagId1 || ''} readOnly className="w-full px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase pr-10" />
+                      {newBerth.tagId1 && (
+                        <button type="button" onClick={() => setNewBerth({...newBerth, tagId1: ''})} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors">
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
+                    </div>
                     <button type="button" onClick={() => handleScanTag('tagId1')} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-wifi"></i></button>
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">TAG PROA</label>
                   <div className="flex gap-2">
-                    <input type="text" value={newBerth.tagId2 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase" />
+                    <div className="relative flex-1">
+                      <input type="text" value={newBerth.tagId2 || ''} readOnly className="w-full px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase pr-10" />
+                      {newBerth.tagId2 && (
+                        <button type="button" onClick={() => setNewBerth({...newBerth, tagId2: ''})} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors">
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
+                    </div>
                     <button type="button" onClick={() => handleScanTag('tagId2')} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center active:scale-90 shadow-sm"><i className="fa-solid fa-wifi"></i></button>
                   </div>
                 </div>
@@ -257,7 +271,14 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">TAG POPA</label>
                   <div className="flex gap-2">
-                    <input type="text" value={newBerth.tagId3 || ''} readOnly className="flex-1 px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase" />
+                    <div className="relative flex-1">
+                      <input type="text" value={newBerth.tagId3 || ''} readOnly className="w-full px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase pr-10" />
+                      {newBerth.tagId3 && (
+                        <button type="button" onClick={() => setNewBerth({...newBerth, tagId3: ''})} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors">
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
+                    </div>
                     <button type="button" onClick={() => handleScanTag('tagId3')} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center active:scale-90 shadow-sm"><i className="fa-solid fa-wifi"></i></button>
                   </div>
                 </div>
