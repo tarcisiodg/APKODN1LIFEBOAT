@@ -20,6 +20,8 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isScanning, setIsScanning] = useState<string | null>(null);
+  const [isDuplicateWarningOpen, setIsDuplicateWarningOpen] = useState(false);
+  const [duplicateBerthId, setDuplicateBerthId] = useState<string | null>(null);
   
   const [newBerth, setNewBerth] = useState<Partial<Berth>>({
     id: '', tagId1: '', tagId2: '', tagId3: '', crewName: '',
@@ -69,14 +71,29 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
       reader.addEventListener("reading", ({ serialNumber }: any) => {
         const tagId = serialNumber?.toUpperCase();
         if (tagId) {
-          const existsInSystem = berths.some(b => 
+          // Check for duplicates in other berths
+          const duplicateBerth = berths.find(b => 
             (b.id !== newBerth.id) && (b.tagId1 === tagId || b.tagId2 === tagId || b.tagId3 === tagId)
           );
-          if (existsInSystem) {
-            alert("Cartão já cadastrado em outro leito!");
+          
+          if (duplicateBerth) {
+            setDuplicateBerthId(duplicateBerth.id);
+            setIsDuplicateWarningOpen(true);
             stopNfcScan();
             return;
           }
+
+          // Check for duplicates in the same berth (other fields)
+          const otherFields = ['tagId1', 'tagId2', 'tagId3'].filter(f => f !== field);
+          const isDuplicateInSameBerth = otherFields.some(f => (newBerth as any)[f] === tagId);
+          
+          if (isDuplicateInSameBerth) {
+            setDuplicateBerthId(newBerth.id || 'ATUAL');
+            setIsDuplicateWarningOpen(true);
+            stopNfcScan();
+            return;
+          }
+
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
           setNewBerth(prev => ({ ...prev, [field]: tagId }));
           stopNfcScan();
@@ -325,6 +342,27 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
               <button onClick={async () => { await cloudService.clearBerthNames(); await loadBerths(); setIsConfirmingClear(false); }} className="w-full py-4 bg-rose-600 text-white font-bold rounded-xl text-xs uppercase active:scale-95 shadow-sm">Sim, Limpar</button>
               <button onClick={() => setIsConfirmingClear(false)} className="w-full py-4 bg-slate-100 text-slate-400 font-bold rounded-xl text-xs uppercase">Cancelar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isDuplicateWarningOpen && (
+        <div className="fixed inset-0 z-[300] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <i className="fa-solid fa-triangle-exclamation text-3xl"></i>
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">TAG JÁ CADASTRADA</h3>
+            <p className="text-slate-500 text-[11px] font-bold uppercase mb-8 leading-relaxed">
+              Este cartão já está vinculado ao leito <span className="text-rose-600 font-black">{duplicateBerthId}</span>.
+              <br/>Utilize outro cartão ou remova o vínculo anterior.
+            </p>
+            <button 
+              onClick={() => setIsDuplicateWarningOpen(false)} 
+              className="w-full py-5 bg-slate-900 text-white font-bold rounded-2xl text-xs uppercase active:scale-95 shadow-lg shadow-slate-200 transition-all"
+            >
+              Entendido
+            </button>
           </div>
         </div>
       )}
