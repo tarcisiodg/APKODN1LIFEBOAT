@@ -234,7 +234,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
           <div className="bg-white rounded-[32px] max-w-2xl w-full p-8 shadow-md animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh] custom-scrollbar">
             {isScanning && (
               <div className="absolute inset-0 bg-blue-600/95 backdrop-blur-md z-[120] flex flex-col items-center justify-center p-10 text-center text-white">
-                <i className="fa-solid fa-wifi text-5xl mb-6 animate-pulse"></i>
+                <i className="fa-solid fa-rss text-5xl mb-6 animate-pulse"></i>
                 <h4 className="text-xl font-bold uppercase mb-2">Aproxime a TAG</h4>
                 <p className="text-xs font-bold text-blue-100 uppercase mb-8">Campo: {isScanning.toUpperCase()}</p>
                 <button onClick={stopNfcScan} className="px-8 py-3 bg-white text-blue-600 rounded-xl font-bold uppercase text-[10px] shadow-sm">Cancelar</button>
@@ -261,7 +261,13 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                         </button>
                       )}
                     </div>
-                    <button type="button" onClick={() => handleScanTag('tagId1')} className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-wifi"></i></button>
+                    <button 
+                      type="button" 
+                      onClick={() => handleScanTag('tagId1')} 
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm active:scale-90 transition-all ${newBerth.tagId1 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}
+                    >
+                      {newBerth.tagId1 ? <i className="fa-solid fa-id-card"></i> : <i className="fa-solid fa-rss"></i>}
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -275,7 +281,13 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                         </button>
                       )}
                     </div>
-                    <button type="button" onClick={() => handleScanTag('tagId2')} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center active:scale-90 shadow-sm"><i className="fa-solid fa-wifi"></i></button>
+                    <button 
+                      type="button" 
+                      onClick={() => handleScanTag('tagId2')} 
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm active:scale-90 transition-all ${newBerth.tagId2 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}
+                    >
+                      {newBerth.tagId2 ? <i className="fa-solid fa-id-card"></i> : <i className="fa-solid fa-rss"></i>}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -295,7 +307,13 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                         </button>
                       )}
                     </div>
-                    <button type="button" onClick={() => handleScanTag('tagId3')} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center active:scale-90 shadow-sm"><i className="fa-solid fa-wifi"></i></button>
+                    <button 
+                      type="button" 
+                      onClick={() => handleScanTag('tagId3')} 
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm active:scale-90 transition-all ${newBerth.tagId3 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}
+                    >
+                      {newBerth.tagId3 ? <i className="fa-solid fa-id-card"></i> : <i className="fa-solid fa-rss"></i>}
+                    </button>
                   </div>
                 </div>
               </div>

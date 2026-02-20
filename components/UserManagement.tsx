@@ -86,87 +86,100 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-40 animate-in fade-in duration-500">
-      <div className="flex items-center gap-4 mb-8">
-        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95"><i className="fa-solid fa-chevron-left"></i></button>
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight uppercase">Gestão de Usuários</h2>
-            {isLoading && <i className="fa-solid fa-cloud-arrow-down animate-bounce text-blue-500 text-xs"></i>}
+    <div className="flex-1 flex flex-col p-6 max-w-6xl mx-auto w-full pb-40 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95"><i className="fa-solid fa-chevron-left"></i></button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Gestão de Usuários</h2>
+              {isLoading && <i className="fa-solid fa-cloud-arrow-down animate-bounce text-blue-500 text-xs"></i>}
+            </div>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest opacity-60">CONFIGURAÇÕES DE ACESSO E PERMISSÕES</p>
           </div>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest opacity-60">CONFIGURAÇÕES DE USUÁRIOS</p>
         </div>
       </div>
 
-      <div className="flex bg-slate-100 p-1 rounded-2xl mb-8 shadow-sm">
-        <button onClick={() => setActiveTab('all')} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Aprovados ({registeredUsers.length})</button>
-        <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'pending' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Pendentes ({pendingUsers.length})</button>
+      <div className="flex bg-slate-100/80 p-1.5 rounded-[20px] mb-8 shadow-inner max-w-md">
+        <button onClick={() => setActiveTab('all')} className={`flex-1 py-3 rounded-[14px] text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === 'all' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
+          Aprovados <span className={`ml-1 px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'all' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>{registeredUsers.length}</span>
+        </button>
+        <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 rounded-[14px] text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === 'pending' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
+          Pendentes <span className={`ml-1 px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'pending' ? 'bg-blue-50 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>{pendingUsers.length}</span>
+        </button>
       </div>
 
-      <div className="space-y-4 relative">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 relative">
         {isLoading && !editingUser && !deletingId && (
-          <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-3xl">
-            <div className="bg-white px-6 py-4 rounded-2xl shadow-md flex items-center gap-3 border border-slate-100">
-              <i className="fa-solid fa-spinner animate-spin text-blue-600"></i>
-              <span className="text-xs font-black text-slate-800 uppercase tracking-widest">Sincronizando...</span>
+          <div className="absolute inset-0 bg-slate-50/40 backdrop-blur-[2px] z-20 flex items-center justify-center rounded-3xl">
+            <div className="bg-white px-8 py-5 rounded-[32px] shadow-xl flex items-center gap-4 border border-slate-100 animate-in fade-in zoom-in duration-300">
+              <div className="relative">
+                <div className="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+              </div>
+              <span className="text-xs font-black text-slate-800 uppercase tracking-widest">Sincronizando Dados...</span>
             </div>
           </div>
         )}
 
         {(activeTab === 'all' ? registeredUsers : pendingUsers).map(u => (
-          <div key={u.loginId} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm transition-all hover:shadow-md">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${u.status === 'native' ? 'bg-blue-50 text-blue-600' : u.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-500'}`}>
-                  <i className={`fa-solid ${u.status === 'native' ? 'fa-user-gear' : 'fa-cloud-user'}`}></i>
+          <div key={u.loginId} className="group bg-white rounded-[32px] p-5 border border-slate-100 shadow-sm transition-all duration-300 hover:shadow-xl hover:border-blue-100 hover:-translate-y-1">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-5">
+                <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center flex-shrink-0 transition-transform duration-500 group-hover:scale-110 ${u.status === 'native' ? 'bg-blue-50 text-blue-600' : u.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-500'}`}>
+                  <i className={`fa-solid ${u.status === 'native' ? 'fa-user-shield' : 'fa-user-check'} text-2xl`}></i>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-black text-slate-900 text-sm leading-none">{u.name}</h4>
-                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase">{u.loginId}</span>
+                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    <h4 className="font-black text-slate-900 text-lg tracking-tight leading-tight">{u.name}</h4>
+                    <span className="text-[8px] font-black px-2 py-1 rounded-lg bg-slate-100 text-slate-500 uppercase tracking-wider">@{u.loginId}</span>
                   </div>
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                    {u.role}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{u.role}</span>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="flex flex-col items-end gap-3">
                 {u.status === 'pending' ? (
-                  <>
-                    <button onClick={() => handleApproval(u.loginId, true)} className="flex-1 bg-emerald-600 text-white font-black px-4 py-2 rounded-xl text-[9px] uppercase tracking-widest shadow-sm active:scale-95 transition-all">Aprovar</button>
-                    <button onClick={() => handleApproval(u.loginId, false)} className="flex-1 bg-rose-50 text-rose-500 font-black px-4 py-2 rounded-xl text-[9px] uppercase tracking-widest active:scale-95 transition-all">Recusar</button>
-                  </>
+                  <div className="flex flex-col gap-2 w-full min-w-[120px]">
+                    <button onClick={() => handleApproval(u.loginId, true)} className="w-full bg-emerald-600 text-white font-black px-4 py-2.5 rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all">Aprovar</button>
+                    <button onClick={() => handleApproval(u.loginId, false)} className="w-full bg-rose-50 text-rose-500 font-black px-4 py-2.5 rounded-xl text-[10px] uppercase tracking-widest hover:bg-rose-100 active:scale-95 transition-all">Recusar</button>
+                  </div>
                 ) : (
-                  <>
+                  <div className="flex flex-col items-end gap-3">
+                    <div className={`text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-[0.15em] border ${u.status === 'native' ? 'bg-blue-600 text-white border-blue-600' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                      {u.status === 'native' ? 'SISTEMA' : 'ATIVO'}
+                    </div>
                     {u.status !== 'native' && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <button 
                           onClick={() => startEdit(u)}
-                          className="w-9 h-9 bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 rounded-xl flex items-center justify-center transition-all shadow-sm"
+                          className="w-10 h-10 bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm active:scale-90"
                           title="Editar Cadastro"
                         >
-                          <i className="fa-solid fa-pen-to-square text-xs"></i>
+                          <i className="fa-solid fa-pen-to-square text-sm"></i>
                         </button>
                         <button 
                           onClick={() => setDeletingId(u.loginId)}
-                          className="w-9 h-9 bg-slate-50 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl flex items-center justify-center transition-all shadow-sm"
+                          className="w-10 h-10 bg-slate-50 text-slate-400 hover:bg-rose-600 hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm active:scale-90"
                           title="Excluir Usuário"
                         >
-                          <i className="fa-solid fa-trash-can text-xs"></i>
+                          <i className="fa-solid fa-trash-can text-sm"></i>
                         </button>
                       </div>
                     )}
-                    <div className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] border border-slate-100 px-3 py-2 rounded-lg bg-slate-50">
-                      {u.status === 'native' ? 'SISTEMA' : 'ATIVO'}
-                    </div>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
           </div>
         ))}
-        {users.length === 0 && !isLoading && <div className="text-center py-20 text-slate-300 font-bold uppercase tracking-widest text-xs">Nenhum usuário encontrado</div>}
+        {(activeTab === 'all' ? registeredUsers : pendingUsers).length === 0 && !isLoading && (
+          <div className="col-span-full flex flex-col items-center justify-center py-32 bg-slate-50/50 rounded-[40px] border-2 border-dashed border-slate-200">
+            <i className="fa-solid fa-users-slash text-5xl text-slate-200 mb-4"></i>
+            <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-xs">Nenhum usuário encontrado</p>
+          </div>
+        )}
       </div>
 
       {/* Modal de Edição */}
