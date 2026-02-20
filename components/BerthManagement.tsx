@@ -369,7 +369,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
             <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <i className="fa-solid fa-triangle-exclamation text-3xl"></i>
             </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">TAG JÁ CADASTRADA</h3>
+            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">CARTÃO JÁ CADASTRADO</h3>
             <p className="text-slate-500 text-[11px] font-bold uppercase mb-8 leading-relaxed">
               Este cartão já está vinculado ao leito <span className="text-rose-600 font-black">{duplicateBerthId}</span>.
               <br/>Utilize outro cartão ou remova o vínculo anterior.
