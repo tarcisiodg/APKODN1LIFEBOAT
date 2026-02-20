@@ -152,7 +152,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
   );
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-6 max-w-7xl mx-auto w-full pb-40 animate-in fade-in duration-500">
+    <div className="flex-1 flex flex-col p-4 md:p-6 2xl:max-w-[1600px] max-w-full mx-auto w-full pb-40 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-600 shadow-sm active:scale-90">
@@ -185,43 +185,42 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sincronizando...</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse min-w-[1300px]">
+            <table className="w-full text-left border-collapse min-w-full lg:min-w-0">
               <thead className="sticky top-0 bg-white z-10 border-b border-slate-200">
                 <tr>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Ação</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Leito</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Tripulante</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Função</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Empresa</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Helideck</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Proa</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Popa</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Primária</th>
-                  <th className="p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Secundária</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Ação</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Leito</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Tripulante</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Função</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Empresa</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Helideck</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Proa</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Popa</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Primária</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Secundária</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredBerths.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4">
+                    <td className="p-3 xl:p-4">
                       <button onClick={() => handleEditClick(b)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all shadow-sm">
                         <i className="fa-solid fa-pencil text-[10px]"></i>
                       </button>
                     </td>
-                    <td className="p-4">
-                      {/* FIX: added whitespace-nowrap and inline-block to prevent text breaking inside the badge */}
+                    <td className="p-3 xl:p-4">
                       <span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm whitespace-nowrap inline-block">
                         {b.id}
                       </span>
                     </td>
-                    <td className="p-4"><span className={`text-xs font-bold uppercase tracking-tight ${b.crewName ? 'text-slate-800' : 'text-slate-200 italic opacity-50'}`}>{b.crewName || 'VAZIO'}</span></td>
-                    <td className="p-4 text-[10px] font-medium text-slate-500 uppercase">{b.role || '-'}</td>
-                    <td className="p-4 text-[10px] font-bold text-blue-600 uppercase">{b.company || '-'}</td>
-                    <td className="p-4 font-mono text-[9px] text-blue-600 font-bold">{b.tagId1 || '-'}</td>
-                    <td className="p-4 font-mono text-[9px] text-slate-400 font-bold">{b.tagId2 || '-'}</td>
-                    <td className="p-4 font-mono text-[9px] text-slate-400 font-bold">{b.tagId3 || '-'}</td>
-                    <td className="p-4 text-center"><span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase">{b.lifeboat}</span></td>
-                    <td className="p-4 text-center"><span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">{b.secondaryLifeboat || '-'}</span></td>
+                    <td className="p-3 xl:p-4"><span className={`text-xs font-bold uppercase tracking-tight ${b.crewName ? 'text-slate-800' : 'text-slate-200 italic opacity-50'}`}>{b.crewName || 'VAZIO'}</span></td>
+                    <td className="p-3 xl:p-4 text-[10px] font-medium text-slate-500 uppercase">{b.role || '-'}</td>
+                    <td className="p-3 xl:p-4 text-[10px] font-bold text-blue-600 uppercase">{b.company || '-'}</td>
+                    <td className="p-3 xl:p-4 font-mono text-[9px] text-blue-600 font-bold">{b.tagId1 || '-'}</td>
+                    <td className="p-3 xl:p-4 font-mono text-[9px] text-slate-400 font-bold">{b.tagId2 || '-'}</td>
+                    <td className="p-3 xl:p-4 font-mono text-[9px] text-slate-400 font-bold">{b.tagId3 || '-'}</td>
+                    <td className="p-3 xl:p-4 text-center"><span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase">{b.lifeboat}</span></td>
+                    <td className="p-3 xl:p-4 text-center"><span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">{b.secondaryLifeboat || '-'}</span></td>
                   </tr>
                 ))}
               </tbody>
