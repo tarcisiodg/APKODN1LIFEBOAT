@@ -21,7 +21,7 @@ const LIFEBOATS: LifeboatType[] = [
 ];
 
 const MANUAL_CATEGORIES = [
-  'PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 
+  'PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'TOOLPUSHER',
   'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS'
 ];
 
@@ -856,7 +856,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Confirmation Modal for Lifeboat Force Reset */}
       {lbToReset && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+          <div className="bg-white rounded-[40px] max-w-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
             <div className="w-20 h-20 bg-rose-50 rounded-[28px] flex items-center justify-center text-rose-600 mx-auto mb-8 shadow-inner">
               <i className="fa-solid fa-power-off text-3xl"></i>
             </div>
@@ -1259,7 +1259,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {isConfirmingGeneralFinish && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+          <div className="bg-white rounded-[40px] max-w-md w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
             <div className="w-20 h-20 bg-rose-50 rounded-[28px] flex items-center justify-center text-rose-600 mx-auto mb-8 shadow-inner">
               <i className="fa-solid fa-stop text-3xl"></i>
             </div>
