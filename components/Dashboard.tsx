@@ -493,7 +493,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   if (!user) return null;
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-6 max-w-6xl mx-auto w-full pb-32 overflow-x-hidden animate-in fade-in duration-500">
+    <div className="flex-1 flex flex-col p-4 md:p-6 2xl:max-w-[1600px] max-w-full mx-auto w-full pb-32 overflow-x-hidden animate-in fade-in duration-500">
       <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div className="w-full lg:w-auto">
           <h2 className="text-3xl sm:text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">Olá, {user.name.split(' ')[0]}</h2>
@@ -728,7 +728,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">EQUIPES DE RESPOSTA A EMERGÊNCIAS</h3>
               <div className="flex-1 h-px bg-slate-100"></div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-12 gap-3">
               {MANUAL_CATEGORIES.map(category => {
                 const count = manualCounts[category] || 0;
                 const hasValue = count > 0;
@@ -746,7 +746,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
             {LIFEBOATS.map(lb => {
               const status = fleetStatus[lb];
               const isActive = status?.isActive;
@@ -847,7 +847,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Release Crew Selection Modal */}
       {(isReleaseModalOpen || isReturnModalOpen) && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
-          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-4xl w-full p-4 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[90vh] border border-slate-100">
+          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-6xl w-full p-4 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[90vh] border border-slate-100">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tighter">
@@ -878,37 +878,39 @@ const Dashboard: React.FC<DashboardProps> = ({
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6 space-y-3">
-              {(isReleaseModalOpen ? availableToRelease : currentlyReleased).length === 0 ? (
-                <div className="py-20 text-center text-slate-300">
-                   <i className="fa-solid fa-users-slash text-5xl mb-4 opacity-20"></i>
-                   <p className="text-[11px] font-black uppercase tracking-widest">Nenhum tripulante disponível</p>
-                </div>
-              ) : (
-                (isReleaseModalOpen ? availableToRelease : currentlyReleased).map(b => {
-                  const isSelected = selectedForAction.has(b.id);
-                  return (
-                    <div 
-                      key={b.id} 
-                      onClick={() => toggleSelection(b.id)}
-                      className={`p-4 rounded-[24px] border-2 cursor-pointer transition-all flex items-center justify-between gap-4 ${isSelected ? 'border-blue-600 bg-blue-50/30 shadow-md' : 'border-slate-100 bg-white hover:border-slate-200'}`}
-                    >
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                         <div className={`w-12 h-10 rounded-xl flex items-center justify-center text-[11px] font-mono font-black ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-900 text-white'}`}>
-                           {b.id}
-                         </div>
-                         <div className="min-w-0">
-                           <h4 className="text-[13px] font-black uppercase truncate">{b.crewName}</h4>
-                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight truncate">{b.role || '-'} • {b.company || '-'}</p>
-                         </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(isReleaseModalOpen ? availableToRelease : currentlyReleased).length === 0 ? (
+                  <div className="col-span-full py-20 text-center text-slate-300">
+                     <i className="fa-solid fa-users-slash text-5xl mb-4 opacity-20"></i>
+                     <p className="text-[11px] font-black uppercase tracking-widest">Nenhum tripulante disponível</p>
+                  </div>
+                ) : (
+                  (isReleaseModalOpen ? availableToRelease : currentlyReleased).map(b => {
+                    const isSelected = selectedForAction.has(b.id);
+                    return (
+                      <div 
+                        key={b.id} 
+                        onClick={() => toggleSelection(b.id)}
+                        className={`p-4 rounded-[24px] border-2 cursor-pointer transition-all flex items-center justify-between gap-4 ${isSelected ? 'border-blue-600 bg-blue-50/30 shadow-md' : 'border-slate-100 bg-white hover:border-slate-200'}`}
+                      >
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                           <div className={`w-12 h-10 rounded-xl flex items-center justify-center text-[11px] font-mono font-black ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-900 text-white'}`}>
+                             {b.id}
+                           </div>
+                           <div className="min-w-0">
+                             <h4 className="text-[13px] font-black uppercase truncate">{b.crewName}</h4>
+                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight truncate">{b.role || '-'} • {b.company || '-'}</p>
+                           </div>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 bg-white'}`}>
+                          {isSelected && <i className="fa-solid fa-check text-[10px]"></i>}
+                        </div>
                       </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 bg-white'}`}>
-                        {isSelected && <i className="fa-solid fa-check text-[10px]"></i>}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             <div className="mt-auto pt-6 border-t border-slate-100">
@@ -1013,7 +1015,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {isPobConsultOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
-          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-7xl w-full p-3 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
+          <div className="bg-white rounded-[24px] sm:rounded-[40px] 2xl:max-w-[1600px] max-w-full w-full p-3 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
             
             <div className="flex justify-between items-center mb-4 sm:mb-6 px-1 sm:px-2">
               <div className="min-w-0">
