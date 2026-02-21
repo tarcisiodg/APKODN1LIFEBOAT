@@ -881,7 +881,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Release Crew Selection Modal */}
       {(isReleaseModalOpen || isReturnModalOpen) && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
-          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-6xl w-full p-4 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[90vh] border border-slate-100">
+          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-4xl w-full p-4 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[90vh] border border-slate-100">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tighter">
@@ -970,7 +970,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* NFC Test Modal */}
       {isTestNfcOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] max-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300 border border-slate-100 overflow-hidden">
+          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in duration-300 border border-slate-100 overflow-hidden">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Testar Cartão NFC</h3>
               <button onClick={closeNfcTest} className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors">
@@ -1055,7 +1055,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {isPobConsultOpen && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6">
-          <div className="bg-white rounded-[24px] sm:rounded-[40px] 2xl:max-w-[1600px] max-w-full w-full p-3 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
+          <div className="bg-white rounded-[24px] sm:rounded-[40px] max-w-5xl w-full p-3 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in zoom-in duration-300 flex flex-col h-[95vh] sm:max-h-[90vh] border border-slate-100">
             
             <div className="flex justify-between items-center mb-4 sm:mb-6 px-1 sm:px-2">
               <div className="min-w-0">
@@ -1207,7 +1207,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {isGeneralSetupOpen && (
         <div className="fixed inset-0 z-[300] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[40px] max-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
+          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 sm:p-10 shadow-2xl animate-in zoom-in duration-300 border border-slate-100">
             <div className="flex items-center justify-between mb-8">
                <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">
                  {generalSetupStep === 1 ? 'Tipo de Cenário' : 'Detalhes do Evento'}
