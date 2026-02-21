@@ -22,7 +22,7 @@ const NATIVE_USER_DATA: Record<string, { name: string, role: string, pass: strin
 const LIFEBOATS: LifeboatType[] = ['Lifeboat 1', 'Lifeboat 2', 'Lifeboat 3', 'Lifeboat 4', 'Lifeboat 5', 'Lifeboat 6'];
 const MANUAL_CATEGORIES = [
   'PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 
-  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS'
+  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS'
 ];
 
 export const cloudService = {

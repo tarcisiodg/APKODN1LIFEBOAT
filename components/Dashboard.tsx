@@ -22,7 +22,7 @@ const LIFEBOATS: LifeboatType[] = [
 
 const MANUAL_CATEGORIES = [
   'PONTE', 'BRIGADA 1', 'BRIGADA 2', 'PLATAFORMA', 'SALA TOOLPUSHER', 
-  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS', 'OUTROS'
+  'MÁQUINA', 'ENFERMARIA', 'COZINHA', 'IMEDIATO', 'ON DUTY', 'LIBERADOS'
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ 
