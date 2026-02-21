@@ -43,8 +43,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   const [allBerths, setAllBerths] = useState<Berth[]>([]);
   const [releasedIds, setReleasedIds] = useState<string[]>([]);
+  const [onDutyIds, setOnDutyIds] = useState<string[]>([]);
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [modalCategory, setModalCategory] = useState<'LIBERADOS' | 'ON DUTY'>('LIBERADOS');
   const [selectedForAction, setSelectedForAction] = useState<Set<string>>(new Set());
   
   const [isConfirmingGeneralFinish, setIsConfirmingGeneralFinish] = useState(false);
@@ -88,7 +90,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const fetchData = async () => {
       try {
-        if (user?.isAdmin || user?.isSupervisor) {
+        if (user?.isAdmin) {
           const allUsers = await cloudService.getAllUsers();
           setPendingCount(allUsers.filter(u => u.status === 'pending').length);
         }
@@ -108,7 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (data) setGeneralTraining(data);
     });
 
-    if (user?.isAdmin || user?.isSupervisor) {
+    if (user?.isAdmin) {
       unsubscribeCounters = cloudService.subscribeToManualCounters((counters) => {
         setManualCounts(prev => ({ ...prev, ...counters }));
       });
@@ -116,6 +118,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       unsubscribeReleased = cloudService.subscribeToReleasedCrew((ids) => {
         setReleasedIds(ids);
       });
+
+      const unsubscribeOnDuty = cloudService.subscribeToOnDutyCrew((ids) => {
+        setOnDutyIds(ids);
+      });
+
+      return () => {
+        clearInterval(interval);
+        if (unsubscribeCounters) unsubscribeCounters();
+        if (unsubscribeReleased) unsubscribeReleased();
+        if (unsubscribeGeneralTraining) unsubscribeGeneralTraining();
+        unsubscribeOnDuty();
+      };
     }
 
     return () => {
@@ -272,13 +286,17 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const updateManualCount = async (category: string, delta: number) => {
-    if (category === 'LIBERADOS') {
+    if (category === 'LIBERADOS' || category === 'ON DUTY') {
       setSearchTerm('');
       setSelectedForAction(new Set());
+      setModalCategory(category);
       if (delta > 0) {
         setIsReleaseModalOpen(true);
-      } else if (releasedIds.length > 0) {
-        setIsReturnModalOpen(true);
+      } else {
+        const currentIds = category === 'LIBERADOS' ? releasedIds : onDutyIds;
+        if (currentIds.length > 0) {
+          setIsReturnModalOpen(true);
+        }
       }
       return;
     }
@@ -295,14 +313,21 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (selectedForAction.size === 0) return;
     setIsSaving(true);
     try {
-      const newIds = [...new Set([...releasedIds, ...Array.from(selectedForAction)])];
-      await cloudService.updateReleasedCrew(newIds);
-      const updatedCounters = { ...manualCounts, 'LIBERADOS': newIds.length };
+      const currentIds = modalCategory === 'LIBERADOS' ? releasedIds : onDutyIds;
+      const newIds = [...new Set([...currentIds, ...Array.from(selectedForAction)])];
+      
+      if (modalCategory === 'LIBERADOS') {
+        await cloudService.updateReleasedCrew(newIds);
+      } else {
+        await cloudService.updateOnDutyCrew(newIds);
+      }
+
+      const updatedCounters = { ...manualCounts, [modalCategory]: newIds.length };
       await cloudService.updateManualCounters(updatedCounters);
       setIsReleaseModalOpen(false);
       setSelectedForAction(new Set());
     } catch (e) {
-      alert("Erro ao processar liberação.");
+      alert("Erro ao processar alteração.");
     } finally {
       setIsSaving(false);
     }
@@ -312,9 +337,16 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (selectedForAction.size === 0) return;
     setIsSaving(true);
     try {
-      const newIds = releasedIds.filter(id => !selectedForAction.has(id));
-      await cloudService.updateReleasedCrew(newIds);
-      const updatedCounters = { ...manualCounts, 'LIBERADOS': newIds.length };
+      const currentIds = modalCategory === 'LIBERADOS' ? releasedIds : onDutyIds;
+      const newIds = currentIds.filter(id => !selectedForAction.has(id));
+      
+      if (modalCategory === 'LIBERADOS') {
+        await cloudService.updateReleasedCrew(newIds);
+      } else {
+        await cloudService.updateOnDutyCrew(newIds);
+      }
+
+      const updatedCounters = { ...manualCounts, [modalCategory]: newIds.length };
       await cloudService.updateManualCounters(updatedCounters);
       setIsReturnModalOpen(false);
       setSelectedForAction(new Set());
@@ -440,12 +472,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [allBerths, searchTerm]);
 
   const availableToRelease = useMemo(() => {
-    return sortedPobList.filter(b => b.crewName && b.crewName.trim() !== '' && !releasedIds.includes(b.id));
-  }, [sortedPobList, releasedIds]);
+    const currentExcluded = modalCategory === 'LIBERADOS' ? releasedIds : onDutyIds;
+    return sortedPobList.filter(b => b.crewName && b.crewName.trim() !== '' && !currentExcluded.includes(b.id));
+  }, [sortedPobList, releasedIds, onDutyIds, modalCategory]);
 
   const currentlyReleased = useMemo(() => {
-    return allBerths.filter(b => releasedIds.includes(b.id) && (b.crewName?.toUpperCase().includes(searchTerm.toUpperCase()) || b.id.toUpperCase().includes(searchTerm.toUpperCase())));
-  }, [allBerths, releasedIds, searchTerm]);
+    const currentExcluded = modalCategory === 'LIBERADOS' ? releasedIds : onDutyIds;
+    return allBerths.filter(b => currentExcluded.includes(b.id) && (b.crewName?.toUpperCase().includes(searchTerm.toUpperCase()) || b.id.toUpperCase().includes(searchTerm.toUpperCase())));
+  }, [allBerths, releasedIds, onDutyIds, modalCategory, searchTerm]);
 
   const startNfcTest = async () => {
     if (!('NDEFReader' in window)) {
@@ -493,66 +527,64 @@ const Dashboard: React.FC<DashboardProps> = ({
   if (!user) return null;
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-6 2xl:max-w-[1600px] max-w-full mx-auto w-full pb-32 overflow-x-hidden animate-in fade-in duration-500">
-      <div className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+    <div className="flex-1 flex flex-col p-3 md:p-6 2xl:max-w-[1600px] max-w-full mx-auto w-full pb-32 overflow-x-hidden animate-in fade-in duration-500">
+      <div className="mb-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="w-full lg:w-auto">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">Olá, {user.name.split(' ')[0]}</h2>
+          <h2 className="text-2xl sm:text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-2 font-normal">Olá, {user.name.split(' ')[0]}</h2>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-3 py-1 rounded-xl text-[10px] sm:text-[11px] uppercase tracking-widest bg-blue-100 text-blue-700 border border-blue-200 font-bold">{user.role || 'SISTEMA'}</span>
-            { (user.isAdmin || user.isSupervisor) && <span className="px-3 py-1 rounded-xl text-[10px] sm:text-[11px] uppercase tracking-widest bg-slate-900 text-white font-bold">{user.isSupervisor ? 'SUPERVISOR' : 'ADMINISTRADOR'}</span>}
+            <span className="px-2 py-0.5 rounded-lg text-[9px] sm:text-[11px] uppercase tracking-widest bg-blue-100 text-blue-700 border border-blue-200 font-bold">{user.role || 'SISTEMA'}</span>
+            {user.isAdmin && <span className="px-2 py-0.5 rounded-lg text-[9px] sm:text-[11px] uppercase tracking-widest bg-slate-900 text-white font-bold">ADMINISTRADOR</span>}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
-            <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
-              <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">POB VIGENTE</span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl sm:text-2xl font-black text-slate-900 leading-none">{berthStats.occupied}</span>
-                <span className="text-xs sm:text-sm font-bold text-slate-300">/</span>
-                <span className="text-xs sm:text-sm font-black text-slate-400 leading-none">{berthStats.total}</span>
+            <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl px-3 sm:px-5 py-2 sm:py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[90px] sm:min-w-[125px] shadow-sm">
+              <span className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 sm:mb-2">POB VIGENTE</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg sm:text-2xl font-black text-slate-900 leading-none">{berthStats.occupied}</span>
+                <span className="text-[10px] sm:text-sm font-bold text-slate-300">/</span>
+                <span className="text-[10px] sm:text-sm font-black text-slate-400 leading-none">{berthStats.total}</span>
               </div>
             </div>
-            {(user.isAdmin || user.isSupervisor) && (
+            {user.isAdmin && (
               <>
-                <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
-                  <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 text-center">CAPACIDADE</span>
-                  <span className={`text-xl sm:text-2xl font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-600' : 'text-emerald-600'}`}>{capacityPercentage}%</span>
+                <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl px-3 sm:px-5 py-2 sm:py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[90px] sm:min-w-[125px] shadow-sm">
+                  <span className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 sm:mb-2 text-center">CAPACIDADE</span>
+                  <span className={`text-lg sm:text-2xl font-black leading-none ${capacityPercentage >= 90 ? 'text-rose-600' : 'text-emerald-600'}`}>{capacityPercentage}%</span>
                 </div>
-                <button onClick={onOpenBerthManagement} className="bg-blue-600 border border-blue-700 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group">
-                  <span className="text-[8px] sm:text-[9px] font-black text-blue-100 uppercase tracking-widest leading-none mb-2 opacity-80">CONTROLE</span>
-                  <div className="flex items-center gap-2">
-                    <i className="fa-solid fa-bed text-white text-xs"></i>
-                    <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">LEITOS</span>
+                <button onClick={onOpenBerthManagement} className="bg-blue-600 border border-blue-700 rounded-xl sm:rounded-2xl px-3 sm:px-5 py-2 sm:py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[90px] sm:min-w-[125px] shadow-md hover:bg-blue-700 transition-all active:scale-95 group">
+                  <span className="text-[7px] sm:text-[9px] font-black text-blue-100 uppercase tracking-widest leading-none mb-1 sm:mb-2 opacity-80">CONTROLE</span>
+                  <div className="flex items-center gap-1.5">
+                    <i className="fa-solid fa-bed text-white text-[10px]"></i>
+                    <span className="text-[8px] sm:text-[10px] text-white font-black uppercase tracking-tight">LEITOS</span>
                   </div>
                 </button>
-                {user.isAdmin && (
-                  <button onClick={onOpenUserManagement} className="bg-slate-800 border border-slate-900 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
-                    <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 opacity-80">SISTEMA</span>
-                    <div className="flex items-center gap-2">
-                      <i className="fa-solid fa-users-gear text-white text-xs"></i>
-                      <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">GESTÃO</span>
-                    </div>
-                    {pendingCount > 0 && <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[8px] font-bold shadow-sm animate-bounce">{pendingCount}</span>}
-                  </button>
-                )}
+                <button onClick={onOpenUserManagement} className="bg-slate-800 border border-slate-900 rounded-xl sm:rounded-2xl px-3 sm:px-5 py-2 sm:py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[90px] sm:min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
+                  <span className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 sm:mb-2 opacity-80">SISTEMA</span>
+                  <div className="flex items-center gap-1.5">
+                    <i className="fa-solid fa-users-gear text-white text-[10px]"></i>
+                    <span className="text-[8px] sm:text-[10px] text-white font-black uppercase tracking-tight">GESTÃO</span>
+                  </div>
+                  {pendingCount > 0 && <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-[16px] bg-red-500 text-white rounded-full text-[7px] font-bold shadow-sm animate-bounce">{pendingCount}</span>}
+                </button>
               </>
             )}
           </div>
         </div>
       </div>
 
-      { (user.isAdmin || user.isSupervisor) && (
-        <div className="mb-10">
-          <div className={`p-4 sm:p-5 rounded-[32px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[180px] flex flex-col ${generalTraining.isRealScenario ? 'bg-rose-600 animate-pulse' : 'bg-blue-600'}`}>
+      {user.isAdmin && (
+        <div className="mb-8">
+          <div className={`p-4 sm:p-6 rounded-[28px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[160px] sm:min-h-[180px] flex flex-col ${generalTraining.isRealScenario ? 'bg-rose-600 animate-pulse' : 'bg-blue-600'}`}>
             <div className="relative z-10 flex flex-col flex-1 h-full">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
                 <div className="inline-flex flex-col gap-1">
-                  <div className="inline-flex items-center px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm self-start">
-                    <h4 className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white">CONTAGEM GERAL</h4>
+                  <div className="inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-md rounded-full border border-white/20 shadow-sm self-start">
+                    <h4 className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white">CONTAGEM GERAL</h4>
                   </div>
                   {generalTraining.isActive && (
-                    <div className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-white/80 ml-2">
+                    <div className="text-[7px] sm:text-[10px] font-bold uppercase tracking-widest text-white/80 ml-1">
                       {generalTraining.isRealScenario ? 'CENÁRIO: EMERGÊNCIA' : 'CENÁRIO: SIMULADO'} • {generalTraining.trainingType}
                     </div>
                   )}
@@ -560,40 +592,40 @@ const Dashboard: React.FC<DashboardProps> = ({
                 
                 <div className="relative flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                    {generalTraining.isFinished ? (
-                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
+                      <button onClick={handleSaveAndClearEverything} disabled={isSaving} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl sm:rounded-2xl text-[9px] sm:text-[11px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all border border-emerald-400/30">
                         {isSaving ? <i className="fa-solid fa-rotate animate-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
                         Limpar e Salvar
                       </button>
                     ) : (
-                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralSetup} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-600 border-rose-500 hover:bg-rose-700 text-white shadow-rose-600/20' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
+                      <button onClick={generalTraining.isActive ? () => setIsConfirmingGeneralFinish(true) : handleStartGeneralSetup} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-[9px] sm:text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-lg ${generalTraining.isActive ? 'bg-rose-600 border-rose-500 hover:bg-rose-700 text-white shadow-rose-600/20' : 'bg-white/10 border-white/20 hover:bg-white/20 text-white'}`}>
                         <i className={`fa-solid ${generalTraining.isActive ? 'fa-stop' : 'fa-play'}`}></i>
                         {generalTraining.isActive ? 'Finalizar' : 'Iniciar'}
                       </button>
                     )}
 
                     {(generalTraining.isActive || generalTraining.duration) && (
-                      <div className="relative sm:absolute sm:top-[100%] sm:right-0 mt-3 sm:mt-2 bg-black/40 backdrop-blur-xl rounded-[20px] sm:rounded-[24px] p-3 sm:p-4 border border-white/20 flex flex-col items-end gap-2 min-w-[160px] sm:min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
+                      <div className="relative sm:absolute sm:top-[100%] sm:right-0 mt-2 sm:mt-2 bg-black/40 backdrop-blur-xl rounded-xl sm:rounded-[24px] p-2.5 sm:p-4 border border-white/20 flex flex-col items-end gap-1 sm:gap-2 min-w-[140px] sm:min-w-[210px] shadow-2xl animate-in fade-in slide-in-from-top-2 duration-500 z-20">
                         {generalTraining.isActive ? (
                           <>
-                            <div className="flex items-center gap-3 w-full justify-between mb-0.5">
-                              <span className="text-[10px] sm:text-[14px] font-black text-emerald-400 uppercase tracking-widest drop-shadow-sm leading-none">INÍCIO: {generalTraining.startTime}</span>
-                              <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,1)]"></div>
+                            <div className="flex items-center gap-2 w-full justify-between mb-0.5">
+                              <span className="text-[8px] sm:text-[14px] font-black text-emerald-400 uppercase tracking-widest drop-shadow-sm leading-none">INÍCIO: {generalTraining.startTime}</span>
+                              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,1)]"></div>
                             </div>
                             <div className="flex flex-col items-end w-full">
-                              <span className="text-[9px] sm:text-[12px] font-black text-blue-200 uppercase tracking-widest mb-0.5 opacity-80 leading-none">EM CURSO</span>
-                              <span className="text-2xl sm:text-4xl font-mono font-black tabular-nums tracking-tighter leading-none text-white drop-shadow-2xl">{liveDuration}</span>
+                              <span className="text-[8px] sm:text-[12px] font-black text-blue-200 uppercase tracking-widest mb-0.5 opacity-80 leading-none">EM CURSO</span>
+                              <span className="text-xl sm:text-4xl font-mono font-black tabular-nums tracking-tighter leading-none text-white drop-shadow-2xl">{liveDuration}</span>
                             </div>
                           </>
                         ) : (
-                          <div className="flex flex-col items-end w-full gap-1.5 sm:gap-2">
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="text-[10px] sm:text-[14px] font-black text-white uppercase tracking-widest leading-none drop-shadow-sm">INÍCIO: {generalTraining.startTime}</span>
-                              <span className="text-[10px] sm:text-[14px] font-black text-white uppercase tracking-widest leading-none drop-shadow-sm">TÉRMINO: {generalTraining.endTime}</span>
+                          <div className="flex flex-col items-end w-full gap-1 sm:gap-2">
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-[8px] sm:text-[14px] font-black text-white uppercase tracking-widest leading-none drop-shadow-sm">INÍCIO: {generalTraining.startTime}</span>
+                              <span className="text-[8px] sm:text-[14px] font-black text-white uppercase tracking-widest leading-none drop-shadow-sm">TÉRMINO: {generalTraining.endTime}</span>
                             </div>
                             <div className="h-px w-full bg-white/20 my-0.5"></div>
                             <div className="flex flex-col items-end">
-                              <span className="text-[9px] sm:text-[13px] font-black text-emerald-400 uppercase tracking-widest mb-0.5 opacity-80 leading-none">DURAÇÃO TOTAL</span>
-                              <span className="text-2xl sm:text-4xl font-mono font-black tabular-nums tracking-tighter leading-none text-emerald-400 drop-shadow-2xl">{generalTraining.duration}</span>
+                              <span className="text-[8px] sm:text-[13px] font-black text-emerald-400 uppercase tracking-widest mb-0.5 opacity-80 leading-none">DURAÇÃO TOTAL</span>
+                              <span className="text-xl sm:text-4xl font-mono font-black tabular-nums tracking-tighter leading-none text-emerald-400 drop-shadow-2xl">{generalTraining.duration}</span>
                             </div>
                           </div>
                         )}
@@ -602,50 +634,50 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col justify-center py-2">
-                <div className="flex items-baseline gap-4 sm:gap-6">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-6xl sm:text-7xl md:text-[80px] font-black tabular-nums tracking-tighter leading-none drop-shadow-lg">{overallMusterTotal}</span>
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] opacity-80">
+              <div className="flex-1 flex flex-col justify-center py-1 sm:py-2">
+                <div className="flex items-baseline gap-3 sm:gap-6">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-5xl sm:text-7xl md:text-[80px] font-black tabular-nums tracking-tighter leading-none drop-shadow-lg">{overallMusterTotal}</span>
+                    <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] opacity-80">
                       {overallMusterTotal === 1 ? 'Pessoa' : 'Pessoas'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-auto pt-3 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-2 sm:gap-x-12">
+              <div className="mt-auto pt-2 sm:pt-3 border-t border-white/10 flex flex-wrap gap-x-4 gap-y-2 sm:gap-x-12">
                 <div className="group cursor-default">
-                  <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">LIFEBOATS</span>
-                  <span className="text-xl sm:text-2xl font-black tabular-nums leading-none">{totalPeopleInFleet}</span>
+                  <span className="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">LIFEBOATS</span>
+                  <span className="text-lg sm:text-2xl font-black tabular-nums leading-none">{totalPeopleInFleet}</span>
                 </div>
                 <div className="group cursor-default">
-                  <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">EQUIPES</span>
-                  <span className="text-xl sm:text-2xl font-black tabular-nums leading-none">{totalManualGroups}</span>
+                  <span className="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">EQUIPES</span>
+                  <span className="text-lg sm:text-2xl font-black tabular-nums leading-none">{totalManualGroups}</span>
                 </div>
                 {generalTraining.isActive && (
                   <div className="group cursor-default animate-in fade-in zoom-in duration-500">
                     {musterDiff > 0 ? (
                       <>
-                        <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">
+                        <span className="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-blue-300/80 block mb-0.5 leading-none">
                           {musterDiff === 1 ? 'PENDENTE' : 'PENDENTES'}
                         </span>
-                        <span className="text-xl sm:text-2xl font-black tabular-nums leading-none text-rose-400">
+                        <span className="text-lg sm:text-2xl font-black tabular-nums leading-none text-rose-400">
                           {musterDiff}
                         </span>
                       </>
                     ) : musterDiff === 0 ? (
                       <>
-                        <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-emerald-400 block mb-0.5 leading-none drop-shadow-sm">STATUS</span>
-                        <span className="text-xl sm:text-2xl font-black leading-none text-emerald-400 animate-pulse drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">
+                        <span className="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-emerald-400 block mb-0.5 leading-none drop-shadow-sm">STATUS</span>
+                        <span className="text-lg sm:text-2xl font-black leading-none text-emerald-400 animate-pulse drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">
                           MUSTER
                         </span>
                       </>
                     ) : (
                       <>
-                        <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-amber-300/80 block mb-0.5 leading-none">
+                        <span className="text-[7px] sm:text-[10px] font-black uppercase tracking-widest text-amber-300/80 block mb-0.5 leading-none">
                           {Math.abs(musterDiff) === 1 ? 'EXCEDENTE' : 'EXCEDENTES'}
                         </span>
-                        <span className="text-xl sm:text-2xl font-black tabular-nums leading-none text-amber-400">
+                        <span className="text-lg sm:text-2xl font-black tabular-nums leading-none text-amber-400">
                           {Math.abs(musterDiff)}
                         </span>
                       </>
@@ -655,12 +687,12 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
             
-            <i className="fa-solid fa-clipboard-check absolute right-[-15px] bottom-[-25px] text-[90px] sm:text-[130px] text-white/5 -rotate-12 pointer-events-none"></i>
+            <i className="fa-solid fa-clipboard-check absolute right-[-10px] sm:right-[-15px] bottom-[-15px] sm:bottom-[-25px] text-[70px] sm:text-[130px] text-white/5 -rotate-12 pointer-events-none"></i>
           </div>
         </div>
       )}
       
-      {!(user.isAdmin || user.isSupervisor) ? (
+      {!user.isAdmin ? (
         <div className="flex-1 flex flex-col items-center justify-center py-10 gap-8">
             <div className="relative w-full max-w-[640px]">
               {!generalTraining.isActive && !activeSession && (
@@ -724,23 +756,23 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       ) : (
         <>
-          <div className="mb-10">
-            <div className="flex items-center gap-3 mb-5">
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
               <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
-              <h3 className="text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">EQUIPES DE RESPOSTA A EMERGÊNCIAS</h3>
+              <h3 className="text-[9px] sm:text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">EQUIPES DE RESPOSTA A EMERGÊNCIAS</h3>
               <div className="flex-1 h-px bg-slate-100"></div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-12 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-12 gap-2 sm:gap-3">
               {MANUAL_CATEGORIES.map(category => {
                 const count = manualCounts[category] || 0;
                 const hasValue = count > 0;
                 return (
-                  <div key={category} className={`bg-white p-3 sm:p-4 rounded-[24px] sm:rounded-[28px] border-2 transition-all duration-300 ${category === 'LIBERADOS' ? 'border-amber-400 bg-amber-50/30 shadow-sm' : hasValue ? 'border-blue-500 bg-blue-50/20 shadow-md ring-1 ring-blue-50' : 'border-slate-300 shadow-sm'}`}>
-                    <p className={`text-[9px] sm:text-[10px] font-black uppercase text-center mb-2 sm:mb-3 truncate tracking-tight transition-colors ${hasValue ? 'text-blue-700' : 'text-slate-600'}`}>{category}</p>
-                    <div className="flex items-center justify-between gap-1">
-                      <button onClick={() => updateManualCount(category, -1)} className="w-7 h-7 sm:w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-minus text-[8px]"></i></button>
-                      <input type="number" value={count === 0 ? '' : count} onChange={(e) => setManualCountAbsolute(category, e.target.value)} readOnly={category === 'LIBERADOS'} className={`w-10 sm:w-12 text-center font-black text-xl sm:text-2xl bg-transparent border-none outline-none focus:ring-0 transition-colors ${hasValue ? 'text-blue-900' : 'text-slate-800'}`} />
-                      <button onClick={() => updateManualCount(category, 1)} className="w-7 h-7 sm:w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-plus text-[8px]"></i></button>
+                  <div key={category} className={`bg-white p-2 sm:p-4 rounded-xl sm:rounded-[28px] border-2 transition-all duration-300 ${category === 'LIBERADOS' || category === 'ON DUTY' ? 'border-amber-400 bg-amber-50/30 shadow-sm' : hasValue ? 'border-blue-500 bg-blue-50/20 shadow-md ring-1 ring-blue-50' : 'border-slate-300 shadow-sm'}`}>
+                    <p className={`text-[7px] sm:text-[10px] font-black uppercase text-center mb-1.5 sm:mb-3 truncate tracking-tight transition-colors ${hasValue ? 'text-blue-700' : 'text-slate-600'}`}>{category}</p>
+                    <div className="flex items-center justify-between gap-0.5 sm:gap-1">
+                      <button onClick={() => updateManualCount(category, -1)} className="w-6 h-6 sm:w-8 h-8 rounded-lg sm:rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-minus text-[7px] sm:text-[8px]"></i></button>
+                      <input type="number" value={count === 0 ? '' : count} onChange={(e) => setManualCountAbsolute(category, e.target.value)} readOnly={category === 'LIBERADOS' || category === 'ON DUTY'} className={`w-8 sm:w-12 text-center font-black text-base sm:text-2xl bg-transparent border-none outline-none focus:ring-0 transition-colors ${hasValue ? 'text-blue-900' : 'text-slate-800'}`} />
+                      <button onClick={() => updateManualCount(category, 1)} className="w-6 h-6 sm:w-8 h-8 rounded-lg sm:rounded-full flex items-center justify-center transition-all active:scale-95 border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:border-slate-300"><i className="fa-solid fa-plus text-[7px] sm:text-[8px]"></i></button>
                     </div>
                   </div>
                 );
@@ -748,7 +780,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-2 sm:gap-3">
             {LIFEBOATS.map(lb => {
               const status = fleetStatus[lb];
               const isActive = status?.isActive;
@@ -756,46 +788,46 @@ const Dashboard: React.FC<DashboardProps> = ({
               const countToDisplay = isManual ? (status.manualCount || 0) : (status?.count || 0);
               
               return (
-                <div key={lb} className={`p-5 rounded-[32px] border-2 transition-all flex flex-col gap-4 relative ${isManual ? 'bg-amber-50 border-amber-500 shadow-md' : isActive ? 'bg-blue-50 border-blue-600 shadow-sm' : 'bg-white border-slate-300 opacity-70 shadow-sm'}`}>
+                <div key={lb} className={`p-3 sm:p-5 rounded-2xl sm:rounded-[32px] border-2 transition-all flex flex-col gap-3 sm:gap-4 relative ${isManual ? 'bg-amber-50 border-amber-500 shadow-md' : isActive ? 'bg-blue-50 border-blue-600 shadow-sm' : 'bg-white border-slate-300 opacity-70 shadow-sm'}`}>
                   <div className="flex items-start justify-between">
-                    <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm ${isActive && !isManual ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'}`}>
-                      <i className={`fa-solid ${isManual ? 'fa-triangle-exclamation text-amber-500' : 'fa-ship ' + (isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300')} text-xl`}></i>
+                    <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`w-10 h-10 sm:w-12 sm:h-12 bg-white border border-slate-200 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm ${isActive && !isManual ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default'}`}>
+                      <i className={`fa-solid ${isManual ? 'fa-triangle-exclamation text-amber-500' : 'fa-ship ' + (isActive ? 'text-blue-600 animate-pulse' : 'text-slate-300')} text-base sm:text-xl`}></i>
                     </div>
                     
                     <div className="flex flex-col items-end">
-                      {(isActive && (user.isAdmin || user.isSupervisor)) && (
+                      {isActive && user.isAdmin && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); setLbToReset(lb); }}
                           disabled={isSaving}
-                          className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-2 hover:bg-rose-100 transition-colors shadow-sm active:scale-90 disabled:opacity-50"
+                          className="w-7 h-7 sm:w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-1.5 sm:mb-2 hover:bg-rose-100 transition-colors shadow-sm active:scale-90 disabled:opacity-50"
                           title="Encerrar Imediatamente"
                         >
-                          <i className="fa-solid fa-power-off text-[10px]"></i>
+                          <i className="fa-solid fa-power-off text-[9px] sm:text-[10px]"></i>
                         </button>
                       )}
                       {isManual ? (
-                        <div className="flex items-center gap-2 bg-white/50 p-1 rounded-full border border-amber-200">
-                           <button onClick={() => updateLifeboatManualCount(lb, -1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-minus text-[10px]"></i></button>
+                        <div className="flex items-center gap-1 sm:gap-2 bg-white/50 p-0.5 sm:p-1 rounded-full border border-amber-200">
+                           <button onClick={() => updateLifeboatManualCount(lb, -1)} className="w-7 h-7 sm:w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-minus text-[9px] sm:text-[10px]"></i></button>
                            <input 
                               type="number" 
                               value={countToDisplay === 0 ? '' : countToDisplay} 
                               onChange={(e) => setLifeboatManualCountAbsolute(lb, e.target.value)}
-                              className="text-2xl font-black text-amber-900 tabular-nums w-12 text-center bg-transparent border-none outline-none focus:ring-0"
+                              className="text-lg sm:text-2xl font-black text-amber-900 tabular-nums w-10 sm:w-12 text-center bg-transparent border-none outline-none focus:ring-0"
                            />
-                           <button onClick={() => updateLifeboatManualCount(lb, 1)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-plus text-[10px]"></i></button>
+                           <button onClick={() => updateLifeboatManualCount(lb, 1)} className="w-7 h-7 sm:w-8 h-8 rounded-full flex items-center justify-center bg-white text-amber-600 shadow-sm active:scale-90 transition-all border border-amber-100"><i className="fa-solid fa-plus text-[9px] sm:text-[10px]"></i></button>
                         </div>
                       ) : (
                         <div onClick={() => isActive && !isManual && onViewLifeboat(lb)} className={`text-right ${isActive ? 'cursor-pointer' : 'cursor-default'}`}>
-                          <span className="text-3xl font-black text-slate-900 tabular-nums leading-none">{countToDisplay}</span>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">PESSOAS</p>
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900 tabular-nums leading-none">{countToDisplay}</span>
+                          <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5 sm:mt-1">PESSOAS</p>
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div>
-                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight mb-1">{lb}</h4>
-                    <div className={`text-[9px] font-black uppercase transition-colors ${isManual ? 'text-amber-700' : isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    <h4 className="text-[10px] sm:text-xs font-black text-slate-900 uppercase tracking-tight mb-0.5 sm:mb-1">{lb}</h4>
+                    <div className={`text-[8px] sm:text-[9px] font-black uppercase transition-colors ${isManual ? 'text-amber-700' : isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
                       {isManual ? 'COMANDO MANUAL ATIVO' : isActive ? `Líder: ${status.leaderName || '-'}` : 'STANDBY'}
                     </div>
                   </div>
@@ -853,10 +885,14 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tighter">
-                  {isReleaseModalOpen ? 'Liberar Tripulantes' : 'Retornar Tripulantes'}
+                  {isReleaseModalOpen 
+                    ? (modalCategory === 'LIBERADOS' ? 'Liberar Tripulantes' : 'Vincular On Duty') 
+                    : (modalCategory === 'LIBERADOS' ? 'Retornar Tripulantes' : 'Remover On Duty')}
                 </h3>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 opacity-70">
-                  {isReleaseModalOpen ? 'Escolha quem ficará fora da contagem de baleeira' : 'Escolha quem retornará para a contagem normal'}
+                  {isReleaseModalOpen 
+                    ? (modalCategory === 'LIBERADOS' ? 'Escolha quem ficará fora da contagem de baleeira' : 'Escolha quem está em serviço (On Duty)') 
+                    : (modalCategory === 'LIBERADOS' ? 'Escolha quem retornará para a contagem normal' : 'Escolha quem sairá do serviço')}
                 </p>
               </div>
               <button 
@@ -922,7 +958,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                 className={`w-full py-5 rounded-[24px] font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 ${selectedForAction.size === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : (isReleaseModalOpen ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-emerald-600 text-white shadow-emerald-600/20')}`}
               >
                 {isSaving ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className={`fa-solid ${isReleaseModalOpen ? 'fa-arrow-right-from-bracket' : 'fa-arrow-right-to-bracket'}`}></i>}
-                {isReleaseModalOpen ? `Liberar ${selectedForAction.size} Selecionados` : `Retornar ${selectedForAction.size} Selecionados`}
+                {isReleaseModalOpen 
+                  ? (modalCategory === 'LIBERADOS' ? `Liberar ${selectedForAction.size} Selecionados` : `Vincular ${selectedForAction.size} On Duty`) 
+                  : (modalCategory === 'LIBERADOS' ? `Retornar ${selectedForAction.size} Selecionados` : `Remover ${selectedForAction.size} On Duty`)}
               </button>
             </div>
           </div>

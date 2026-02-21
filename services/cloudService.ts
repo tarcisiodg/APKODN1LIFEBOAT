@@ -34,8 +34,7 @@ export const cloudService = {
           email: `${id}@muster.com`, 
           name: NATIVE_USER_DATA[id].name, 
           role: NATIVE_USER_DATA[id].role, 
-          isAdmin: NATIVE_USER_DATA[id].isAdmin,
-          isSupervisor: NATIVE_USER_DATA[id].role === 'SUPERVISOR'
+          isAdmin: NATIVE_USER_DATA[id].isAdmin 
         };
       }
       throw new Error("Senha incorreta.");
@@ -48,13 +47,11 @@ export const cloudService = {
       const data = userSnap.data();
       if (data.status === 'pending') throw new Error("Acesso aguardando aprovação.");
       if (data.password === pass) {
-        const role = data.role?.toUpperCase() || '';
         return { 
           email: `${id}@muster.com`, 
           name: data.name, 
-          role: role, 
-          isAdmin: role === 'ADMINISTRADOR' || role === 'RADIO OPERATOR',
-          isSupervisor: role === 'SUPERVISOR'
+          role: data.role, 
+          isAdmin: data.role === 'ADMINISTRADOR' || data.role === 'RADIO OPERATOR'
         };
       }
       throw new Error("Senha incorreta.");
@@ -80,7 +77,7 @@ export const cloudService = {
 
   async getAllUsers(): Promise<any[]> {
     const native = Object.entries(NATIVE_USER_DATA).map(([id, data]) => ({
-      loginId: id, ...data, status: 'native', requestDate: 'Sistema', isSupervisor: data.role === 'SUPERVISOR'
+      loginId: id, ...data, status: 'native', requestDate: 'Sistema'
     }));
     const usersCol = collection(db, "users");
     const userSnapshot = await getDocs(usersCol);
@@ -147,6 +144,25 @@ export const cloudService = {
 
   subscribeToReleasedCrew(callback: (ids: string[]) => void) {
     const ref = doc(db, "config", "released_crew");
+    return onSnapshot(ref, (doc) => {
+      if (doc.exists()) callback(doc.data().ids || []);
+      else callback([]);
+    });
+  },
+
+  async getOnDutyCrew(): Promise<string[]> {
+    const ref = doc(db, "config", "onduty_crew");
+    const snap = await getDoc(ref);
+    return snap.exists() ? (snap.data().ids || []) : [];
+  },
+
+  async updateOnDutyCrew(ids: string[]): Promise<void> {
+    const ref = doc(db, "config", "onduty_crew");
+    await setDoc(ref, { ids, lastUpdate: new Date().toISOString() });
+  },
+
+  subscribeToOnDutyCrew(callback: (ids: string[]) => void) {
+    const ref = doc(db, "config", "onduty_crew");
     return onSnapshot(ref, (doc) => {
       if (doc.exists()) callback(doc.data().ids || []);
       else callback([]);
@@ -311,6 +327,7 @@ export const cloudService = {
       this.updateFleetStatus(resetFleet),
       this.updateManualCounters(resetCounters),
       this.updateReleasedCrew([]),
+      this.updateOnDutyCrew([]),
       this.updateGeneralMusterTraining({ isActive: false, startTime: '', endTime: '', duration: '', description: '', finalTotal: 0, isFinished: false })
     ]);
   }

@@ -32,16 +32,25 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   const [tagToDelete, setTagToDelete] = useState<ScannedTag | null>(null);
   const [viewTab, setViewTab] = useState<'present' | 'pending'>('present');
   const [releasedIds, setReleasedIds] = useState<string[]>([]);
+  const [onDutyIds, setOnDutyIds] = useState<string[]>([]);
   
   const releasedIdsRef = useRef<string[]>([]);
+  const onDutyIdsRef = useRef<string[]>([]);
   const nfcReaderRef = useRef<any>(null);
 
   useEffect(() => {
-    const unsub = cloudService.subscribeToReleasedCrew((ids) => {
+    const unsubReleased = cloudService.subscribeToReleasedCrew((ids) => {
       setReleasedIds(ids);
       releasedIdsRef.current = ids;
     });
-    return () => unsub();
+    const unsubOnDuty = cloudService.subscribeToOnDutyCrew((ids) => {
+      setOnDutyIds(ids);
+      onDutyIdsRef.current = ids;
+    });
+    return () => {
+      unsubReleased();
+      unsubOnDuty();
+    };
   }, []);
 
   const formatTime = (seconds: number) => {
@@ -62,9 +71,10 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
       );
       
       const isReleased = releasedIds.includes(berth.id);
-      return !isAnyTagScanned && !isReleased;
+      const isOnDuty = onDutyIds.includes(berth.id);
+      return !isAnyTagScanned && !isReleased && !isOnDuty;
     });
-  }, [session.expectedCrew, session.tags, releasedIds]);
+  }, [session.expectedCrew, session.tags, releasedIds, onDutyIds]);
 
   const getBerthInfoForTag = (tag: ScannedTag) => {
     if (!session.expectedCrew || !tag.leito) return { role: tag.role, company: tag.company };
@@ -107,13 +117,21 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           return;
         }
 
-        if (matchedBerth && releasedIdsRef.current.includes(matchedBerth.id)) {
-          const currentReleased = releasedIdsRef.current;
-          const newReleasedList = currentReleased.filter(id => id !== matchedBerth.id);
-          await cloudService.updateReleasedCrew(newReleasedList);
+        if (matchedBerth && (releasedIdsRef.current.includes(matchedBerth.id) || onDutyIdsRef.current.includes(matchedBerth.id))) {
+          const isReleased = releasedIdsRef.current.includes(matchedBerth.id);
+          const currentList = isReleased ? releasedIdsRef.current : onDutyIdsRef.current;
+          const newList = currentList.filter(id => id !== matchedBerth.id);
+          const category = isReleased ? 'LIBERADOS' : 'ON DUTY';
+          
+          if (isReleased) {
+            await cloudService.updateReleasedCrew(newList);
+          } else {
+            await cloudService.updateOnDutyCrew(newList);
+          }
+
           try {
             const currentCounters = await cloudService.getManualCounters();
-            const updatedCounters = { ...currentCounters, 'LIBERADOS': newReleasedList.length };
+            const updatedCounters = { ...currentCounters, [category]: newList.length };
             await cloudService.updateManualCounters(updatedCounters);
           } catch (e) { console.error("Erro ao sincronizar contadores:", e); }
         }
