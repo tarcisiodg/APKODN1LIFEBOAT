@@ -86,7 +86,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-6xl mx-auto w-full pb-40 animate-in fade-in duration-500">
+    <div className="flex-1 flex flex-col p-6 2xl:max-w-[1600px] max-w-full mx-auto w-full pb-40 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95"><i className="fa-solid fa-chevron-left"></i></button>
@@ -109,7 +109,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 relative">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 relative">
         {isLoading && !editingUser && !deletingId && (
           <div className="absolute inset-0 bg-slate-50/40 backdrop-blur-[2px] z-20 flex items-center justify-center rounded-3xl">
             <div className="bg-white px-8 py-5 rounded-[32px] shadow-xl flex items-center gap-4 border border-slate-100 animate-in fade-in zoom-in duration-300">

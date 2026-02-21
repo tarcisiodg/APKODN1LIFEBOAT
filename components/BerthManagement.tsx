@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Berth, LifeboatType } from '../types';
 import { cloudService } from '../services/cloudService';
 import * as XLSX from 'xlsx';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface BerthManagementProps {
   onBack: () => void;
+  user: User | null;
 }
 
 const LIFEBOATS: LifeboatType[] = [
@@ -12,7 +14,7 @@ const LIFEBOATS: LifeboatType[] = [
   'Lifeboat 4', 'Lifeboat 5', 'Lifeboat 6'
 ];
 
-const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
+const BerthManagement: React.FC<BerthManagementProps> = ({ onBack, user }) => {
   const [berths, setBerths] = useState<Berth[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,21 +22,26 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isScanning, setIsScanning] = useState<string | null>(null);
+  const [isQrScanning, setIsQrScanning] = useState(false);
   const [isDuplicateWarningOpen, setIsDuplicateWarningOpen] = useState(false);
   const [duplicateBerthId, setDuplicateBerthId] = useState<string | null>(null);
   
   const [newBerth, setNewBerth] = useState<Partial<Berth>>({
-    id: '', tagId1: '', tagId2: '', tagId3: '', crewName: '',
+    id: '', tagId1: '', tagId2: '', tagId3: '', qrCode: '', crewName: '',
     role: '', company: '',
     lifeboat: 'Lifeboat 1', secondaryLifeboat: 'Lifeboat 2'
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nfcAbortControllerRef = useRef<AbortController | null>(null);
+  const qrScannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
     loadBerths();
-    return () => stopNfcScan();
+    return () => {
+      stopNfcScan();
+      stopQrScan();
+    };
   }, []);
 
   const loadBerths = async () => {
@@ -52,6 +59,45 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
       nfcAbortControllerRef.current = null;
     }
     setIsScanning(null);
+  };
+
+  const stopQrScan = async () => {
+    if (qrScannerRef.current) {
+      try {
+        if (qrScannerRef.current.isScanning) {
+          await qrScannerRef.current.stop();
+        }
+      } catch (err) {
+        console.error("Error stopping QR scanner:", err);
+      }
+      qrScannerRef.current = null;
+    }
+    setIsQrScanning(false);
+  };
+
+  const handleScanQr = async () => {
+    setIsQrScanning(true);
+    // Wait for the container to be in the DOM
+    setTimeout(async () => {
+      try {
+        const scanner = new Html5Qrcode("qr-reader");
+        qrScannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            setNewBerth(prev => ({ ...prev, qrCode: decodedText }));
+            if (navigator.vibrate) navigator.vibrate(100);
+            stopQrScan();
+          },
+          () => {} // ignore errors
+        );
+      } catch (err) {
+        console.error("Error starting QR scanner:", err);
+        alert("Erro ao acessar a câmera.");
+        setIsQrScanning(false);
+      }
+    }, 100);
   };
 
   const handleScanTag = async (field: string) => {
@@ -165,10 +211,14 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
         </div>
 
         <div className="flex flex-wrap gap-2">
-           <button onClick={() => { setIsEditing(false); setNewBerth({ id: '', tagId1: '', tagId2: '', tagId3: '', crewName: '', role: '', company: '', lifeboat: 'Lifeboat 1', secondaryLifeboat: 'Lifeboat 2' }); setIsModalOpen(true); }} className="flex-1 md:flex-none bg-emerald-600 text-white px-4 py-3 rounded-xl text-[9px] font-bold uppercase shadow-sm active:scale-95"><i className="fa-solid fa-plus"></i> Novo</button>
-           <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none bg-blue-600 text-white px-4 py-3 rounded-xl text-[9px] font-bold uppercase shadow-sm active:scale-95"><i className="fa-solid fa-file-excel"></i> Importar</button>
-           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".csv, .xlsx, .xlsm" className="hidden" />
-           <button onClick={() => setIsConfirmingClear(true)} className="flex-1 md:flex-none bg-rose-50 text-rose-600 px-4 py-3 rounded-xl text-[9px] font-bold uppercase border border-rose-100 active:scale-95 shadow-sm"><i className="fa-solid fa-user-minus"></i> Limpar</button>
+           {(user?.isAdmin) && (
+             <>
+               <button onClick={() => { setIsEditing(false); setNewBerth({ id: '', tagId1: '', tagId2: '', tagId3: '', crewName: '', role: '', company: '', lifeboat: 'Lifeboat 1', secondaryLifeboat: 'Lifeboat 2' }); setIsModalOpen(true); }} className="flex-1 md:flex-none bg-emerald-600 text-white px-4 py-3 rounded-xl text-[9px] font-bold uppercase shadow-sm active:scale-95"><i className="fa-solid fa-plus"></i> Novo</button>
+               <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none bg-blue-600 text-white px-4 py-3 rounded-xl text-[9px] font-bold uppercase shadow-sm active:scale-95"><i className="fa-solid fa-file-excel"></i> Importar</button>
+               <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".csv, .xlsx, .xlsm" className="hidden" />
+               <button onClick={() => setIsConfirmingClear(true)} className="flex-1 md:flex-none bg-rose-50 text-rose-600 px-4 py-3 rounded-xl text-[9px] font-bold uppercase border border-rose-100 active:scale-95 shadow-sm"><i className="fa-solid fa-user-minus"></i> Limpar</button>
+             </>
+           )}
         </div>
       </div>
 
@@ -196,6 +246,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                   <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Helideck</th>
                   <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Proa</th>
                   <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Popa</th>
+                  <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">QR CODE</th>
                   <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Primária</th>
                   <th className="p-3 xl:p-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Secundária</th>
                 </tr>
@@ -204,9 +255,11 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                 {filteredBerths.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-3 xl:p-4">
-                      <button onClick={() => handleEditClick(b)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all shadow-sm">
-                        <i className="fa-solid fa-pencil text-[10px]"></i>
-                      </button>
+                      {user?.isAdmin && (
+                        <button onClick={() => handleEditClick(b)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all shadow-sm">
+                          <i className="fa-solid fa-pencil text-[10px]"></i>
+                        </button>
+                      )}
                     </td>
                     <td className="p-3 xl:p-4">
                       <span className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold shadow-sm whitespace-nowrap inline-block">
@@ -219,6 +272,11 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
                     <td className="p-3 xl:p-4 font-mono text-[9px] text-blue-600 font-bold">{b.tagId1 || '-'}</td>
                     <td className="p-3 xl:p-4 font-mono text-[9px] text-slate-400 font-bold">{b.tagId2 || '-'}</td>
                     <td className="p-3 xl:p-4 font-mono text-[9px] text-slate-400 font-bold">{b.tagId3 || '-'}</td>
+                    <td className="p-3 xl:p-4 text-center">
+                      <span className={`text-[9px] font-mono font-bold px-2 py-1 rounded uppercase ${b.qrCode ? 'text-blue-600 bg-blue-50' : 'text-slate-300'}`}>
+                        {b.qrCode || '-'}
+                      </span>
+                    </td>
                     <td className="p-3 xl:p-4 text-center"><span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase">{b.lifeboat}</span></td>
                     <td className="p-3 xl:p-4 text-center"><span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">{b.secondaryLifeboat || '-'}</span></td>
                   </tr>
@@ -245,9 +303,25 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
               <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 active:scale-95"><i className="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <form onSubmit={handleAddManual} className="space-y-4">
-              <div className="grid grid-cols-1">
-                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">ID DO LEITO</label>
-                <input type="text" required disabled={isEditing} value={newBerth.id} onChange={e => setNewBerth({...newBerth, id: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-blue-100" placeholder="301-A" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">ID DO LEITO</label>
+                  <input type="text" required disabled={isEditing} value={newBerth.id} onChange={e => setNewBerth({...newBerth, id: e.target.value.toUpperCase()})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:ring-1 focus:ring-blue-100" placeholder="301-A" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">QR CODE VINCULADO</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input type="text" value={newBerth.qrCode || ''} onChange={e => setNewBerth({...newBerth, qrCode: e.target.value})} className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-mono font-bold uppercase pr-10" placeholder="SCAN OU DIGITE" />
+                      {newBerth.qrCode && (
+                        <button type="button" onClick={() => setNewBerth({...newBerth, qrCode: ''})} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors">
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
+                    </div>
+                    <button type="button" onClick={handleScanQr} className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-sm active:scale-90"><i className="fa-solid fa-qrcode"></i></button>
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -359,6 +433,19 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
               <button onClick={async () => { await cloudService.clearBerthNames(); await loadBerths(); setIsConfirmingClear(false); }} className="w-full py-4 bg-rose-600 text-white font-bold rounded-xl text-xs uppercase active:scale-95 shadow-sm">Sim, Limpar</button>
               <button onClick={() => setIsConfirmingClear(false)} className="w-full py-4 bg-slate-100 text-slate-400 font-bold rounded-xl text-xs uppercase">Cancelar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isQrScanning && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] max-w-md w-full p-6 shadow-2xl animate-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-black text-slate-900 uppercase">SCAN QR CODE</h3>
+              <button onClick={stopQrScan} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="qr-reader" className="overflow-hidden rounded-2xl border-2 border-slate-100"></div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase text-center mt-6 tracking-widest">Aponte a câmera para o QR Code</p>
           </div>
         </div>
       )}

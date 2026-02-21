@@ -144,7 +144,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
   useEffect(() => { if (!session.isAdminView) startNFC(); }, [session.isAdminView, session.isManualMode]);
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-5xl mx-auto w-full pb-32">
+    <div className="flex-1 flex flex-col p-6 2xl:max-w-[1600px] max-w-full mx-auto w-full pb-32">
       {/* Aviso de Treinamento Finalizado pelo Admin */}
       {generalTrainingStatus?.isFinished && (
         <div className="mb-6 animate-in slide-in-from-top-10 duration-500">
@@ -236,7 +236,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
               <p className="text-slate-300 text-[10px] font-black uppercase tracking-widest">Aguardando Aproximação...</p>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {session.tags.map((tag) => {
                 const berthInfo = getBerthInfoForTag(tag);
                 return (
@@ -280,7 +280,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
                 <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Todos a Bordo</p>
              </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {pendingCrew.map((berth) => (
                 <div key={berth.id} className="p-4 py-5 rounded-[32px] bg-white border border-slate-100 shadow-sm flex items-center justify-between opacity-80 transition-all">
                   <div className="flex items-center gap-5 flex-1 min-w-0">

@@ -97,7 +97,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Função / Cargo</label>
-                  <input type="text" value={role} onChange={(e) => setRole(e.target.value)} required className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100" placeholder="EX: RADIO OPERADOR" />
+                  <select 
+                    value={role} 
+                    onChange={(e) => setRole(e.target.value)} 
+                    required 
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold uppercase outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+                  >
+                    <option value="">SELECIONE UMA FUNÇÃO</option>
+                    <option value="RADIO OPERATOR">RADIO OPERATOR</option>
+                    <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                    <option value="SUPERVISOR">SUPERVISOR</option>
+                    <option value="TRIPULANTE">TRIPULANTE</option>
+                  </select>
                 </div>
               </>
             )}

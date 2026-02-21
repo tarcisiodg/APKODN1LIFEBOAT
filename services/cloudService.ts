@@ -16,7 +16,6 @@ import {
 import { User, TrainingRecord, LifeboatStatus, LifeboatType, Berth } from '../types';
 
 const NATIVE_USER_DATA: Record<string, { name: string, role: string, pass: string, isAdmin: boolean }> = {
-  'odn1radiooperator': { name: 'Radio Operator', role: 'ADMINISTRADOR', pass: '1234', isAdmin: true },
   'admtarcisiodias': { name: 'Tarcisio Dias', role: 'RADIO OPERATOR', pass: '70866833', isAdmin: true }
 };
 
@@ -35,7 +34,8 @@ export const cloudService = {
           email: `${id}@muster.com`, 
           name: NATIVE_USER_DATA[id].name, 
           role: NATIVE_USER_DATA[id].role, 
-          isAdmin: NATIVE_USER_DATA[id].isAdmin 
+          isAdmin: NATIVE_USER_DATA[id].isAdmin,
+          isSupervisor: NATIVE_USER_DATA[id].role === 'SUPERVISOR'
         };
       }
       throw new Error("Senha incorreta.");
@@ -48,11 +48,13 @@ export const cloudService = {
       const data = userSnap.data();
       if (data.status === 'pending') throw new Error("Acesso aguardando aprovação.");
       if (data.password === pass) {
+        const role = data.role?.toUpperCase() || '';
         return { 
           email: `${id}@muster.com`, 
           name: data.name, 
-          role: data.role, 
-          isAdmin: data.role === 'ADMINISTRADOR' || data.role === 'RADIO OPERATOR'
+          role: role, 
+          isAdmin: role === 'ADMINISTRADOR' || role === 'RADIO OPERATOR',
+          isSupervisor: role === 'SUPERVISOR'
         };
       }
       throw new Error("Senha incorreta.");
@@ -78,7 +80,7 @@ export const cloudService = {
 
   async getAllUsers(): Promise<any[]> {
     const native = Object.entries(NATIVE_USER_DATA).map(([id, data]) => ({
-      loginId: id, ...data, status: 'native', requestDate: 'Sistema'
+      loginId: id, ...data, status: 'native', requestDate: 'Sistema', isSupervisor: data.role === 'SUPERVISOR'
     }));
     const usersCol = collection(db, "users");
     const userSnapshot = await getDocs(usersCol);

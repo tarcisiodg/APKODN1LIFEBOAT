@@ -181,7 +181,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
   };
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full pb-32">
+    <div className="flex-1 flex flex-col p-6 2xl:max-w-[1600px] max-w-full mx-auto w-full pb-32">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button 

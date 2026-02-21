@@ -4,6 +4,7 @@ export interface User {
   name: string;
   role?: string;
   isAdmin?: boolean;
+  isSupervisor?: boolean;
   employeeId?: string;
   department?: string;
 }
@@ -23,6 +24,7 @@ export interface Berth {
   tagId1: string;
   tagId2: string;
   tagId3: string;
+  qrCode?: string;
   crewName: string;
   role?: string;
   company?: string;

@@ -88,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const fetchData = async () => {
       try {
-        if (user?.isAdmin) {
+        if (user?.isAdmin || user?.isSupervisor) {
           const allUsers = await cloudService.getAllUsers();
           setPendingCount(allUsers.filter(u => u.status === 'pending').length);
         }
@@ -108,7 +108,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       if (data) setGeneralTraining(data);
     });
 
-    if (user?.isAdmin) {
+    if (user?.isAdmin || user?.isSupervisor) {
       unsubscribeCounters = cloudService.subscribeToManualCounters((counters) => {
         setManualCounts(prev => ({ ...prev, ...counters }));
       });
@@ -499,7 +499,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h2 className="text-3xl sm:text-4xl md:text-5xl text-slate-900 tracking-tight leading-tight mb-3 font-normal">Olá, {user.name.split(' ')[0]}</h2>
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 rounded-xl text-[10px] sm:text-[11px] uppercase tracking-widest bg-blue-100 text-blue-700 border border-blue-200 font-bold">{user.role || 'SISTEMA'}</span>
-            {user.isAdmin && <span className="px-3 py-1 rounded-xl text-[10px] sm:text-[11px] uppercase tracking-widest bg-slate-900 text-white font-bold">ADMINISTRADOR</span>}
+            { (user.isAdmin || user.isSupervisor) && <span className="px-3 py-1 rounded-xl text-[10px] sm:text-[11px] uppercase tracking-widest bg-slate-900 text-white font-bold">{user.isSupervisor ? 'SUPERVISOR' : 'ADMINISTRADOR'}</span>}
           </div>
         </div>
 
@@ -513,7 +513,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <span className="text-xs sm:text-sm font-black text-slate-400 leading-none">{berthStats.total}</span>
               </div>
             </div>
-            {user.isAdmin && (
+            {(user.isAdmin || user.isSupervisor) && (
               <>
                 <div className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-sm">
                   <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 text-center">CAPACIDADE</span>
@@ -526,21 +526,23 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">LEITOS</span>
                   </div>
                 </button>
-                <button onClick={onOpenUserManagement} className="bg-slate-800 border border-slate-900 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
-                  <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 opacity-80">SISTEMA</span>
-                  <div className="flex items-center gap-2">
-                    <i className="fa-solid fa-users-gear text-white text-xs"></i>
-                    <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">GESTÃO</span>
-                  </div>
-                  {pendingCount > 0 && <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[8px] font-bold shadow-sm animate-bounce">{pendingCount}</span>}
-                </button>
+                {user.isAdmin && (
+                  <button onClick={onOpenUserManagement} className="bg-slate-800 border border-slate-900 rounded-2xl px-4 sm:px-5 py-3 flex flex-col items-center justify-center flex-1 sm:flex-none min-w-[110px] sm:min-w-[125px] shadow-md hover:bg-slate-900 transition-all active:scale-95 group relative">
+                    <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 opacity-80">SISTEMA</span>
+                    <div className="flex items-center gap-2">
+                      <i className="fa-solid fa-users-gear text-white text-xs"></i>
+                      <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight">GESTÃO</span>
+                    </div>
+                    {pendingCount > 0 && <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white rounded-full text-[8px] font-bold shadow-sm animate-bounce">{pendingCount}</span>}
+                  </button>
+                )}
               </>
             )}
           </div>
         </div>
       </div>
 
-      {user.isAdmin && (
+      { (user.isAdmin || user.isSupervisor) && (
         <div className="mb-10">
           <div className={`p-4 sm:p-5 rounded-[32px] sm:rounded-[40px] shadow-xl text-white relative overflow-hidden transition-all hover:shadow-2xl ring-1 ring-white/10 min-h-[180px] flex flex-col ${generalTraining.isRealScenario ? 'bg-rose-600 animate-pulse' : 'bg-blue-600'}`}>
             <div className="relative z-10 flex flex-col flex-1 h-full">
@@ -658,7 +660,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
       
-      {!user.isAdmin ? (
+      {!(user.isAdmin || user.isSupervisor) ? (
         <div className="flex-1 flex flex-col items-center justify-center py-10 gap-8">
             <div className="relative w-full max-w-[640px]">
               {!generalTraining.isActive && !activeSession && (
@@ -761,7 +763,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                     
                     <div className="flex flex-col items-end">
-                      {isActive && user.isAdmin && (
+                      {(isActive && (user.isAdmin || user.isSupervisor)) && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); setLbToReset(lb); }}
                           disabled={isSaving}
