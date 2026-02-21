@@ -762,7 +762,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="text-[9px] sm:text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">EQUIPES DE RESPOSTA A EMERGÊNCIAS</h3>
               <div className="flex-1 h-px bg-slate-100"></div>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-12 gap-2 sm:gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-11 gap-2 sm:gap-3">
               {MANUAL_CATEGORIES.map(category => {
                 const count = manualCounts[category] || 0;
                 const hasValue = count > 0;
