@@ -358,7 +358,7 @@ const BerthManagement: React.FC<BerthManagementProps> = ({ onBack }) => {
 
       {isConfirmingClear && (
         <div className="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[32px] max-sm w-full p-8 shadow-md animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[32px] max-w-md w-full p-8 shadow-md animate-in zoom-in duration-300">
             <h3 className="text-xl font-bold text-slate-900 mb-4 uppercase">Limpar Tripulantes?</h3>
             <p className="text-slate-500 text-[10px] font-bold uppercase mb-8 leading-relaxed">Removerá nomes e funções de todos os leitos, mantendo apenas o mapeamento básico.</p>
             <div className="grid gap-3">

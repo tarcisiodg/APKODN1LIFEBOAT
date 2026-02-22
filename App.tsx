@@ -361,7 +361,7 @@ const App: React.FC = () => {
 
       {isConfirmingLogout && (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[32px] max-sm w-full p-8 shadow-md border border-slate-100">
+          <div className="bg-white rounded-[32px] max-w-md w-full p-8 shadow-md border border-slate-100">
             <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm"><i className="fa-solid fa-power-off text-2xl"></i></div>
             <h3 className="text-xl font-black mb-2 uppercase tracking-tight">Sair do Sistema?</h3>
             <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-8">Sessões ativas serão salvas em nuvem.</p>

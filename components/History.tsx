@@ -325,7 +325,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
 
       {recordToDelete && (
         <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-          <div className="bg-white rounded-[32px] max-sm w-full p-8 shadow-md animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[32px] max-w-md w-full p-8 shadow-md animate-in zoom-in duration-300">
             <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <i className="fa-solid fa-trash-can text-2xl"></i>
             </div>

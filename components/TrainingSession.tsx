@@ -331,7 +331,7 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
 
       {tagToDelete && (
         <div className="fixed inset-0 z-[201] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-[48px] max-sm w-full p-10 shadow-md text-center">
+          <div className="bg-white rounded-[48px] max-w-md w-full p-10 shadow-md text-center">
             <h3 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight">Remover Registro?</h3>
             <div className="grid gap-3">
               <button onClick={() => { onRemoveTag(tagToDelete.id); setTagToDelete(null); }} className="w-full py-5 bg-rose-600 text-white font-black rounded-3xl text-[10px] uppercase shadow-md">Remover</button>
