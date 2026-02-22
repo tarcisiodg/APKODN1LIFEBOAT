@@ -11,6 +11,7 @@ import UserManagement from './components/UserManagement';
 import NfcEnrollment from './components/NfcEnrollment';
 import BerthManagement from './components/BerthManagement';
 import { cloudService } from './services/cloudService';
+import { generateTrainingSummary } from './services/geminiService';
 
 const INITIAL_STATUS: Record<LifeboatType, LifeboatStatus> = {
   'Lifeboat 1': { count: 0, isActive: false },
@@ -50,7 +51,18 @@ const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isConfirmingLogout, setIsConfirmingLogout] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [generalMusterStatus, setGeneralMusterStatus] = useState<{isActive: boolean, isFinished: boolean} | null>(null);
+  const [generalMusterStatus, setGeneralMusterStatus] = useState<{
+    isActive: boolean;
+    isFinished: boolean;
+    startTime: string;
+    endTime: string;
+    duration: string;
+    startTimestamp?: number;
+    finalTotal?: number;
+    trainingType?: string;
+    isRealScenario?: boolean;
+    description?: string;
+  } | null>(null);
   const [tempConfig, setTempConfig] = useState<{trainingType: 'Gás' | 'Fogo/Abandono', isRealScenario: boolean} | null>(() => {
     const saved = localStorage.getItem('lifesafe_temp_config');
     return saved ? JSON.parse(saved) : null;
@@ -290,6 +302,70 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     setIsSyncing(true);
+
+    // Se for administrador e houver um treinamento geral ativo, finaliza e salva antes de sair
+    if (user?.isAdmin && generalMusterStatus?.isActive) {
+      try {
+        const manualCounts = await cloudService.getManualCounters();
+        
+        let allTags: ScannedTag[] = [];
+        const lbBreakdown: Record<string, { count: number; tags: ScannedTag[] }> = {};
+        
+        (Object.entries(fleetStatus) as [LifeboatType, LifeboatStatus][]).forEach(([lb, status]) => {
+          if (status?.isManualMode) {
+            lbBreakdown[lb] = { count: status.manualCount || 0, tags: [] };
+          } else if (status?.tags && status.tags.length > 0) {
+            allTags = [...allTags, ...status.tags];
+            lbBreakdown[lb] = {
+              count: status.tags.length,
+              tags: status.tags
+            };
+          }
+        });
+
+        const totalPeopleInFleet = (Object.values(fleetStatus) as LifeboatStatus[]).reduce((sum: number, status: LifeboatStatus) => {
+          return sum + (status.isManualMode ? (status.manualCount || 0) : (status.tags?.length || 0));
+        }, 0);
+
+        const totalManualGroups = (Object.values(manualCounts) as number[]).reduce((sum: number, val: number) => sum + (val || 0), 0);
+        const overallMusterTotal = totalPeopleInFleet + totalManualGroups;
+
+        const now = new Date();
+        const endTimeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        let finalDuration = generalMusterStatus.duration;
+        if (generalMusterStatus.isActive && generalMusterStatus.startTimestamp) {
+          const elapsed = Math.floor((Date.now() - generalMusterStatus.startTimestamp) / 1000);
+          finalDuration = formatDuration(elapsed);
+        }
+
+        const aiSummary = await generateTrainingSummary('FROTA COMPLETA', overallMusterTotal, finalDuration);
+
+        const record: TrainingRecord = {
+          id: crypto.randomUUID(),
+          date: new Date().toLocaleString('pt-BR'),
+          lifeboat: 'FROTA COMPLETA',
+          leaderName: user?.name || 'Operador',
+          trainingType: generalMusterStatus.isRealScenario ? `EMERGÊNCIA: ${generalMusterStatus.trainingType}` : `SIMULADO: ${generalMusterStatus.trainingType}`,
+          isRealScenario: generalMusterStatus.isRealScenario || false,
+          crewCount: overallMusterTotal,
+          duration: finalDuration,
+          summary: `FINALIZADO VIA LOGOUT ADMIN. ${generalMusterStatus.description ? `MOTIVO/LOCAL: ${generalMusterStatus.description}. ` : ''}${aiSummary}`,
+          operator: user?.name || 'Sistema',
+          tags: allTags,
+          ertCounts: manualCounts,
+          lifeboatBreakdown: lbBreakdown,
+          startTime: generalMusterStatus.startTime,
+          endTime: endTimeStr
+        };
+
+        await cloudService.saveTrainingRecord(record);
+        await cloudService.finalizeEverythingGlobally();
+      } catch (e) {
+        console.error("Erro ao finalizar treinamento no logout:", e);
+      }
+    }
+
     if (activeSession && !activeSession.isAdminView) {
       try {
         await saveToHistory({ 
