@@ -291,8 +291,15 @@ const App: React.FC = () => {
 
   const saveToHistory = async (recordData: Omit<TrainingRecord, 'id' | 'operator'>) => {
     setIsSyncing(true);
+    let finalType = recordData.trainingType;
+    if (!finalType.includes('SIMULADO:') && !finalType.includes('EMERGÊNCIA:')) {
+      finalType = `${recordData.isRealScenario ? 'EMERGÊNCIA' : 'SIMULADO'}: ${recordData.trainingType}`;
+    }
     const newRecord: TrainingRecord = { 
-      ...recordData, id: crypto.randomUUID(), operator: user?.name || 'Sistema', 
+      ...recordData, 
+      trainingType: finalType,
+      id: crypto.randomUUID(), 
+      operator: user?.name || 'Sistema', 
       tags: activeSession?.tags || recordData.tags || [] 
     };
     await cloudService.saveTrainingRecord(newRecord);

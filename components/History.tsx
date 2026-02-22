@@ -26,6 +26,7 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
   const [lifeboatFilter, setLifeboatFilter] = useState<LifeboatType | 'Todas' | 'FROTA COMPLETA'>('Todas');
   const [dateFilter, setDateFilter] = useState<string>(getTodayDateString());
   const [recordToDelete, setRecordToDelete] = useState<TrainingRecord | null>(null);
+  const [isConfirmingBulkDelete, setIsConfirmingBulkDelete] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -69,6 +70,21 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
       setSelectedIds(next);
     } catch (e) {
       alert("Erro ao excluir registro.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setIsDeleting(true);
+    try {
+      await cloudService.deleteHistoryRecordsBulk(Array.from(selectedIds));
+      if (onRefresh) onRefresh();
+      setSelectedIds(new Set());
+      setIsConfirmingBulkDelete(false);
+    } catch (e) {
+      alert("Erro ao excluir registros selecionados.");
     } finally {
       setIsDeleting(false);
     }
@@ -194,15 +210,26 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
             <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">Histórico de Eventos</h2>
           </div>
         </div>
-        {filteredRecords.length > 0 && (
-          <button 
-            onClick={exportFilteredToCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 transition-all active:scale-95"
-          >
-            <i className="fa-solid fa-download"></i>
-            Exportar Log
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && selectedIds.size > 0 && (
+            <button 
+              onClick={() => setIsConfirmingBulkDelete(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-rose-700 transition-all active:scale-95"
+            >
+              <i className="fa-solid fa-trash-can"></i>
+              Excluir ({selectedIds.size})
+            </button>
+          )}
+          {filteredRecords.length > 0 && (
+            <button 
+              onClick={exportFilteredToCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-900 transition-all active:scale-95"
+            >
+              <i className="fa-solid fa-download"></i>
+              Exportar Log
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-6">
@@ -342,6 +369,30 @@ const History: React.FC<HistoryProps> = ({ records, onBack, isAdmin, onRefresh }
                 {isDeleting ? "Excluindo..." : "Confirmar Exclusão"}
               </button>
               <button onClick={() => setRecordToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs uppercase">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isConfirmingBulkDelete && (
+        <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-[32px] max-w-md w-full p-8 shadow-md animate-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <i className="fa-solid fa-trash-can text-2xl"></i>
+            </div>
+            <h3 className="text-xl font-bold mb-2 uppercase">Excluir Selecionados?</h3>
+            <p className="text-slate-500 text-xs mb-8 leading-relaxed font-medium">
+              Esta ação removerá permanentemente {selectedIds.size} relatórios selecionados.
+            </p>
+            <div className="grid gap-3">
+              <button 
+                onClick={handleDeleteSelected} 
+                disabled={isDeleting}
+                className="w-full py-4 bg-rose-600 text-white font-bold rounded-xl text-xs uppercase shadow-sm"
+              >
+                {isDeleting ? "Excluindo..." : `Confirmar Exclusão (${selectedIds.size})`}
+              </button>
+              <button onClick={() => setIsConfirmingBulkDelete(false)} className="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs uppercase">Cancelar</button>
             </div>
           </div>
         </div>

@@ -225,7 +225,11 @@ const TrainingSession: React.FC<TrainingSessionProps> = ({
           <div className="mt-1">
             <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight leading-none">{session.lifeboat}</h2>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] opacity-70 leading-none">{session.trainingType}</p>
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border self-start sm:self-auto ${session.isRealScenario ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  {session.isRealScenario ? 'EMERGÊNCIA' : 'SIMULADO'}: {session.trainingType}
+                </span>
+              </div>
               <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 self-start sm:self-auto">
                 <i className="fa-solid fa-user-shield text-[8px] text-blue-500"></i>
                 <span className="text-[9px] font-black text-blue-600 uppercase tracking-wider">LIDER: {session.leaderName}</span>

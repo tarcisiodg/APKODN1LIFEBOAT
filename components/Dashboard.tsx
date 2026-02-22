@@ -732,7 +732,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {activeSession ? 'Retomar Sessão' : (generalTraining.isRealScenario && generalTraining.isActive ? 'EMERGÊNCIA: INICIAR' : 'Iniciar Embarque')}
                       </div>
                       <div className="text-[11px] sm:text-[14px] opacity-80 uppercase font-black tracking-[0.2em] mt-1">
-                        {activeSession ? activeSession.lifeboat : (generalTraining.isActive ? `CENÁRIO: ${generalTraining.trainingType}` : 'LIFEBOAT MUSTER')}
+                        {activeSession ? `${activeSession.lifeboat} • ${activeSession.isRealScenario ? 'EMERGÊNCIA' : 'SIMULADO'}` : (generalTraining.isActive ? `${generalTraining.isRealScenario ? 'EMERGÊNCIA' : 'SIMULADO'}: ${generalTraining.trainingType}` : 'LIFEBOAT MUSTER')}
                       </div>
                   </div>
               </button>
